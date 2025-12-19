@@ -79,16 +79,19 @@ Fill in:
 - [ ] Domain context
 - [ ] Constraints
 
-### 3. .github/workflows/deploy.yml
+### 3. CI/CD Setup
 
-Configure:
-- [ ] Deployment commands for your stack
-- [ ] Service restart command
-- [ ] Add GitHub Secrets:
-  - `SERVER_HOST`
-  - `SERVER_USER`
-  - `SERVER_SSH_KEY`
-  - `PROJECT_PATH`
+**See full guide:** [docs/CI_CD_SETUP.md](docs/CI_CD_SETUP.md)
+
+Quick checklist:
+- [ ] Server: Run `./scripts/setup-server-cicd.sh` on your server
+- [ ] GitHub: Add Deploy key (Settings → Deploy keys)
+- [ ] GitHub: Add Secrets (Settings → Secrets → Actions):
+  - `SERVER_HOST` - server IP
+  - `SERVER_USER` - SSH username
+  - `SERVER_SSH_KEY` - your private SSH key
+  - `PROJECT_PATH` - e.g., `/home/ubuntu/your-project`
+- [ ] Customize `.github/workflows/deploy.yml` for your stack
 
 ## Workflow Overview
 
