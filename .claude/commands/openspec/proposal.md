@@ -12,6 +12,10 @@ tags: [openspec, change]
 - Identify any vague or ambiguous details and ask the necessary follow-up questions before editing files.
 - Do not write any code during the proposal stage. Only create design documents (proposal.md, tasks.md, design.md, and spec deltas). Implementation happens in the apply stage after approval.
 
+**Optional Skills**
+- Use `brainstorming` skill when design.md requires collaborative exploration of approaches, trade-offs, or architectural decisions.
+- Use `writing-plans` skill when tasks.md needs detailed bite-sized implementation steps with exact file paths and verification commands.
+
 **Steps**
 1. Review `openspec/project.md`, run `openspec list` and `openspec list --specs`, and inspect related code or docs (e.g., via `rg`/`ls`) to ground the proposal in current behaviour; note any gaps that require clarification.
 2. Choose a unique verb-led `change-id` and scaffold `proposal.md`, `tasks.md`, and `design.md` (when needed) under `openspec/changes/<id>/`.

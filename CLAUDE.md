@@ -32,7 +32,7 @@ Skills   = HOW to do it (TDD, debugging, verification)
 
 | Command | Phase | Skills |
 |---------|-------|--------|
-| `openspec proposal` | Stage 1: Planning | Not needed |
+| `openspec proposal` | Stage 1: Planning | Optional: `brainstorming`, `writing-plans` |
 | `openspec apply` | Stage 2: Implementation | **Required: SKILLS_INDEX** |
 | `openspec archive` | Stage 3: Archiving | Not needed |
 
@@ -45,7 +45,7 @@ STEP 1 — CLASSIFY:
 
   "openspec proposal" / "proposal:" / "spec:" / "new feature"?
   → openspec/AGENTS.md (Stage 1: Planning)
-  → Skills NOT needed
+  → Optional: brainstorming (for design.md), writing-plans (for tasks.md)
 
   "openspec apply" / "implement" / "continue" / "execute tasks"?
   → OpenSpec Stage 2: Implementation
