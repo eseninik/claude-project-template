@@ -33,24 +33,11 @@ Skills управляют **КАК** делать (TDD, debugging, verification)
 
 | Запрос содержит | Действие |
 |-----------------|----------|
-| `proposal`, `spec`, `plan change`, `новая фича` | → `openspec/AGENTS.md` (Stage 1) + Optional: `brainstorming`, `writing-plans` |
+| `proposal`, `spec`, `plan change`, `новая фича` | → `openspec/AGENTS.md` (Stage 1), Skills NOT needed |
 | `implement`, `continue`, `выполни tasks.md` | → OpenSpec Stage 2 + Skills |
 | `archive`, `завершить change` | → `openspec/AGENTS.md` (Stage 3) |
 | `bug`, `fix`, `ошибка`, `не работает` | → Skills напрямую |
 | `refactor`, `optimize` (малый scope) | → Skills напрямую |
-
----
-
-## OpenSpec Stage 1: Proposal + Optional Skills
-
-Когда создаёшь proposal, можешь опционально использовать:
-
-| Скилл | Когда | Путь |
-|-------|-------|------|
-| **brainstorming** | design.md требует проработки архитектуры, trade-offs | `brainstorming/SKILL.md` |
-| **writing-plans** | tasks.md нужны детальные bite-sized шаги | `writing-plans/SKILL.md` |
-
-**Важно:** Эти скиллы опциональны. Для простых proposal достаточно только openspec/AGENTS.md.
 
 ---
 
@@ -81,26 +68,6 @@ Skills управляют **КАК** делать (TDD, debugging, verification)
 ---
 
 ## Скиллы по фазам
-
-### Phase: Design (после approved proposal)
-
-| Скилл | Когда | Путь |
-|-------|-------|------|
-| **brainstorming** | Нужно проработать архитектуру, неясные детали | `brainstorming/SKILL.md` |
-
-**Когда использовать:** Если proposal approved, но design.md не создан или требует детализации.
-
----
-
-### Phase: Planning (после дизайна)
-
-| Скилл | Когда | Путь |
-|-------|-------|------|
-| **writing-plans** | Нужен детальный план с bite-sized задачами | `writing-plans/SKILL.md` |
-
-**Output:** Дополняет `tasks.md` детальными шагами.
-
----
 
 ### Phase: Implementation (выполнение tasks.md)
 
@@ -167,15 +134,13 @@ Skills управляют **КАК** делать (TDD, debugging, verification)
 ### Новая фича (полный цикл)
 
 ```
-STAGE 1 — OpenSpec + Optional Skills:
+STAGE 1 — OpenSpec (Skills NOT needed):
   openspec/AGENTS.md → создать proposal
-  brainstorming (опционально, для design.md)
-  writing-plans (опционально, для tasks.md)
   → дождаться approval
 
 STAGE 2 — Skills:
   using-git-worktrees (изоляция)
-  
+
   Для каждой задачи:
     test-driven-development
     executing-plans
