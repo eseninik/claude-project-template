@@ -73,6 +73,44 @@ STEP 2 — LOAD SKILLS (for apply/implement/fix):
 
 ---
 
+### Execution Mode Decision (STEP 0)
+
+**BEFORE starting any implementation (fix, apply, coding), evaluate:**
+
+```
+COMPLEXITY CHECK:
+
+  Count tasks/changes:
+  - 1-5 simple tasks in same module → DIRECT execution
+  - 6+ tasks OR complex logic → Consider subagents
+
+  Check dependencies:
+  - Tasks are sequential (each depends on previous) → DIRECT execution
+  - Tasks are independent (can parallelize) → SUBAGENTS may help
+
+  Estimate scope:
+  - < 100 lines of code, 1-3 files → DIRECT execution
+  - > 200 lines, 5+ files, multiple modules → Consider subagents
+
+DECISION MATRIX:
+
+  DIRECT execution (no subagents):
+  ✓ Simple sequential tasks
+  ✓ Code already written in plan
+  ✓ Few files to modify
+  ✓ Changes are straightforward insertions/modifications
+
+  SUBAGENT execution:
+  ✓ 10+ independent tasks
+  ✓ Complex analysis needed per task
+  ✓ Multiple unrelated modules
+  ✓ Can benefit from parallel execution
+
+DEFAULT: Start with DIRECT execution. Subagents are overhead for simple work.
+```
+
+---
+
 ### During `openspec apply`
 
 **Required order of actions:**
