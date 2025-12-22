@@ -159,5 +159,14 @@ mypy src
 
 **Rules for Claude:**
 1. After each code change → `git add . && git commit && git push origin dev`
-2. On "deploy" command → `git checkout main && git merge dev && git push origin main`
+2. On "deploy" command → use `--squash` merge to create a clean single commit:
+   ```bash
+   git checkout main
+   git merge --squash dev
+   git commit -m "feat: <meaningful description of the change>"
+   git push origin main
+   git checkout dev
+   ```
 3. Push to main automatically deploys to server via GitHub Actions
+
+**Why `--squash`:** Multiple dev commits get combined into one clean commit on main, with a meaningful message instead of "chore: update checkboxes" from the last micro-commit.
