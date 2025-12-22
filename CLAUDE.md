@@ -170,3 +170,30 @@ mypy src
 3. Push to main automatically deploys to server via GitHub Actions
 
 **Why `--squash`:** Multiple dev commits get combined into one clean commit on main, with a meaningful message instead of "chore: update checkboxes" from the last micro-commit.
+
+## Project Initialization (for Claude)
+
+**IMPORTANT:** When starting a new project from this template, Claude MUST:
+
+1. **Check if GitHub CLI is installed:**
+   ```bash
+   gh --version
+   ```
+
+2. **If not installed — install it:**
+   - Windows: `winget install --id GitHub.cli`
+   - macOS: `brew install gh`
+   - Linux: see https://github.com/cli/cli/blob/trunk/docs/install_linux.md
+
+3. **Check authentication:**
+   ```bash
+   gh auth status
+   ```
+   If not authenticated, ask user to run `gh auth login`
+
+4. **Create GitHub repository and push:**
+   ```bash
+   gh repo create <project-name> --private --source=. --remote=origin --push
+   ```
+
+This ensures all projects have proper GitHub integration from the start.
