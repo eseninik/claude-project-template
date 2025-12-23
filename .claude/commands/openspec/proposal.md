@@ -11,10 +11,7 @@ tags: [openspec, change]
 - Refer to `openspec/AGENTS.md` (located inside the `openspec/` directory—run `ls openspec` or `openspec update` if you don't see it) if you need additional OpenSpec conventions or clarifications.
 - Identify any vague or ambiguous details and ask the necessary follow-up questions before editing files.
 - Do not write any code during the proposal stage. Only create design documents (proposal.md, tasks.md, design.md, and spec deltas). Implementation happens in the apply stage after approval.
-
-**Optional Skills**
-- Use `brainstorming` skill when design.md requires collaborative exploration of approaches, trade-offs, or architectural decisions.
-- Use `writing-plans` skill when tasks.md needs detailed bite-sized implementation steps with exact file paths and verification commands.
+- **Do NOT load or use any skills during proposal stage.** Skills are only for implementation (apply) and bug fixes.
 
 **Steps**
 1. Review `openspec/project.md`, run `openspec list` and `openspec list --specs`, and inspect related code or docs (e.g., via `rg`/`ls`) to ground the proposal in current behaviour; note any gaps that require clarification.

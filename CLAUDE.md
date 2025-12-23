@@ -32,9 +32,9 @@ Skills   = HOW to do it (TDD, debugging, verification)
 
 | Command | Phase | Skills |
 |---------|-------|--------|
-| `openspec proposal` | Stage 1: Planning | Not needed |
+| `openspec proposal` | Stage 1: Planning | **NOT needed** |
 | `openspec apply` | Stage 2: Implementation | **Required: SKILLS_INDEX** |
-| `openspec archive` | Stage 3: Archiving | Not needed |
+| `openspec archive` | Stage 3: Archiving | NOT needed |
 
 ---
 
@@ -45,7 +45,7 @@ STEP 1 — CLASSIFY:
 
   "openspec proposal" / "proposal:" / "spec:" / "new feature"?
   → openspec/AGENTS.md (Stage 1: Planning)
-  → Skills NOT needed
+  → Skills NOT needed (planning only, no code)
 
   "openspec apply" / "implement" / "continue" / "execute tasks"?
   → OpenSpec Stage 2: Implementation
@@ -56,7 +56,8 @@ STEP 1 — CLASSIFY:
   → Skills NOT needed
 
   "fix:" / "bug" / "error"?
-  → Skills directly: systematic-debugging
+  → Load SKILLS_INDEX.md
+  → Analyze complexity, select 1-3 skills (systematic-debugging + others as needed)
   → OpenSpec NOT needed
 
   Otherwise?
@@ -131,12 +132,49 @@ DEFAULT: Start with DIRECT execution. Subagents are overhead for simple work.
 
 ### Required Triggers
 
-| Situation | Skill | When to load |
-|-----------|-------|--------------|
-| Any bug | `systematic-debugging` | BEFORE attempting fix |
-| New code | `test-driven-development` | BEFORE writing code |
+| Situation | Action | When |
+|-----------|--------|------|
+| Any bug/fix | Load SKILLS_INDEX → select 1-3 skills based on complexity | BEFORE attempting fix |
+| New code | `test-driven-development` + other skills as needed | BEFORE writing code |
+| **After EVERY code change** | **Test + analyze logs + compare with requirements** | AFTER every fix/implementation |
+| Writing test scripts | Use skills if code is needed (TDD, etc.) | When test requires code |
 | "Done" / completion | `verification-before-completion` | BEFORE claiming completion |
 | Flaky tests | `condition-based-waiting` | On race conditions |
+
+### ⚠️ Mandatory Testing After Every Change
+
+```
+AFTER EVERY CODE CHANGE:
+
+1. Write test script for THIS specific change
+   → If test requires code → use skills (TDD, etc.)
+2. Run test, collect logs
+3. Analyze logs in detail
+4. Compare result with original request / proposal / tasks.md
+5. If matches → done ✓
+   If NOT matches → fix → repeat from step 1
+```
+
+**Never skip. Never mark task as done without testing.**
+
+### Skills for Fixes and Tests
+
+```
+FOR ANY FIX/BUG:
+  1. Load SKILLS_INDEX.md
+  2. Analyze complexity of the fix
+  3. Select 1-3 skills (not just systematic-debugging!)
+  4. Examples:
+     - Simple typo fix: 1 skill (systematic-debugging)
+     - Logic bug: 2 skills (systematic-debugging + TDD)
+     - Complex refactor fix: 3 skills (debugging + TDD + code-review)
+
+FOR TEST SCRIPTS:
+  If writing code for tests → apply skills as for any code:
+  - test-driven-development for test logic
+  - testing-anti-patterns if complex mocking needed
+  - etc.
+```
 
 ---
 
@@ -145,8 +183,11 @@ DEFAULT: Start with DIRECT execution. Subagents are overhead for simple work.
 - `@.claude/skills` — loads EVERYTHING, fills context
 - Loading skills "just in case"
 - Writing code without `openspec proposal` for new features
-- Fixing bugs without `systematic-debugging`
+- **Fixing bugs without loading SKILLS_INDEX first** (analyze complexity → 1-3 skills)
 - Claiming "done" without `verification-before-completion`
+- **Skipping testing after code changes**
+- **Marking task done without real test + log analysis**
+- **Writing test code without applying skills when needed**
 
 ---
 
