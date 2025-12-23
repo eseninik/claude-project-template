@@ -2,7 +2,7 @@ name: Deploy to Server
 
 on:
   push:
-    branches: [master]
+    branches: [main]
 
 jobs:
   deploy:
@@ -20,9 +20,9 @@ jobs:
             # ВАЖНО: Замени PROJECT_NAME на реальное имя проекта!
             cd /home/ubuntu/PROJECT_NAME
 
-            # Pull latest changes
-            git fetch origin master
-            git reset --hard origin/master
+            # Pull latest changes from main
+            git fetch origin main
+            git reset --hard origin/main
 
             # Install dependencies (customize for your project)
             # Python example:

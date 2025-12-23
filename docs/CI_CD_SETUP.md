@@ -5,7 +5,12 @@ Complete guide for setting up auto-deploy from GitHub to your server.
 ## Overview
 
 ```
-Push to main → GitHub Actions → SSH to server → git pull → restart service
+Ветки:
+  dev  — рабочая ветка (все коммиты сюда)
+  main — продакшн ветка (автодеплой на сервер)
+
+Workflow:
+  Работа → commit → push dev → тест локально → merge в main → push main → auto-deploy
 ```
 
 ## Prerequisites
@@ -286,8 +291,11 @@ git log -1 --oneline
 
 ### Local Commands
 ```bash
+# Обычная работа (коммит в dev)
+git add . && git commit -m "feat: description" && git push origin dev
+
 # Deploy (merge dev to main and push)
-git checkout main && git merge dev && git push origin main
+git checkout main && git merge dev && git push origin main && git checkout dev
 
 # Check workflow status
 gh run list --limit 5
