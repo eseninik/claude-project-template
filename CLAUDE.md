@@ -404,47 +404,48 @@ mypy src
 
 ## Git Workflow (CI/CD)
 
-**Branches:**
-- `dev` — development (no auto-deploy)
-- `main` — production (auto-deploy to server)
+**Branch:** `main` — единственная ветка, auto-deploy to server
 
 **Rules for Claude:**
-1. After each code change → `git add . && git commit && git push origin dev`
-2. On "deploy" command → use `--squash` merge to create a clean single commit:
-   ```bash
-   git checkout main
-   git merge --squash dev
-   git commit -m "feat: <meaningful description of the change>"
-   git push origin main
-   git checkout dev
-   ```
-3. Push to main automatically deploys to server via GitHub Actions
+1. После каждого изменения → `git add . && git commit -m "feat: description" && git push origin main`
+2. Push to main автоматически деплоит на сервер через GitHub Actions
 
-**Why `--squash`:** Multiple dev commits get combined into one clean commit on main, with a meaningful message instead of "chore: update checkboxes" from the last micro-commit.
+**Для этого шаблона:** Используется одна ветка `main`. Для сложных проектов с командой можно добавить `dev` ветку.
 
-## Project Initialization (for Claude)
+## New Project Setup
 
-**IMPORTANT:** When starting a new project from this template, Claude MUST:
+### Для нового проекта из этого шаблона
 
-1. **Check if GitHub CLI is installed:**
-   ```bash
-   gh --version
-   ```
+**Пользователь делает:**
+1. Клонирует шаблон
+2. Запускает `claude`
+3. Вводит `/init-project`
 
-2. **If not installed — install it:**
-   - Windows: `winget install --id GitHub.cli`
-   - macOS: `brew install gh`
-   - Linux: see https://github.com/cli/cli/blob/trunk/docs/install_linux.md
+**Claude делает всё остальное:**
+- Спрашивает нужные данные (название, GitHub owner, IP сервера, SSH user, путь)
+- Создаёт GitHub репозиторий
+- Настраивает GitHub Secrets
+- Подключается к серверу и настраивает SSH ключи
+- Добавляет Deploy Key
+- Запускает тестовый деплой
+- Проверяет что всё работает
 
-3. **Check authentication:**
-   ```bash
-   gh auth status
-   ```
-   If not authenticated, ask user to run `gh auth login`
+### Команда `/init-project`
 
-4. **Create GitHub repository and push:**
-   ```bash
-   gh repo create <project-name> --private --source=. --remote=origin --push
-   ```
+Полностью интерактивная - никаких конфиг файлов. Claude спросит:
+- Название репозитория
+- GitHub username
+- IP сервера
+- SSH пользователь
+- Путь на сервере
 
-This ensures all projects have proper GitHub integration from the start.
+И сам всё настроит.
+
+### Предварительные требования
+
+- SSH доступ к серверу (ключ уже должен работать)
+- GitHub CLI будет установлен автоматически если нет
+
+### Ручная настройка
+
+Если нужна ручная настройка — см. `docs/CI_CD_SETUP.md`.
