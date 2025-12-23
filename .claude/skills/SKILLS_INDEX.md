@@ -1,330 +1,117 @@
-# Skills Index — Lazy Loading Router
+# Skills Index — Catalog & Categories
 
-> **КРИТИЧНО:** НЕ загружай все скиллы. Читай только нужные для текущей задачи.
-
----
-
-## Интеграция с OpenSpec
-
-OpenSpec управляет **ЧТО** делать (proposal → tasks → archive).  
-Skills управляют **КАК** делать (TDD, debugging, verification).
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      ЗАПРОС                                 │
-└─────────────────────────────────────────────────────────────┘
-                          │
-        ┌─────────────────┼─────────────────┐
-        ▼                 ▼                 ▼
-   ┌─────────┐      ┌──────────┐      ┌─────────┐
-   │ OpenSpec│      │  Skills  │      │  Both   │
-   │  Only   │      │   Only   │      │         │
-   └─────────┘      └──────────┘      └─────────┘
-   
-   • proposal       • bug/fix         • implement
-   • spec           • refactor        • continue
-   • plan change    • debug           • finish
-   • new feature    • test
-```
+> **This file is a CATALOG of skills, not the algorithm.**
+> The algorithm for when to use skills is in `CLAUDE.md`.
+> This file tells you WHICH skill to load and WHERE to find it.
 
 ---
 
-## Когда что использовать
+## Entry Points
 
-| Запрос содержит | Действие |
-|-----------------|----------|
-| `proposal`, `spec`, `plan change`, `новая фича` | → `openspec/AGENTS.md` (Stage 1), **Skills НЕ нужны** |
-| `implement`, `continue`, `выполни tasks.md` | → OpenSpec Stage 2 + Skills |
-| `archive`, `завершить change` | → `openspec/AGENTS.md` (Stage 3), Skills НЕ нужны |
-| `bug`, `fix`, `ошибка`, `не работает` | → **Анализ сложности → 1-3 скилла** (не только debugging!) |
-| `refactor`, `optimize` (малый scope) | → **Анализ сложности → 1-3 скилла** |
+**Start here based on your task:**
 
----
-
-## OpenSpec Stage 1: Proposal
-
-**Skills НЕ используются на этапе планирования.**
-
-Proposal — это документация (proposal.md, tasks.md, design.md), не код.
-Скиллы нужны только для реализации и фиксов.
+| Situation | Start With | Then |
+|-----------|------------|------|
+| Bug / Error | `systematic-debugging` | + TDD if fix needs new code |
+| New code (any) | `test-driven-development` | + others as needed |
+| Executing plan | `executing-plans` | or `subagent-driven-development` |
+| Flaky test | `condition-based-waiting` | - |
+| Before "done" | `verification-before-completion` | - |
+| Finishing branch | `finishing-a-development-branch` | - |
 
 ---
 
-## OpenSpec Stage 2: Implementation + Skills
+## Skill Categories
 
-Когда proposal approved и ты на стадии Implementation:
+### MANDATORY (use when applicable)
 
-```
-1. Прочитай proposal.md — что делаем
-2. Прочитай design.md (если есть) — как делаем
-3. Прочитай tasks.md — чеклист задач
+These skills are REQUIRED when the situation matches.
 
-4. ЗАГРУЗИ SKILLS INDEX:
-   cat .claude/skills/SKILLS_INDEX.md
+| Skill | When | Path | Version |
+|-------|------|------|---------|
+| **systematic-debugging** | Any bug, error, unexpected behavior | `systematic-debugging/SKILL.md` | 1.0.0 |
+| **test-driven-development** | Any new code | `test-driven-development/SKILL.md` | 1.0.0 |
+| **verification-before-completion** | Before claiming "done" | `verification-before-completion/SKILL.md` | 1.0.0 |
 
-5. ДЛЯ КАЖДОЙ ЗАДАЧИ из tasks.md:
-   → Выбери 1-3 скилла из индекса
-   → Загрузи: cat .claude/skills/<папка>/SKILL.md
-   → Выполни задачу по скиллу
-   → Отметь [x] в tasks.md
+### SITUATIONAL (use based on context)
 
-6. После всех задач:
-   → verification-before-completion
-   → finishing-a-development-branch
-   → openspec archive (Stage 3)
-```
+Use these when the specific situation applies.
 
----
+| Skill | When | Path | Version |
+|-------|------|------|---------|
+| **root-cause-tracing** | Error deep in call stack | `root-cause-tracing/SKILL.md` | 1.0.0 |
+| **defense-in-depth** | Bug from invalid data | `defense-in-depth/SKILL.md` | 1.0.0 |
+| **condition-based-waiting** | Flaky tests, race conditions | `condition-based-waiting/SKILL.md` | 1.0.0 |
+| **testing-anti-patterns** | Writing/changing tests | `testing-anti-patterns/SKILL.md` | 1.0.0 |
+| **dispatching-parallel-agents** | 3+ independent failures | `dispatching-parallel-agents/SKILL.md` | 1.0.0 |
 
-## Скиллы по фазам
+### WORKFLOW (choose one per task)
 
-### Phase: Implementation (выполнение tasks.md)
+Choose the appropriate workflow skill.
 
-| Скилл | Когда | Путь |
-|-------|-------|------|
-| **executing-plans** | Выполнение плана батчами с ревью | `executing-plans/SKILL.md` |
-| **subagent-driven-development** | Независимые задачи, параллельная работа | `subagent-driven-development/SKILL.md` |
-| **test-driven-development** | ⚠️ ВСЕГДА при написании кода | `test-driven-development/SKILL.md` |
-| **using-git-worktrees** | Нужна изоляция для фичи | `using-git-worktrees/SKILL.md` |
+| Skill | When | Path | Version |
+|-------|------|------|---------|
+| **executing-plans** | Execute plan with review checkpoints | `executing-plans/SKILL.md` | 1.0.0 |
+| **subagent-driven-development** | Independent tasks, same session | `subagent-driven-development/SKILL.md` | 1.0.0 |
+| **finishing-a-development-branch** | Merge, PR, complete branch | `finishing-a-development-branch/SKILL.md` | 1.0.0 |
+| **using-git-worktrees** | Need isolated workspace | `using-git-worktrees/SKILL.md` | 1.0.0 |
 
----
+### CODE REVIEW
 
-### Phase: Debugging (при ошибках)
+| Skill | When | Path | Version |
+|-------|------|------|---------|
+| **requesting-code-review** | Need review of your work | `requesting-code-review/SKILL.md` | 1.0.0 |
+| **receiving-code-review** | Got feedback, need to respond | `receiving-code-review/SKILL.md` | 1.0.0 |
 
-| Скилл | Когда | Путь |
-|-------|-------|------|
-| **systematic-debugging** | ⚠️ ЛЮБОЙ баг — СНАЧАЛА этот | `systematic-debugging/SKILL.md` |
-| **root-cause-tracing** | Ошибка глубоко в стеке | `root-cause-tracing/SKILL.md` |
-| **defense-in-depth** | Баг от невалидных данных | `defense-in-depth/SKILL.md` |
-| **dispatching-parallel-agents** | 3+ независимых фейла | `dispatching-parallel-agents/SKILL.md` |
+### META (skills about skills)
 
----
-
-### Phase: Testing (качество тестов)
-
-| Скилл | Когда | Путь |
-|-------|-------|------|
-| **testing-anti-patterns** | Пишу/меняю тесты | `testing-anti-patterns/SKILL.md` |
-| **condition-based-waiting** | Flaky тесты, race conditions | `condition-based-waiting/SKILL.md` |
+| Skill | When | Path | Version |
+|-------|------|------|---------|
+| **using-superpowers** | Starting session, finding skills | `using-superpowers/SKILL.md` | 1.0.0 |
+| **writing-skills** | Creating new skill | `writing-skills/SKILL.md` | 1.0.0 |
+| **testing-skills-with-subagents** | Testing a skill | `testing-skills-with-subagents/SKILL.md` | 1.0.0 |
+| **sharing-skills** | Contributing skill upstream | `sharing-skills/SKILL.md` | 1.0.0 |
 
 ---
 
-### Phase: Review (проверка кода)
+## How to Load Skills
 
-| Скилл | Когда | Путь |
-|-------|-------|------|
-| **requesting-code-review** | Закончил задачу, нужен ревью | `requesting-code-review/SKILL.md` |
-| **receiving-code-review** | Получил фидбек | `receiving-code-review/SKILL.md` |
+```bash
+# Load specific skill
+cat .claude/skills/<folder>/SKILL.md
 
----
-
-### Phase: Completion (перед archive)
-
-| Скилл | Когда | Путь |
-|-------|-------|------|
-| **verification-before-completion** | ⚠️ ПЕРЕД любым "готово" | `verification-before-completion/SKILL.md` |
-| **finishing-a-development-branch** | Мерж, PR, завершение ветки | `finishing-a-development-branch/SKILL.md` |
-
----
-
-## ⚠️ Обязательные скиллы
-
-| Ситуация | Действие | Почему |
-|----------|----------|--------|
-| Любой баг/фикс | **Анализ сложности → 1-3 скилла** | Не только debugging! Сложный фикс требует TDD, code-review |
-| Любой новый код | `test-driven-development` + другие по необходимости | Без теста — код не верифицирован |
-| **После КАЖДОЙ правки** | **Тестирование + анализ логов** | Без проверки результата — не факт что работает |
-| Написание тест-скриптов | **Скиллы если нужен код** (TDD, testing-anti-patterns) | Тест-код = код → применяй скиллы |
-| Заявление "готово" | `verification-before-completion` | Без проверки — не факт |
-| Все задачи в tasks.md выполнены | `finishing-a-development-branch` | Правильное завершение |
-
----
-
-## ⚠️ ОБЯЗАТЕЛЬНОЕ ТЕСТИРОВАНИЕ ПОСЛЕ КАЖДОЙ ПРАВКИ
-
-**Это правило НЕ пропускается. Никогда.**
-
-### Когда тестировать
-
-- После КАЖДОЙ правки кода
-- После КАЖДОГО фикса
-- После КАЖДОЙ реализации задачи из tasks.md
-- После работы субагента — субагент тестирует свою часть
-- После каждой сессии (если работа разбита на сессии)
-
-### Алгоритм тестирования
-
-```
-ПОСЛЕ КАЖДОЙ ПРАВКИ:
-
-1. НАПИСАТЬ ТЕСТ-СКРИПТ
-   → Пишешь скрипт/программу для тестирования конкретного изменения
-   → Не "работает ли сервис в целом", а именно ЭТА правка
-   → Разрешено писать любые скрипты, утилиты, тесты
-
-2. ЗАПУСТИТЬ ТЕСТ
-   → Выполнить тест на реальной ситуации
-   → Собрать логи выполнения
-
-3. АНАЛИЗ ЛОГОВ
-   → Прочитать логи детально
-   → Найти результат выполнения
-
-4. СРАВНЕНИЕ С ТЗ
-   → Взять исходный запрос / proposal / design / tasks.md
-   → Сравнить ожидаемый результат с фактическим
-
-5. ВЫВОД
-   ├─ Результат СОВПАДАЕТ с ожиданием → Задача выполнена ✓
-   └─ Результат НЕ совпадает → Внести правки → Повторить с шага 1
-```
-
-### Что сравнивать
-
-| Источник ТЗ | Где взять |
-|-------------|-----------|
-| Запрос пользователя | Исходное сообщение в чате |
-| OpenSpec proposal | `proposal.md` — секция "What Changes" |
-| OpenSpec design | `design.md` — ожидаемое поведение |
-| Задача | `tasks.md` — конкретный пункт чеклиста |
-| Баг-репорт | Описание бага и ожидаемое поведение |
-
-### Формат вывода после теста
-
-```
-## Результат тестирования
-
-**Изменение:** [что было изменено]
-**Тест:** [как тестировал — скрипт, команда, сценарий]
-**Ожидание (из ТЗ):** [что должно было произойти]
-**Факт (из логов):** [что произошло на самом деле]
-**Статус:** ✓ Совпадает / ✗ Не совпадает
-
-[Если не совпадает — что нужно исправить]
-```
-
-### Пример цикла
-
-```
-Задача: Добавить валидацию email в форму регистрации
-
-1. Написал код валидации
-2. Написал тест-скрипт: curl с невалидным email
-3. Запустил, получил логи
-4. Ожидание (из tasks.md): "возвращать ошибку 400 с сообщением"
-5. Факт (из логов): вернулся 200 OK
-6. НЕ совпадает → исправляю код → повторяю тест
-7. Факт (из логов): вернулся 400 с сообщением
-8. Совпадает ✓ → задача выполнена
-```
-
-### Скиллы для тест-скриптов
-
-Если тест требует написания кода — применяй скиллы как для любого кода:
-
-| Ситуация | Скиллы |
-|----------|--------|
-| Простой curl/запрос | Не нужны |
-| Тест с логикой | `test-driven-development` |
-| Сложные моки/стабы | `testing-anti-patterns` |
-| Тест с race conditions | `condition-based-waiting` |
-
-**Тест-код = код. К нему те же правила.**
-
-### Запрещено
-
-- Пропускать тестирование ("и так работает")
-- Тестировать "в голове" без реального запуска
-- Отмечать задачу выполненной без теста
-- Игнорировать несовпадение результата с ТЗ
-- **Писать тест-код без скиллов когда они нужны**
-
----
-
-## Типичные сценарии
-
-### Новая фича (полный цикл)
-
-```
-STAGE 1 — OpenSpec (без скиллов):
-  openspec/AGENTS.md → создать proposal
-  → proposal.md, tasks.md, design.md (документация)
-  → дождаться approval
-  → Skills НЕ нужны
-
-STAGE 2 — Implementation (со скиллами):
-  using-git-worktrees (изоляция)
-
-  Для КАЖДОЙ задачи:
-    1. test-driven-development → написать код
-    2. ⚠️ ТЕСТ → скрипт/команда для проверки именно этого изменения
-    3. ⚠️ АНАЛИЗ ЛОГОВ → сравнить с tasks.md
-    4. Если НЕ совпадает → исправить → повторить тест
-    5. Отметить [x] в tasks.md
-
-  После ВСЕХ задач:
-    verification-before-completion
-    finishing-a-development-branch
-
-STAGE 3 — OpenSpec (без скиллов):
-  openspec archive <change-id> --yes
-```
-
-### Баг-фикс (без OpenSpec)
-
-```
-1. АНАЛИЗ СЛОЖНОСТИ фикса
-   → Простой (опечатка, очевидная ошибка): 1 скилл
-   → Средний (логика, валидация): 2 скилла
-   → Сложный (архитектура, рефакторинг): 3 скилла
-
-2. ВЫБОР СКИЛЛОВ (примеры):
-   → Простой: systematic-debugging
-   → Средний: systematic-debugging + TDD
-   → Сложный: systematic-debugging + TDD + code-review
-
-3. ВЫПОЛНЕНИЕ:
-   → Найти root cause
-   → Написать failing test
-   → Исправить
-
-4. ⚠️ ТЕСТ → скрипт для проверки фикса
-   → Если тест-скрипт требует кода → применить скиллы!
-
-5. ⚠️ АНАЛИЗ ЛОГОВ → сравнить с описанием бага
-
-6. Если НЕ совпадает → исправить → повторить
-
-7. verification-before-completion → проверить
-```
-
-### Продолжить implementation
-
-```
-1. openspec show <change-id> → понять контекст
-2. Прочитать tasks.md → найти незавершённые задачи
-3. cat .claude/skills/SKILLS_INDEX.md
-4. Выбрать скиллы для текущей задачи
-5. Продолжить работу
+# Examples
+cat .claude/skills/systematic-debugging/SKILL.md
+cat .claude/skills/test-driven-development/SKILL.md
 ```
 
 ---
 
-## Мета-скиллы
+## Selection Rules
 
-| Скилл | Когда | Путь |
-|-------|-------|------|
-| **using-superpowers** | Начало сессии, определение скиллов | `using-superpowers/SKILL.md` |
-| **writing-skills** | Создание нового скилла | `writing-skills/SKILL.md` |
-| **testing-skills-with-subagents** | Тестирование скилла | `testing-skills-with-subagents/SKILL.md` |
-| **sharing-skills** | Контрибьют скилла в upstream | `sharing-skills/SKILL.md` |
+1. **Maximum 3 skills** simultaneously (mandatory + 1-2 situational)
+2. **Mandatory first** — always load applicable mandatory skills
+3. **Entry point skill** — start with the skill matching your situation
+4. **SUB-SKILL references** — if skill requires another, load it
 
 ---
 
-## Правила
+## Typical Combinations
 
-1. **Максимум 3 скилла** одновременно
-2. **OpenSpec первый** для новых фич (Stage 1 → Stage 2)
-3. **Skills для HOW** — OpenSpec для WHAT
-4. **SUB-SKILL ссылки** — если скилл требует другой, загрузи его
-5. **Не загружай заранее** — только по необходимости
+| Task | Skills |
+|------|--------|
+| Simple bug | systematic-debugging |
+| Bug with new test | systematic-debugging + TDD |
+| Complex bug | systematic-debugging + TDD + code-review |
+| New feature task | TDD + executing-plans |
+| Flaky test fix | condition-based-waiting + TDD |
+| Final check | verification-before-completion |
+
+---
+
+## FORBIDDEN
+
+- Loading ALL skills (`@.claude/skills`)
+- Loading skills "just in case"
+- Skipping mandatory skills when they apply
+- Using more than 3 skills simultaneously

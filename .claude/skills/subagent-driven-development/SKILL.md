@@ -1,5 +1,6 @@
 ---
 name: subagent-driven-development
+version: 1.0.0
 description: Use when executing implementation plans with independent tasks in the current session - dispatches fresh subagent for each task with code review between tasks, enabling fast iteration with quality gates
 ---
 
@@ -176,7 +177,6 @@ Done!
 ## Integration
 
 **Required workflow skills:**
-- **writing-plans** - REQUIRED: Creates the plan that this skill executes
 - **requesting-code-review** - REQUIRED: Review after each task (see Step 3)
 - **finishing-a-development-branch** - REQUIRED: Complete development after all tasks (see Step 7)
 

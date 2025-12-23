@@ -32,16 +32,16 @@ Skills   = HOW to do it (TDD, debugging, verification)
 
 | Command | Phase | Skills |
 |---------|-------|--------|
-| `openspec proposal` | Stage 1: Planning | **NOT needed** |
-| `openspec apply` | Stage 2: Implementation | **Required: SKILLS_INDEX** |
+| `openspec proposal` | Stage 1: Planning | **NOT needed** (documentation only) |
+| `openspec apply` | Stage 2: Implementation | **Required: load SKILLS_INDEX** |
 | `openspec archive` | Stage 3: Archiving | NOT needed |
 
 ---
 
-### Task Classification Algorithm
+## Task Classification Algorithm
 
 ```
-STEP 1 — CLASSIFY:
+STEP 1 — CLASSIFY REQUEST:
 
   "openspec proposal" / "proposal:" / "spec:" / "new feature"?
   → openspec/AGENTS.md (Stage 1: Planning)
@@ -57,11 +57,11 @@ STEP 1 — CLASSIFY:
 
   "fix:" / "bug" / "error"?
   → Load SKILLS_INDEX.md
-  → Analyze complexity, select 1-3 skills (systematic-debugging + others as needed)
+  → Select 1-3 skills based on complexity
   → OpenSpec NOT needed
 
-  Otherwise?
-  → cat .claude/skills/SKILLS_INDEX.md
+  Otherwise (refactor, optimize, small change)?
+  → Load SKILLS_INDEX.md
   → Select appropriate skills
 
 STEP 2 — LOAD SKILLS (for apply/implement/fix):
@@ -74,45 +74,191 @@ STEP 2 — LOAD SKILLS (for apply/implement/fix):
 
 ---
 
-### Execution Mode Decision (STEP 0)
+## Execution Mode Decision
 
-**BEFORE starting any implementation (fix, apply, coding), evaluate:**
+**BEFORE starting any implementation, evaluate:**
 
 ```
-COMPLEXITY CHECK:
+DECISION TREE:
 
-  Count tasks/changes:
-  - 1-5 simple tasks in same module → DIRECT execution
-  - 6+ tasks OR complex logic → Consider subagents
+Q1: Tasks depend on each other?
+  Yes → DIRECT execution (subagents won't help)
+  No  → Q2
 
-  Check dependencies:
-  - Tasks are sequential (each depends on previous) → DIRECT execution
-  - Tasks are independent (can parallelize) → SUBAGENTS may help
+Q2: More than 5 independent tasks?
+  No  → DIRECT execution (overhead not worth it)
+  Yes → Q3
 
-  Estimate scope:
-  - < 100 lines of code, 1-3 files → DIRECT execution
-  - > 200 lines, 5+ files, multiple modules → Consider subagents
+Q3: Each task > 50 lines of code?
+  No  → DIRECT execution (small tasks faster directly)
+  Yes → SUBAGENTS
 
-DECISION MATRIX:
-
-  DIRECT execution (no subagents):
-  ✓ Simple sequential tasks
-  ✓ Code already written in plan
-  ✓ Few files to modify
-  ✓ Changes are straightforward insertions/modifications
-
-  SUBAGENT execution:
-  ✓ 10+ independent tasks
-  ✓ Complex analysis needed per task
-  ✓ Multiple unrelated modules
-  ✓ Can benefit from parallel execution
-
-DEFAULT: Start with DIRECT execution. Subagents are overhead for simple work.
+DEFAULT: DIRECT execution. Subagents = exception, not rule.
 ```
+
+**Quick reference:**
+- 1-5 tasks, same module → DIRECT
+- Sequential dependencies → DIRECT
+- < 100 lines total → DIRECT
+- 6+ independent tasks, 50+ lines each → Consider SUBAGENTS
 
 ---
 
-### During `openspec apply`
+## Loading Skills (MANDATORY)
+
+**BEFORE writing/changing any code:**
+
+```bash
+cat .claude/skills/SKILLS_INDEX.md
+```
+
+**This is NOT optional. This is MANDATORY.**
+
+SKILLS_INDEX contains:
+- Skill categories (mandatory/situational/workflow)
+- Entry points (which skill to start with)
+- Skill descriptions and paths
+
+**After loading index:**
+1. Select 1-3 skills based on task type
+2. Load each: `cat .claude/skills/<folder>/SKILL.md`
+3. Follow skill instructions
+
+---
+
+## Required Triggers
+
+| Situation | Action | When |
+|-----------|--------|------|
+| Any bug/fix | Load SKILLS_INDEX → select skills | BEFORE attempting fix |
+| New code | `test-driven-development` required | BEFORE writing code |
+| **After EVERY code change** | **Test + analyze logs + compare with requirements** | AFTER every fix/implementation |
+| Claiming "done" | `verification-before-completion` | BEFORE claiming completion |
+| Flaky tests | `condition-based-waiting` | On race conditions |
+
+---
+
+## CRITICAL: Mandatory Testing After Every Change
+
+**This section is CRITICAL. Never skip. Never rationalize skipping.**
+
+### When to Test
+
+- After EVERY code change
+- After EVERY fix
+- After EVERY task from tasks.md
+- After subagent work — subagent tests their part
+- After every session (if work spans sessions)
+
+### Testing Algorithm
+
+```
+AFTER EVERY CODE CHANGE:
+
+1. WRITE TEST SCRIPT
+   → Write script/program to test THIS SPECIFIC change
+   → Not "does service work in general", but THIS change specifically
+   → Any scripts, utilities, tests are allowed
+
+2. RUN TEST
+   → Execute test on real scenario
+   → Collect execution logs
+
+3. ANALYZE LOGS
+   → Read logs in detail
+   → Find execution result
+
+4. COMPARE WITH REQUIREMENTS
+   → Take original request / proposal / design / tasks.md
+   → Compare expected result with actual result
+
+5. CONCLUSION
+   ├─ Result MATCHES expectation → Task complete ✓
+   └─ Result DOES NOT match → Make fixes → Repeat from step 1
+```
+
+### What to Compare Against
+
+| Source | Where to Find |
+|--------|---------------|
+| User request | Original message in chat |
+| OpenSpec proposal | `proposal.md` — section "What Changes" |
+| OpenSpec design | `design.md` — expected behavior |
+| Task | `tasks.md` — specific checklist item |
+| Bug report | Bug description and expected behavior |
+
+### Output Format After Test
+
+```
+## Test Result
+
+**Change:** [what was changed]
+**Test:** [how tested — script, command, scenario]
+**Expected (from requirements):** [what should have happened]
+**Actual (from logs):** [what actually happened]
+**Status:** ✓ Matches / ✗ Does not match
+
+[If does not match — what needs to be fixed]
+```
+
+### Example Cycle
+
+```
+Task: Add email validation to registration form
+
+1. Wrote validation code
+2. Wrote test script: curl with invalid email
+3. Ran, collected logs
+4. Expected (from tasks.md): "return 400 error with message"
+5. Actual (from logs): returned 200 OK
+6. DOES NOT match → fix code → rerun test
+7. Actual (from logs): returned 400 with message
+8. Matches ✓ → task complete
+```
+
+### Skills for Test Scripts
+
+If test requires writing code — apply skills like for any code:
+
+| Situation | Skills |
+|-----------|--------|
+| Simple curl/request | Not needed |
+| Test with logic | `test-driven-development` |
+| Complex mocks/stubs | `testing-anti-patterns` |
+| Test with race conditions | `condition-based-waiting` |
+
+**Test code = code. Same rules apply.**
+
+### FORBIDDEN in Testing
+
+- Skipping testing ("it works anyway")
+- Testing "in your head" without actual run
+- Marking task complete without test
+- Ignoring mismatch between result and requirements
+- Writing test code without skills when they're needed
+
+---
+
+## Escape Hatch: Rule Exceptions
+
+Rules can be violated ONLY if:
+
+1. **Documented:**
+   ```
+   RULE EXCEPTION:
+   - Rule: [which rule is being violated]
+   - Reason: [why exception is justified]
+   - Risk: [what risks this creates]
+   - Mitigation: [how to minimize risks]
+   ```
+
+2. **User confirmed the exception**
+
+Without documentation and confirmation — violation is FORBIDDEN.
+
+---
+
+## During `openspec apply`
 
 **Required order of actions:**
 
@@ -122,6 +268,7 @@ DEFAULT: Start with DIRECT execution. Subagents are overhead for simple work.
    - Select skills (usually: `test-driven-development` + `executing-plans`)
    - Load: `cat .claude/skills/<folder>/SKILL.md`
    - Execute task according to skill
+   - **TEST the change (see Testing Algorithm above)**
    - Mark `[x]` in tasks.md after completion
 4. After ALL tasks:
    - Load `verification-before-completion`
@@ -130,64 +277,89 @@ DEFAULT: Start with DIRECT execution. Subagents are overhead for simple work.
 
 ---
 
-### Required Triggers
+## Typical Scenarios
 
-| Situation | Action | When |
-|-----------|--------|------|
-| Any bug/fix | Load SKILLS_INDEX → select 1-3 skills based on complexity | BEFORE attempting fix |
-| New code | `test-driven-development` + other skills as needed | BEFORE writing code |
-| **After EVERY code change** | **Test + analyze logs + compare with requirements** | AFTER every fix/implementation |
-| Writing test scripts | Use skills if code is needed (TDD, etc.) | When test requires code |
-| "Done" / completion | `verification-before-completion` | BEFORE claiming completion |
-| Flaky tests | `condition-based-waiting` | On race conditions |
-
-### ⚠️ Mandatory Testing After Every Change
+### New Feature (full cycle)
 
 ```
-AFTER EVERY CODE CHANGE:
+STAGE 1 — OpenSpec (no skills):
+  openspec/AGENTS.md → create proposal
+  → proposal.md, tasks.md, design.md (documentation)
+  → wait for approval
+  → Skills NOT needed
 
-1. Write test script for THIS specific change
-   → If test requires code → use skills (TDD, etc.)
-2. Run test, collect logs
-3. Analyze logs in detail
-4. Compare result with original request / proposal / tasks.md
-5. If matches → done ✓
-   If NOT matches → fix → repeat from step 1
+STAGE 2 — Implementation (with skills):
+  using-git-worktrees (isolation) — optional
+
+  For EACH task:
+    1. test-driven-development → write code
+    2. TEST → script/command to verify this specific change
+    3. ANALYZE LOGS → compare with tasks.md
+    4. If DOES NOT match → fix → rerun test
+    5. Mark [x] in tasks.md
+
+  After ALL tasks:
+    verification-before-completion
+    finishing-a-development-branch
+
+STAGE 3 — OpenSpec (no skills):
+  openspec archive <change-id> --yes
 ```
 
-**Never skip. Never mark task as done without testing.**
-
-### Skills for Fixes and Tests
+### Bug Fix (without OpenSpec)
 
 ```
-FOR ANY FIX/BUG:
-  1. Load SKILLS_INDEX.md
-  2. Analyze complexity of the fix
-  3. Select 1-3 skills (not just systematic-debugging!)
-  4. Examples:
-     - Simple typo fix: 1 skill (systematic-debugging)
-     - Logic bug: 2 skills (systematic-debugging + TDD)
-     - Complex refactor fix: 3 skills (debugging + TDD + code-review)
+1. LOAD SKILLS INDEX
+   cat .claude/skills/SKILLS_INDEX.md
 
-FOR TEST SCRIPTS:
-  If writing code for tests → apply skills as for any code:
-  - test-driven-development for test logic
-  - testing-anti-patterns if complex mocking needed
-  - etc.
+2. ANALYZE COMPLEXITY
+   → Simple (typo, obvious error): 1 skill
+   → Medium (logic, validation): 2 skills
+   → Complex (architecture, refactoring): 3 skills
+
+3. SELECT SKILLS (examples):
+   → Simple: systematic-debugging
+   → Medium: systematic-debugging + TDD
+   → Complex: systematic-debugging + TDD + code-review
+
+4. EXECUTE:
+   → Find root cause
+   → Write failing test
+   → Fix
+
+5. TEST → script to verify fix
+   → If test script requires code → apply skills!
+
+6. ANALYZE LOGS → compare with bug description
+
+7. If DOES NOT match → fix → repeat
+
+8. verification-before-completion → verify
+```
+
+### Continue Implementation
+
+```
+1. openspec show <change-id> → understand context
+2. Read tasks.md → find incomplete tasks
+3. cat .claude/skills/SKILLS_INDEX.md
+4. Select skills for current task
+5. Continue work
 ```
 
 ---
 
-### Forbidden
+## Forbidden
 
 - `@.claude/skills` — loads EVERYTHING, fills context
 - Loading skills "just in case"
 - Writing code without `openspec proposal` for new features
-- **Fixing bugs without loading SKILLS_INDEX first** (analyze complexity → 1-3 skills)
+- **Fixing bugs without loading SKILLS_INDEX first**
 - Claiming "done" without `verification-before-completion`
 - **Skipping testing after code changes**
 - **Marking task done without real test + log analysis**
 - **Writing test code without applying skills when needed**
+- **Violating rules without documented exception**
 
 ---
 

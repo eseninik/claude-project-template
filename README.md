@@ -135,14 +135,12 @@ dev branch  ──[push]──>  main branch  ──[GitHub Action]──>  Serv
 
 | Skill | When to Use |
 |-------|-------------|
-| `brainstorming` | Before implementing features |
-| `test-driven-development` | Writing any new code |
 | `systematic-debugging` | Any bug or error |
+| `test-driven-development` | Writing any new code |
 | `verification-before-completion` | Before claiming "done" |
 | `condition-based-waiting` | Flaky tests / race conditions |
 | `root-cause-tracing` | Deep error investigation |
 | `executing-plans` | Following implementation plans |
-| `writing-plans` | Creating detailed task breakdowns |
 
 See `.claude/skills/SKILLS_INDEX.md` for full list.
 
