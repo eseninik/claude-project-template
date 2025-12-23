@@ -1,176 +1,176 @@
 ---
 name: Init Project
-description: Полная автоматическая настройка нового проекта (интерактивно)
+description: Полная автоматическая настройка нового проекта (без вопросов)
 category: Setup
 tags: [init, setup, deploy, cicd]
 ---
 
-# Init Project - Автоматическая настройка
+# Init Project - Полностью автоматическая настройка
 
-**Цель**: Настроить полный CI/CD pipeline для нового проекта. Claude спрашивает нужные данные и делает всё сам.
-
----
-
-## Шаг 1: Собрать информацию у пользователя
-
-**Спросить у пользователя (через чат или AskUserQuestion):**
-
-1. **Название проекта** (для GitHub репозитория)
-   - Пример: `my-telegram-bot`
-
-2. **GitHub owner** (username или organization)
-   - Пример: `eseninik`
-
-3. **Данные сервера для деплоя:**
-   - IP адрес или hostname: `123.45.67.89`
-   - SSH пользователь: `ubuntu`
-   - Путь для проекта: `/home/ubuntu/my-project`
-
-4. **Название systemd сервиса** (опционально)
-   - Пример: `my-bot.service`
-
-**Пример диалога:**
-```
-Claude: Для настройки проекта мне нужны данные:
-1. Как назвать репозиторий на GitHub?
-2. Ваш GitHub username?
-3. IP сервера для деплоя?
-4. SSH пользователь на сервере?
-5. Куда на сервере деплоить? (путь)
-
-User: bot-name, eseninik, 1.2.3.4, ubuntu, /home/ubuntu/bot-name
-```
+**Цель**: Настроить CI/CD за одну команду. Без вопросов, без конфигов.
 
 ---
 
-## Шаг 2: Проверить prerequisites
+## Автоматическое определение параметров
 
 ```bash
-# 1. Проверить GitHub CLI
-gh --version
-# Если нет → попросить установить: winget install GitHub.cli
+# 1. Название проекта = название текущей папки
+PROJECT_NAME=$(basename "$(pwd)")
 
-# 2. Проверить авторизацию
-gh auth status
-# Если нет → попросить: gh auth login
+# 2. Читаем глобальный конфиг
+CONFIG_FILE="$HOME/.claude/deploy.json"
 
-# 3. Проверить SSH доступ к серверу
-ssh -o ConnectTimeout=5 USER@HOST "echo 'SSH OK'"
-# Если нет → остановиться и помочь настроить SSH
+# Если конфига нет — создать с дефолтами и попросить заполнить
+if [ ! -f "$CONFIG_FILE" ]; then
+  echo "ERROR: Нет конфига $CONFIG_FILE"
+  echo "Создай файл с содержимым:"
+  echo '{"github_owner":"YOUR_USERNAME","server_host":"YOUR_IP","server_user":"ubuntu","base_path":"/home/ubuntu"}'
+  exit 1
+fi
+
+# Парсим JSON (работает в bash без jq)
+GITHUB_OWNER=$(grep -o '"github_owner"[^,}]*' "$CONFIG_FILE" | cut -d'"' -f4)
+SERVER_HOST=$(grep -o '"server_host"[^,}]*' "$CONFIG_FILE" | cut -d'"' -f4)
+SERVER_USER=$(grep -o '"server_user"[^,}]*' "$CONFIG_FILE" | cut -d'"' -f4)
+BASE_PATH=$(grep -o '"base_path"[^,}]*' "$CONFIG_FILE" | cut -d'"' -f4)
+
+# 3. Путь на сервере = base_path/project_name
+PROJECT_PATH="$BASE_PATH/$PROJECT_NAME"
+
+echo "=== Параметры ==="
+echo "Project: $PROJECT_NAME"
+echo "GitHub: $GITHUB_OWNER/$PROJECT_NAME"
+echo "Server: $SERVER_USER@$SERVER_HOST:$PROJECT_PATH"
 ```
 
 ---
 
-## Шаг 3: Создать GitHub репозиторий
+## Шаг 1: Проверить prerequisites
 
 ```bash
-# Проверить существует ли репо
-gh repo view OWNER/REPO 2>/dev/null
+# GitHub CLI
+gh --version || echo "STOP: Установи GitHub CLI: winget install GitHub.cli"
 
-# Если нет — создать
-gh repo create OWNER/REPO --private --source=. --remote=origin --push
+# Авторизация
+gh auth status || echo "STOP: Авторизуйся: gh auth login"
+
+# SSH к серверу
+ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_HOST "echo 'SSH OK'" || echo "STOP: Настрой SSH доступ к серверу"
 ```
 
 ---
 
-## Шаг 4: Настроить GitHub Secrets
+## Шаг 2: Создать GitHub репозиторий
 
 ```bash
-# Получить приватный ключ для доступа к серверу
-# (используем ключ, который уже работает для SSH)
-SSH_KEY=$(cat ~/.ssh/id_ed25519)
+# Проверить/создать репо
+gh repo view $GITHUB_OWNER/$PROJECT_NAME 2>/dev/null || \
+  gh repo create $GITHUB_OWNER/$PROJECT_NAME --private --source=. --remote=origin --push
+```
 
-# Установить все секреты
-gh secret set SERVER_HOST --body "IP_ADDRESS"
-gh secret set SERVER_USER --body "SSH_USER"
+---
+
+## Шаг 3: Настроить GitHub Secrets
+
+```bash
+# Читаем локальный SSH ключ (для подключения к серверу)
+SSH_KEY=$(cat ~/.ssh/id_ed25519 2>/dev/null || cat ~/.ssh/id_rsa 2>/dev/null)
+
+if [ -z "$SSH_KEY" ]; then
+  echo "STOP: Нет SSH ключа. Создай: ssh-keygen -t ed25519"
+  exit 1
+fi
+
+# Устанавливаем секреты
+gh secret set SERVER_HOST --body "$SERVER_HOST"
+gh secret set SERVER_USER --body "$SERVER_USER"
 gh secret set SERVER_SSH_KEY --body "$SSH_KEY"
-gh secret set PROJECT_PATH --body "/path/on/server"
+gh secret set PROJECT_PATH --body "$PROJECT_PATH"
+
+echo "Секреты установлены"
 ```
 
 ---
 
-## Шаг 5: Настроить сервер
+## Шаг 4: Настроить сервер
 
 ```bash
-ssh USER@HOST << 'REMOTE_SCRIPT'
-  # Создать директорию если нет
-  mkdir -p PROJECT_PATH
-  cd PROJECT_PATH
+ssh $SERVER_USER@$SERVER_HOST << REMOTE
+  set -e
 
-  # Клонировать репозиторий (если пусто)
+  # Создать директорию
+  mkdir -p $PROJECT_PATH
+  cd $PROJECT_PATH
+
+  # Клонировать если пусто
   if [ ! -d ".git" ]; then
-    git clone https://github.com/OWNER/REPO.git .
+    git clone https://github.com/$GITHUB_OWNER/$PROJECT_NAME.git . || true
   fi
 
-  # Создать SSH ключ для GitHub (если нет)
+  # SSH ключ для GitHub (если нет)
   if [ ! -f ~/.ssh/id_ed25519 ]; then
-    ssh-keygen -t ed25519 -C "deploy-key-REPO" -f ~/.ssh/id_ed25519 -N ""
+    ssh-keygen -t ed25519 -C "deploy-$PROJECT_NAME" -f ~/.ssh/id_ed25519 -N ""
   fi
 
-  # Добавить GitHub в known_hosts
-  grep -q "github.com" ~/.ssh/known_hosts 2>/dev/null || ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+  # GitHub в known_hosts
+  grep -q "github.com" ~/.ssh/known_hosts 2>/dev/null || \
+    ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
 
-  # Показать публичный ключ для добавления в GitHub
-  echo "=== DEPLOY KEY (добавить в GitHub) ==="
+  # Переключить на SSH
+  git remote set-url origin git@github.com:$GITHUB_OWNER/$PROJECT_NAME.git 2>/dev/null || true
+
+  # Вывести публичный ключ
+  echo "=== SERVER DEPLOY KEY ==="
   cat ~/.ssh/id_ed25519.pub
-  echo "======================================="
-
-  # Переключить remote на SSH
-  git remote set-url origin git@github.com:OWNER/REPO.git
-REMOTE_SCRIPT
+  echo "========================="
+REMOTE
 ```
 
 ---
 
-## Шаг 6: Добавить Deploy Key в GitHub
-
-Получить публичный ключ с сервера и добавить:
+## Шаг 5: Добавить Deploy Key в GitHub
 
 ```bash
 # Получить ключ с сервера
-SERVER_PUBLIC_KEY=$(ssh USER@HOST "cat ~/.ssh/id_ed25519.pub")
+SERVER_KEY=$(ssh $SERVER_USER@$SERVER_HOST "cat ~/.ssh/id_ed25519.pub")
 
-# Сохранить во временный файл
-echo "$SERVER_PUBLIC_KEY" > /tmp/deploy_key.pub
-
-# Добавить в GitHub
-gh repo deploy-key add /tmp/deploy_key.pub --title "Server Deploy Key" --allow-write
-
-# Удалить временный файл
-rm /tmp/deploy_key.pub
+# Сохранить и добавить
+echo "$SERVER_KEY" > /tmp/deploy_key_$PROJECT_NAME.pub
+gh repo deploy-key add /tmp/deploy_key_$PROJECT_NAME.pub \
+  --title "Server Deploy Key" \
+  --allow-write 2>/dev/null || echo "Deploy key уже существует"
+rm -f /tmp/deploy_key_$PROJECT_NAME.pub
 ```
 
 ---
 
-## Шаг 7: Проверить SSH на сервере
+## Шаг 6: Проверить SSH с сервера к GitHub
 
 ```bash
-ssh USER@HOST "ssh -T git@github.com 2>&1 | head -1"
-# Ожидаем: "Hi OWNER/REPO! You've successfully authenticated..."
+ssh $SERVER_USER@$SERVER_HOST "ssh -T git@github.com 2>&1" | head -1
+# Ожидаем: "Hi ...! You've successfully authenticated"
 ```
 
 ---
 
-## Шаг 8: Тестовый деплой
+## Шаг 7: Тестовый деплой
 
 ```bash
-# Создать тестовый коммит
-git commit --allow-empty -m "test: verify CI/CD pipeline"
+# Пустой коммит
+git commit --allow-empty -m "test: verify CI/CD pipeline" 2>/dev/null || true
 git push origin master
 
-# Подождать и проверить workflow
-sleep 5
+# Проверить workflow
+sleep 3
 gh run list --limit 1
-gh run watch
 ```
 
 ---
 
-## Шаг 9: Проверить на сервере
+## Шаг 8: Проверить на сервере
 
 ```bash
-ssh USER@HOST "cd PROJECT_PATH && git log -1 --oneline"
-# Должен показать тестовый коммит
+ssh $SERVER_USER@$SERVER_HOST "cd $PROJECT_PATH && git log -1 --oneline"
 ```
 
 ---
@@ -178,13 +178,13 @@ ssh USER@HOST "cd PROJECT_PATH && git log -1 --oneline"
 ## Финальный вывод
 
 ```
-✅ Проект настроен!
+✅ Проект $PROJECT_NAME настроен!
 
-GitHub: https://github.com/OWNER/REPO
-Server: USER@HOST:PROJECT_PATH
-Deploy: push to master → auto-deploy
+GitHub:  https://github.com/$GITHUB_OWNER/$PROJECT_NAME
+Server:  $SERVER_USER@$SERVER_HOST:$PROJECT_PATH
+Deploy:  git push origin master → auto-deploy
 
-Для деплоя:
+Команда для деплоя:
   git add . && git commit -m "feat: description" && git push origin master
 ```
 
@@ -192,24 +192,22 @@ Deploy: push to master → auto-deploy
 
 ## Troubleshooting
 
-### SSH к серверу не работает
-- Проверь что ключ добавлен: `ssh-add -l`
-- Проверь права: `chmod 600 ~/.ssh/id_ed25519`
-
-### gh command not found
+### "Нет конфига ~/.claude/deploy.json"
 ```bash
-# Windows
-winget install GitHub.cli
-# macOS
-brew install gh
-# Linux
-sudo apt install gh
+mkdir -p ~/.claude
+cat > ~/.claude/deploy.json << 'EOF'
+{
+  "github_owner": "YOUR_GITHUB_USERNAME",
+  "server_host": "YOUR_SERVER_IP",
+  "server_user": "ubuntu",
+  "base_path": "/home/ubuntu"
+}
+EOF
 ```
 
-### Deploy Key не работает
-- Убедись что ключ добавлен с "Allow write access"
-- На сервере: `ssh -T git@github.com` должен работать
+### "Permission denied" при SSH
+- Проверь что ключ добавлен на сервер в `~/.ssh/authorized_keys`
 
-### Workflow зелёный но код не обновился
-- Проверь PROJECT_PATH в секретах
-- На сервере: `git remote -v` должен показывать SSH URL
+### Deploy Key уже существует
+- Это нормально если используешь один ключ для всех проектов
+- Можно игнорировать это сообщение
