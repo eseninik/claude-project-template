@@ -79,7 +79,6 @@ gh repo view $GITHUB_OWNER/$PROJECT_NAME 2>/dev/null || \
 
 ```bash
 # Читаем локальный SSH ключ (для подключения к серверу)
-# SSH_KEY путь берём из конфига
 SSH_KEY_CONTENT=$(cat "$SSH_KEY" 2>/dev/null)
 
 if [ -z "$SSH_KEY_CONTENT" ]; then
@@ -87,18 +86,31 @@ if [ -z "$SSH_KEY_CONTENT" ]; then
   exit 1
 fi
 
-# Устанавливаем секреты
+# Устанавливаем секреты (только 3 - PROJECT_PATH не нужен, см. ниже)
 gh secret set SERVER_HOST --body "$SERVER_HOST"
 gh secret set SERVER_USER --body "$SERVER_USER"
 gh secret set SERVER_SSH_KEY --body "$SSH_KEY_CONTENT"
-gh secret set PROJECT_PATH --body "$PROJECT_PATH"
 
 echo "Секреты установлены"
 ```
 
 ---
 
+## Шаг 3.1: Обновить deploy.yml с реальным путём
+
+```bash
+# Заменить PROJECT_NAME на реальное имя проекта в workflow
+sed -i "s|/home/ubuntu/PROJECT_NAME|$PROJECT_PATH|g" .github/workflows/deploy.yml
+git add .github/workflows/deploy.yml
+git commit -m "chore: set project path in deploy workflow"
+git push origin master
+```
+
+---
+
 ## Шаг 4: Настроить сервер
+
+**ВАЖНО:** Каждый репозиторий требует УНИКАЛЬНЫЙ deploy key!
 
 ```bash
 $SSH_CMD $SERVER_USER@$SERVER_HOST << REMOTE
@@ -106,28 +118,41 @@ $SSH_CMD $SERVER_USER@$SERVER_HOST << REMOTE
 
   # Создать директорию
   mkdir -p $PROJECT_PATH
-  cd $PROJECT_PATH
 
-  # Клонировать если пусто
-  if [ ! -d ".git" ]; then
-    git clone https://github.com/$GITHUB_OWNER/$PROJECT_NAME.git . || true
-  fi
-
-  # SSH ключ для GitHub (если нет)
-  if [ ! -f ~/.ssh/id_ed25519 ]; then
-    ssh-keygen -t ed25519 -C "deploy-$PROJECT_NAME" -f ~/.ssh/id_ed25519 -N ""
+  # Создать УНИКАЛЬНЫЙ SSH ключ для этого проекта
+  KEY_FILE=~/.ssh/deploy_$PROJECT_NAME
+  if [ ! -f "\$KEY_FILE" ]; then
+    ssh-keygen -t ed25519 -C "deploy-$PROJECT_NAME" -f "\$KEY_FILE" -N ""
   fi
 
   # GitHub в known_hosts
   grep -q "github.com" ~/.ssh/known_hosts 2>/dev/null || \
     ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
 
-  # Переключить на SSH
-  git remote set-url origin git@github.com:$GITHUB_OWNER/$PROJECT_NAME.git 2>/dev/null || true
+  # Настроить SSH config с алиасом для этого репозитория
+  if ! grep -q "Host github-$PROJECT_NAME" ~/.ssh/config 2>/dev/null; then
+    cat >> ~/.ssh/config << EOF
+
+Host github-$PROJECT_NAME
+  HostName github.com
+  User git
+  IdentityFile ~/.ssh/deploy_$PROJECT_NAME
+  IdentitiesOnly yes
+EOF
+  fi
+
+  # Клонировать репозиторий используя алиас
+  cd $PROJECT_PATH
+  if [ ! -d ".git" ]; then
+    git clone git@github-$PROJECT_NAME:$GITHUB_OWNER/$PROJECT_NAME.git . || true
+  fi
+
+  # Настроить remote на алиас
+  git remote set-url origin git@github-$PROJECT_NAME:$GITHUB_OWNER/$PROJECT_NAME.git 2>/dev/null || true
 
   # Вывести публичный ключ
   echo "=== SERVER DEPLOY KEY ==="
-  cat ~/.ssh/id_ed25519.pub
+  cat "\${KEY_FILE}.pub"
   echo "========================="
 REMOTE
 ```
@@ -137,14 +162,14 @@ REMOTE
 ## Шаг 5: Добавить Deploy Key в GitHub
 
 ```bash
-# Получить ключ с сервера
-SERVER_KEY=$($SSH_CMD $SERVER_USER@$SERVER_HOST "cat ~/.ssh/id_ed25519.pub")
+# Получить УНИКАЛЬНЫЙ ключ с сервера
+SERVER_KEY=$($SSH_CMD $SERVER_USER@$SERVER_HOST "cat ~/.ssh/deploy_$PROJECT_NAME.pub")
 
 # Сохранить и добавить
 echo "$SERVER_KEY" > /tmp/deploy_key_$PROJECT_NAME.pub
 gh repo deploy-key add /tmp/deploy_key_$PROJECT_NAME.pub \
   --title "Server Deploy Key" \
-  --allow-write 2>/dev/null || echo "Deploy key уже существует"
+  --allow-write
 rm -f /tmp/deploy_key_$PROJECT_NAME.pub
 ```
 
