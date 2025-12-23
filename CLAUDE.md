@@ -444,9 +444,13 @@ Claude автоматически:
   "github_owner": "eseninik",
   "server_host": "16.170.136.118",
   "server_user": "ubuntu",
-  "base_path": "/home/ubuntu"
+  "base_path": "/home/ubuntu",
+  "ssh_key": "C:/Users/USERNAME/.ssh/id_ed25519",
+  "ssh_config": "C:/Users/USERNAME/.ssh/config"
 }
 ```
+
+**Примечание:** На Windows с кириллицей в имени пользователя нужны полные пути к SSH ключу и конфигу.
 
 ### Ручная настройка
 

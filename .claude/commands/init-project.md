@@ -24,7 +24,7 @@ CONFIG_FILE="$HOME/.claude/deploy.json"
 if [ ! -f "$CONFIG_FILE" ]; then
   echo "ERROR: Нет конфига $CONFIG_FILE"
   echo "Создай файл с содержимым:"
-  echo '{"github_owner":"YOUR_USERNAME","server_host":"YOUR_IP","server_user":"ubuntu","base_path":"/home/ubuntu"}'
+  echo '{"github_owner":"YOUR_USERNAME","server_host":"YOUR_IP","server_user":"ubuntu","base_path":"/home/ubuntu","ssh_key":"PATH_TO_KEY","ssh_config":"PATH_TO_CONFIG"}'
   exit 1
 fi
 
@@ -33,9 +33,14 @@ GITHUB_OWNER=$(grep -o '"github_owner"[^,}]*' "$CONFIG_FILE" | cut -d'"' -f4)
 SERVER_HOST=$(grep -o '"server_host"[^,}]*' "$CONFIG_FILE" | cut -d'"' -f4)
 SERVER_USER=$(grep -o '"server_user"[^,}]*' "$CONFIG_FILE" | cut -d'"' -f4)
 BASE_PATH=$(grep -o '"base_path"[^,}]*' "$CONFIG_FILE" | cut -d'"' -f4)
+SSH_KEY=$(grep -o '"ssh_key"[^,}]*' "$CONFIG_FILE" | cut -d'"' -f4)
+SSH_CONFIG=$(grep -o '"ssh_config"[^,}]*' "$CONFIG_FILE" | cut -d'"' -f4)
 
 # 3. Путь на сервере = base_path/project_name
 PROJECT_PATH="$BASE_PATH/$PROJECT_NAME"
+
+# 4. SSH команда с правильными путями (для Windows с кириллицей)
+SSH_CMD="ssh -F \"$SSH_CONFIG\""
 
 echo "=== Параметры ==="
 echo "Project: $PROJECT_NAME"
@@ -54,8 +59,8 @@ gh --version || echo "STOP: Установи GitHub CLI: winget install GitHub.c
 # Авторизация
 gh auth status || echo "STOP: Авторизуйся: gh auth login"
 
-# SSH к серверу
-ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_HOST "echo 'SSH OK'" || echo "STOP: Настрой SSH доступ к серверу"
+# SSH к серверу (используем SSH_CMD из конфига)
+$SSH_CMD $SERVER_USER@$SERVER_HOST "echo 'SSH OK'" || echo "STOP: Настрой SSH доступ к серверу"
 ```
 
 ---
@@ -74,17 +79,18 @@ gh repo view $GITHUB_OWNER/$PROJECT_NAME 2>/dev/null || \
 
 ```bash
 # Читаем локальный SSH ключ (для подключения к серверу)
-SSH_KEY=$(cat ~/.ssh/id_ed25519 2>/dev/null || cat ~/.ssh/id_rsa 2>/dev/null)
+# SSH_KEY путь берём из конфига
+SSH_KEY_CONTENT=$(cat "$SSH_KEY" 2>/dev/null)
 
-if [ -z "$SSH_KEY" ]; then
-  echo "STOP: Нет SSH ключа. Создай: ssh-keygen -t ed25519"
+if [ -z "$SSH_KEY_CONTENT" ]; then
+  echo "STOP: Нет SSH ключа по пути $SSH_KEY"
   exit 1
 fi
 
 # Устанавливаем секреты
 gh secret set SERVER_HOST --body "$SERVER_HOST"
 gh secret set SERVER_USER --body "$SERVER_USER"
-gh secret set SERVER_SSH_KEY --body "$SSH_KEY"
+gh secret set SERVER_SSH_KEY --body "$SSH_KEY_CONTENT"
 gh secret set PROJECT_PATH --body "$PROJECT_PATH"
 
 echo "Секреты установлены"
@@ -95,7 +101,7 @@ echo "Секреты установлены"
 ## Шаг 4: Настроить сервер
 
 ```bash
-ssh $SERVER_USER@$SERVER_HOST << REMOTE
+$SSH_CMD $SERVER_USER@$SERVER_HOST << REMOTE
   set -e
 
   # Создать директорию
@@ -132,7 +138,7 @@ REMOTE
 
 ```bash
 # Получить ключ с сервера
-SERVER_KEY=$(ssh $SERVER_USER@$SERVER_HOST "cat ~/.ssh/id_ed25519.pub")
+SERVER_KEY=$($SSH_CMD $SERVER_USER@$SERVER_HOST "cat ~/.ssh/id_ed25519.pub")
 
 # Сохранить и добавить
 echo "$SERVER_KEY" > /tmp/deploy_key_$PROJECT_NAME.pub
@@ -147,7 +153,7 @@ rm -f /tmp/deploy_key_$PROJECT_NAME.pub
 ## Шаг 6: Проверить SSH с сервера к GitHub
 
 ```bash
-ssh $SERVER_USER@$SERVER_HOST "ssh -T git@github.com 2>&1" | head -1
+$SSH_CMD $SERVER_USER@$SERVER_HOST "ssh -T git@github.com 2>&1" | head -1
 # Ожидаем: "Hi ...! You've successfully authenticated"
 ```
 
@@ -170,7 +176,7 @@ gh run list --limit 1
 ## Шаг 8: Проверить на сервере
 
 ```bash
-ssh $SERVER_USER@$SERVER_HOST "cd $PROJECT_PATH && git log -1 --oneline"
+$SSH_CMD $SERVER_USER@$SERVER_HOST "cd $PROJECT_PATH && git log -1 --oneline"
 ```
 
 ---
