@@ -404,13 +404,13 @@ mypy src
 
 ## Git Workflow (CI/CD)
 
-**Branch:** `main` — единственная ветка, auto-deploy to server
+**Branch:** `master` — единственная ветка, auto-deploy to server
 
 **Rules for Claude:**
-1. После каждого изменения → `git add . && git commit -m "feat: description" && git push origin main`
-2. Push to main автоматически деплоит на сервер через GitHub Actions
+1. После каждого изменения → `git add . && git commit -m "feat: description" && git push origin master`
+2. Push to master автоматически деплоит на сервер через GitHub Actions
 
-**Для этого шаблона:** Используется одна ветка `main`. Для сложных проектов с командой можно добавить `dev` ветку.
+**Для этого шаблона:** Используется одна ветка `master`. Для сложных проектов с командой можно добавить `dev` ветку.
 
 ## New Project Setup
 

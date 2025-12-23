@@ -156,7 +156,7 @@ ssh USER@HOST "ssh -T git@github.com 2>&1 | head -1"
 ```bash
 # Создать тестовый коммит
 git commit --allow-empty -m "test: verify CI/CD pipeline"
-git push origin main
+git push origin master
 
 # Подождать и проверить workflow
 sleep 5
@@ -182,10 +182,10 @@ ssh USER@HOST "cd PROJECT_PATH && git log -1 --oneline"
 
 GitHub: https://github.com/OWNER/REPO
 Server: USER@HOST:PROJECT_PATH
-Deploy: push to main → auto-deploy
+Deploy: push to master → auto-deploy
 
 Для деплоя:
-  git add . && git commit -m "feat: description" && git push origin main
+  git add . && git commit -m "feat: description" && git push origin master
 ```
 
 ---
