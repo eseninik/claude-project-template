@@ -19,430 +19,228 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 ---
 
-## Workflow: OpenSpec + Skills
+# BLOCKING RULES
 
-### Main Principle
+**These rules CANNOT be bypassed. Violation = task failure.**
+
+## Before ANY code (fix/feature/refactor)
 
 ```
-OpenSpec = WHAT to do (proposal, tasks, specs)
-Skills   = HOW to do it (TDD, debugging, verification)
+1. cat .claude/skills/SKILLS_INDEX.md
+2. Select 1-3 skills → load EACH: cat .claude/skills/<name>/SKILL.md
+3. Follow the skill
 ```
 
-### OpenSpec Commands
+**Writing/changing code WITHOUT these steps is FORBIDDEN.**
 
-| Command | Phase | Skills |
-|---------|-------|--------|
-| `openspec proposal` | Stage 1: Planning | **NOT needed** (documentation only) |
-| `openspec apply` | Stage 2: Implementation | **Required: load SKILLS_INDEX** |
-| `openspec archive` | Stage 3: Archiving | NOT needed |
+## After EVERY code change
+
+```
+1. Write test/script for THIS specific change
+2. Run → collect logs
+3. Compare result with requirements (user request / tasks.md / proposal.md)
+4. Doesn't match? → Fix → Repeat
+```
+
+**Without test, the change is NOT COMPLETE.**
+
+## Before saying "done" / "fixed" / "complete"
+
+```
+cat .claude/skills/verification-before-completion/SKILL.md
+→ Execute verification
+→ Only then claim completion
+```
+
+## Rule Exceptions
+
+A rule can be violated ONLY if:
+1. Documented: which rule, why, what risks
+2. User explicitly confirmed the exception
 
 ---
 
-## Task Classification Algorithm
+# Quick Skill Selection
+
+| Task | Skills |
+|------|--------|
+| Bug/fix | `systematic-debugging` + `test-driven-development` |
+| New code | `test-driven-development` |
+| Async/aiogram | + `async-python-patterns` |
+| Personal data | + `security-checklist` (MANDATORY!) |
+| Before "done" | `verification-before-completion` |
+
+---
+
+# OpenSpec Workflow
 
 ```
-STEP 1 — CLASSIFY REQUEST:
-
-  "openspec proposal" / "proposal:" / "spec:" / "new feature"?
-  → openspec/AGENTS.md (Stage 1: Planning)
-  → Skills NOT needed (planning only, no code)
-
-  "openspec apply" / "implement" / "continue" / "execute tasks"?
-  → OpenSpec Stage 2: Implementation
-  → REQUIRED: load SKILLS_INDEX.md (see below)
-
-  "openspec archive" / "finalize change"?
-  → openspec/AGENTS.md (Stage 3: Archiving)
-  → Skills NOT needed
-
-  "fix:" / "bug" / "error"?
-  → Load SKILLS_INDEX.md
-  → Select 1-3 skills based on complexity
-  → OpenSpec NOT needed
-
-  Otherwise (refactor, optimize, small change)?
-  → Load SKILLS_INDEX.md
-  → Select appropriate skills
-
-STEP 2 — LOAD SKILLS (for apply/implement/fix):
-
-  cat .claude/skills/SKILLS_INDEX.md
-  → Select 1-3 skills for the task
-  → cat .claude/skills/<folder>/SKILL.md
-  → Execute according to skill
+proposal/spec/new feature? → openspec/AGENTS.md (skills NOT needed)
+openspec apply?            → Load skills → TDD → tests
+openspec archive?          → openspec/AGENTS.md (skills NOT needed)
 ```
 
 ---
 
-## Execution Mode Decision
+# Reference Information
 
-**BEFORE starting any implementation, evaluate:**
+## Windows: Python Commands
 
-```
-DECISION TREE:
+**Problem:** `python` returns exit code 49 due to Cyrillic in path.
 
-Q1: Tasks depend on each other?
-  Yes → DIRECT execution (subagents won't help)
-  No  → Q2
-
-Q2: More than 5 independent tasks?
-  No  → DIRECT execution (overhead not worth it)
-  Yes → Q3
-
-Q3: Each task > 50 lines of code?
-  No  → DIRECT execution (small tasks faster directly)
-  Yes → SUBAGENTS
-
-DEFAULT: DIRECT execution. Subagents = exception, not rule.
-```
-
-**Quick reference:**
-- 1-5 tasks, same module → DIRECT
-- Sequential dependencies → DIRECT
-- < 100 lines total → DIRECT
-- 6+ independent tasks, 50+ lines each → Consider SUBAGENTS
-
----
-
-## Loading Skills (MANDATORY)
-
-**BEFORE writing/changing any code:**
+**Solution:** Use `py -3.12`:
 
 ```bash
-cat .claude/skills/SKILLS_INDEX.md
+py -3.12 -m pytest tests/
+py -3.12 -m ruff check src tests
+py -3.12 script.py
 ```
 
-**This is NOT optional. This is MANDATORY.**
+## Git Workflow
 
-SKILLS_INDEX contains:
-- Skill categories (mandatory/situational/workflow)
-- Entry points (which skill to start with)
-- Skill descriptions and paths
+- `dev` — working branch, commit here
+- `main` — production, auto-deploy
 
-**After loading index:**
-1. Select 1-3 skills based on task type
-2. Load each: `cat .claude/skills/<folder>/SKILL.md`
-3. Follow skill instructions
+**Rules:**
+1. Commit IMMEDIATELY after each completed change
+2. DON'T touch `main` directly
+3. `deploy` → merge dev into main
 
----
-
-## Required Triggers
-
-| Situation | Action | When |
-|-----------|--------|------|
-| Any bug/fix | Load SKILLS_INDEX → select skills | BEFORE attempting fix |
-| New code | `test-driven-development` required | BEFORE writing code |
-| **After EVERY code change** | **Test + analyze logs + compare with requirements** | AFTER every fix/implementation |
-| Claiming "done" | `verification-before-completion` | BEFORE claiming completion |
-| Flaky tests | `condition-based-waiting` | On race conditions |
-
----
-
-## CRITICAL: Mandatory Testing After Every Change
-
-**This section is CRITICAL. Never skip. Never rationalize skipping.**
-
-### When to Test
-
-- After EVERY code change
-- After EVERY fix
-- After EVERY task from tasks.md
-- After subagent work — subagent tests their part
-- After every session (if work spans sessions)
-
-### Testing Algorithm
-
+```bash
+git add <files> && git commit -m "fix: description" && git push origin dev
 ```
-AFTER EVERY CODE CHANGE:
-
-1. WRITE TEST SCRIPT
-   → Write script/program to test THIS SPECIFIC change
-   → Not "does service work in general", but THIS change specifically
-   → Any scripts, utilities, tests are allowed
-
-2. RUN TEST
-   → Execute test on real scenario
-   → Collect execution logs
-
-3. ANALYZE LOGS
-   → Read logs in detail
-   → Find execution result
-
-4. COMPARE WITH REQUIREMENTS
-   → Take original request / proposal / design / tasks.md
-   → Compare expected result with actual result
-
-5. CONCLUSION
-   ├─ Result MATCHES expectation → Task complete ✓
-   └─ Result DOES NOT match → Make fixes → Repeat from step 1
-```
-
-### What to Compare Against
-
-| Source | Where to Find |
-|--------|---------------|
-| User request | Original message in chat |
-| OpenSpec proposal | `proposal.md` — section "What Changes" |
-| OpenSpec design | `design.md` — expected behavior |
-| Task | `tasks.md` — specific checklist item |
-| Bug report | Bug description and expected behavior |
-
-### Output Format After Test
-
-```
-## Test Result
-
-**Change:** [what was changed]
-**Test:** [how tested — script, command, scenario]
-**Expected (from requirements):** [what should have happened]
-**Actual (from logs):** [what actually happened]
-**Status:** ✓ Matches / ✗ Does not match
-
-[If does not match — what needs to be fixed]
-```
-
-### Example Cycle
-
-```
-Task: Add email validation to registration form
-
-1. Wrote validation code
-2. Wrote test script: curl with invalid email
-3. Ran, collected logs
-4. Expected (from tasks.md): "return 400 error with message"
-5. Actual (from logs): returned 200 OK
-6. DOES NOT match → fix code → rerun test
-7. Actual (from logs): returned 400 with message
-8. Matches ✓ → task complete
-```
-
-### Skills for Test Scripts
-
-If test requires writing code — apply skills like for any code:
-
-| Situation | Skills |
-|-----------|--------|
-| Simple curl/request | Not needed |
-| Test with logic | `test-driven-development` |
-| Complex mocks/stubs | `testing-anti-patterns` |
-| Test with race conditions | `condition-based-waiting` |
-
-**Test code = code. Same rules apply.**
-
-### FORBIDDEN in Testing
-
-- Skipping testing ("it works anyway")
-- Testing "in your head" without actual run
-- Marking task complete without test
-- Ignoring mismatch between result and requirements
-- Writing test code without skills when they're needed
-
----
-
-## Escape Hatch: Rule Exceptions
-
-Rules can be violated ONLY if:
-
-1. **Documented:**
-   ```
-   RULE EXCEPTION:
-   - Rule: [which rule is being violated]
-   - Reason: [why exception is justified]
-   - Risk: [what risks this creates]
-   - Mitigation: [how to minimize risks]
-   ```
-
-2. **User confirmed the exception**
-
-Without documentation and confirmation — violation is FORBIDDEN.
-
----
-
-## During `openspec apply`
-
-**Required order of actions:**
-
-1. Read `proposal.md`, `design.md` (if exists), `tasks.md`
-2. Load index: `cat .claude/skills/SKILLS_INDEX.md`
-3. For each task from tasks.md:
-   - Select skills (usually: `test-driven-development` + `executing-plans`)
-   - Load: `cat .claude/skills/<folder>/SKILL.md`
-   - Execute task according to skill
-   - **TEST the change (see Testing Algorithm above)**
-   - Mark `[x]` in tasks.md after completion
-4. After ALL tasks:
-   - Load `verification-before-completion`
-   - Verify everything works
-5. Report: "Ready for `openspec archive`"
-
----
-
-## Typical Scenarios
-
-### New Feature (full cycle)
-
-```
-STAGE 1 — OpenSpec (no skills):
-  openspec/AGENTS.md → create proposal
-  → proposal.md, tasks.md, design.md (documentation)
-  → wait for approval
-  → Skills NOT needed
-
-STAGE 2 — Implementation (with skills):
-  using-git-worktrees (isolation) — optional
-
-  For EACH task:
-    1. test-driven-development → write code
-    2. TEST → script/command to verify this specific change
-    3. ANALYZE LOGS → compare with tasks.md
-    4. If DOES NOT match → fix → rerun test
-    5. Mark [x] in tasks.md
-
-  After ALL tasks:
-    verification-before-completion
-    finishing-a-development-branch
-
-STAGE 3 — OpenSpec (no skills):
-  openspec archive <change-id> --yes
-```
-
-### Bug Fix (without OpenSpec)
-
-```
-1. LOAD SKILLS INDEX
-   cat .claude/skills/SKILLS_INDEX.md
-
-2. ANALYZE COMPLEXITY
-   → Simple (typo, obvious error): 1 skill
-   → Medium (logic, validation): 2 skills
-   → Complex (architecture, refactoring): 3 skills
-
-3. SELECT SKILLS (examples):
-   → Simple: systematic-debugging
-   → Medium: systematic-debugging + TDD
-   → Complex: systematic-debugging + TDD + code-review
-
-4. EXECUTE:
-   → Find root cause
-   → Write failing test
-   → Fix
-
-5. TEST → script to verify fix
-   → If test script requires code → apply skills!
-
-6. ANALYZE LOGS → compare with bug description
-
-7. If DOES NOT match → fix → repeat
-
-8. verification-before-completion → verify
-```
-
-### Continue Implementation
-
-```
-1. openspec show <change-id> → understand context
-2. Read tasks.md → find incomplete tasks
-3. cat .claude/skills/SKILLS_INDEX.md
-4. Select skills for current task
-5. Continue work
-```
-
----
-
-## Forbidden
-
-- `@.claude/skills` — loads EVERYTHING, fills context
-- Loading skills "just in case"
-- Writing code without `openspec proposal` for new features
-- **Fixing bugs without loading SKILLS_INDEX first**
-- Claiming "done" without `verification-before-completion`
-- **Skipping testing after code changes**
-- **Marking task done without real test + log analysis**
-- **Writing test code without applying skills when needed**
-- **Violating rules without documented exception**
-
----
-
-## Project Overview
-
-<!-- TODO: Describe your project here -->
-
-**Primary language**: <!-- TODO: e.g., Russian, English -->
 
 ## Commands
 
 ```bash
-# TODO: Add your project commands
-# Install dependencies
-pip install -e ".[dev]"
-
-# Run tests
-pytest
-
-# Linting and formatting
-ruff check src tests
-ruff format src tests
-mypy src
-```
-
-## Architecture
-
-<!-- TODO: Describe your architecture -->
-
-## Environment Variables
-
-```bash
-# TODO: List required environment variables
+py -3.12 -m pytest tests/ -v              # tests
+py -3.12 -m ruff check src tests          # linting
+py -3.12 -m pytest tests/ --cov=bot       # coverage
 ```
 
 ## Code Style
 
 - Line length: 100
-- Type hints required on public functions
+- Type hints on public functions
 - snake_case (functions), PascalCase (classes)
-- Async: `async def`, use `await` for I/O
+- Async: `async def`, `await` for I/O
+
+## aiogram Best Practices
+
+1. Handlers thin — logic in services
+2. Dependency injection via middleware
+3. FSM states in separate files
+4. AsyncMock for handler tests
+5. Don't block event loop
 
 ---
 
-## Python/aiogram Specific Rules
+# Detailed Instructions
 
-### Mandatory Skills for Python
+<details>
+<summary>Testing Algorithm (expand)</summary>
 
-When working with this project, ALWAYS load appropriate Python skills:
+### After EVERY code change:
 
-| Task | Required Skills |
-|------|-----------------|
+1. **WRITE TEST** — script/test for THIS change
+2. **RUN** — execute, collect logs
+3. **ANALYZE** — read logs in detail
+4. **COMPARE** — compare with requirements:
+   - User request
+   - `proposal.md` / `design.md`
+   - `tasks.md`
+5. **CONCLUDE**:
+   - Matches → Done
+   - Doesn't match → Fix → Repeat from step 1
+
+### Report format:
+
+```
+## Test Result
+
+**Change:** [what was changed]
+**Test:** [how tested]
+**Expected:** [what was expected per requirements]
+**Actual:** [what happened]
+**Status:** Matches / Does not match
+```
+
+</details>
+
+<details>
+<summary>OpenSpec Apply (expand)</summary>
+
+1. Read `proposal.md`, `design.md`, `tasks.md`
+2. `cat .claude/skills/SKILLS_INDEX.md`
+3. For each task:
+   - Select skills (usually TDD + executing-plans)
+   - Load each skill
+   - Execute task per skill
+   - **TEST** — verify the change
+   - Mark `[x]` in tasks.md
+4. After ALL tasks:
+   - `verification-before-completion`
+5. Report: "Ready for `openspec archive`"
+
+</details>
+
+<details>
+<summary>Bug Fix Flow (expand)</summary>
+
+```
+1. cat .claude/skills/SKILLS_INDEX.md
+2. Evaluate complexity:
+   - Simple → systematic-debugging
+   - Medium → + TDD
+   - Complex → + code-review
+3. Load selected skills
+4. Find root cause
+5. Write failing test
+6. Fix
+7. Test → logs → compare with bug description
+8. verification-before-completion
+```
+
+</details>
+
+<details>
+<summary>Execution Mode Decision (expand)</summary>
+
+```
+Q1: Tasks depend on each other?
+  Yes → DIRECT execution
+  No  → Q2
+
+Q2: More than 5 independent tasks?
+  No  → DIRECT execution
+  Yes → Q3
+
+Q3: Each task > 50 lines of code?
+  No  → DIRECT execution
+  Yes → SUBAGENTS
+
+DEFAULT: DIRECT. Subagents = exception.
+```
+
+</details>
+
+<details>
+<summary>Python Skills Reference (expand)</summary>
+
+| Task | Skills |
+|------|--------|
 | Any async code | `async-python-patterns` |
 | Writing tests | `python-testing-patterns` |
 | New handler/router | `telegram-bot-architecture` |
-| Personal data | `security-checklist` (MANDATORY) |
+| Personal data | `security-checklist` |
 | New API/webhook | `api-design-principles` |
 | Architecture refactor | `architecture-patterns` |
-| New project setup | `python-packaging` + `uv-package-manager` |
 | Performance issues | `python-performance-optimization` |
 
-### aiogram Best Practices
+</details>
 
-1. **Handlers must be thin** — business logic in services
-2. **Use dependency injection** via middleware for services
-3. **FSM states** in separate files per flow
-4. **Always use AsyncMock** for testing handlers
-5. **Never block event loop** — use `run_in_executor` for sync code
-
-### Testing Requirements
-
-```bash
-# Run tests
-pytest tests/ -v
-
-# Run with coverage
-pytest tests/ --cov=bot --cov-report=term-missing
-
-# Run async tests only
-pytest tests/ -m asyncio
-```
-
-### Security Checklist (for migration bots)
+<details>
+<summary>Security Checklist (expand)</summary>
 
 Before ANY code handling personal data:
 - [ ] Load `security-checklist` skill
@@ -452,28 +250,10 @@ Before ANY code handling personal data:
 - [ ] Use parameterized queries
 - [ ] Set file upload limits
 
----
+</details>
 
-## Git Workflow (CI/CD)
-
-**Ветки:**
-- `dev` — рабочая ветка, все изменения коммитятся сюда
-- `main` — продакшн ветка, автодеплой на сервер
-
-**Rules for Claude:**
-1. После каждого изменения → `git add . && git commit -m "feat: description" && git push origin dev`
-2. Push в `dev` **НЕ** вызывает деплой — это безопасная ветка для разработки
-3. Когда пользователь просит "мержить" или "задеплоить" → `git checkout main && git merge dev && git push origin main && git checkout dev`
-4. Push в `main` автоматически деплоит на сервер через GitHub Actions
-
-**Workflow:**
-```
-Работа → commit → push dev → тестирование локально → merge в main → автодеплой
-```
-
-## New Project Setup
-
-### Для нового проекта из этого шаблона
+<details>
+<summary>New Project Setup (expand)</summary>
 
 ```bash
 git clone <template> my-new-project
@@ -482,22 +262,16 @@ claude
 /init-project
 ```
 
-**Всё.** Никаких вопросов, никаких конфигов в проекте.
+Claude automatically:
+1. Takes name from folder
+2. Reads `~/.claude/deploy.json`
+3. Creates GitHub repo
+4. Configures Secrets
+5. Connects to server
+6. Adds Deploy Key
+7. Runs test deploy
 
-### Что делает `/init-project`
-
-Claude автоматически:
-1. Берёт название проекта из имени папки
-2. Читает данные сервера из `~/.claude/deploy.json`
-3. Создаёт GitHub репозиторий
-4. Настраивает GitHub Secrets
-5. Подключается к серверу и настраивает всё
-6. Добавляет Deploy Key
-7. Запускает тестовый деплой
-
-### Глобальный конфиг (настраивается один раз)
-
-Файл `~/.claude/deploy.json`:
+Global config `~/.claude/deploy.json`:
 ```json
 {
   "github_owner": "eseninik",
@@ -509,8 +283,15 @@ Claude автоматически:
 }
 ```
 
-**Примечание:** На Windows с кириллицей в имени пользователя нужны полные пути к SSH ключу и конфигу.
+</details>
 
-### Ручная настройка
+---
 
-Если нужна ручная настройка — см. `docs/CI_CD_SETUP.md`.
+# FORBIDDEN
+
+- `@.claude/skills` — loads EVERYTHING, fills context
+- Code without loading skills
+- Bug-fix without `systematic-debugging`
+- "Done" without `verification-before-completion`
+- Change without test
+- Violating rules without documented exception
