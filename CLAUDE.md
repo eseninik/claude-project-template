@@ -60,18 +60,6 @@ A rule can be violated ONLY if:
 
 ---
 
-# Quick Skill Selection
-
-| Task | Skills |
-|------|--------|
-| Bug/fix | `systematic-debugging` + `test-driven-development` |
-| New code | `test-driven-development` |
-| Async/aiogram | + `async-python-patterns` |
-| Personal data | + `security-checklist` (MANDATORY!) |
-| Before "done" | `verification-before-completion` |
-
----
-
 # OpenSpec Workflow
 
 ```
