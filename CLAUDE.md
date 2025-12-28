@@ -402,6 +402,58 @@ mypy src
 - snake_case (functions), PascalCase (classes)
 - Async: `async def`, use `await` for I/O
 
+---
+
+## Python/aiogram Specific Rules
+
+### Mandatory Skills for Python
+
+When working with this project, ALWAYS load appropriate Python skills:
+
+| Task | Required Skills |
+|------|-----------------|
+| Any async code | `async-python-patterns` |
+| Writing tests | `python-testing-patterns` |
+| New handler/router | `telegram-bot-architecture` |
+| Personal data | `security-checklist` (MANDATORY) |
+| New API/webhook | `api-design-principles` |
+| Architecture refactor | `architecture-patterns` |
+| New project setup | `python-packaging` + `uv-package-manager` |
+| Performance issues | `python-performance-optimization` |
+
+### aiogram Best Practices
+
+1. **Handlers must be thin** — business logic in services
+2. **Use dependency injection** via middleware for services
+3. **FSM states** in separate files per flow
+4. **Always use AsyncMock** for testing handlers
+5. **Never block event loop** — use `run_in_executor` for sync code
+
+### Testing Requirements
+
+```bash
+# Run tests
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=bot --cov-report=term-missing
+
+# Run async tests only
+pytest tests/ -m asyncio
+```
+
+### Security Checklist (for migration bots)
+
+Before ANY code handling personal data:
+- [ ] Load `security-checklist` skill
+- [ ] Validate all user input
+- [ ] Encrypt sensitive data at rest
+- [ ] Mask PII in logs
+- [ ] Use parameterized queries
+- [ ] Set file upload limits
+
+---
+
 ## Git Workflow (CI/CD)
 
 **Ветки:**

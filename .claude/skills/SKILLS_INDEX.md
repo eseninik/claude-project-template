@@ -18,6 +18,15 @@
 | Flaky test | `condition-based-waiting` | - |
 | Before "done" | `verification-before-completion` | - |
 | Finishing branch | `finishing-a-development-branch` | - |
+| **Python async code** | `async-python-patterns` | + `python-testing-patterns` |
+| **Telegram bot** | `telegram-bot-architecture` | + `async-python-patterns` |
+| **Personal data** | `security-checklist` | + `secret-scanner` |
+| **New API endpoint** | `api-design-principles` | + security if needed |
+| **Major refactoring** | `architecture-patterns` | + TDD |
+| **New project setup** | `python-packaging` | + `uv-package-manager` |
+| **Performance issues** | `python-performance-optimization` | after profiling |
+| **Need tests scaffold** | `test-generator` | + python-testing-patterns |
+| **Code review needed** | `code-reviewer` | - |
 
 ---
 
@@ -32,6 +41,42 @@ These skills are REQUIRED when the situation matches.
 | **systematic-debugging** | Any bug, error, unexpected behavior | `systematic-debugging/SKILL.md` | 1.0.0 |
 | **test-driven-development** | Any new code | `test-driven-development/SKILL.md` | 1.0.0 |
 | **verification-before-completion** | Before claiming "done" | `verification-before-completion/SKILL.md` | 1.0.0 |
+| **security-checklist** | Any personal data handling | `security-checklist/SKILL.md` | 1.0.0 |
+
+### PYTHON-SPECIFIC (use for Python projects)
+
+Use these for Python/aiogram/FastAPI development.
+
+| Skill | When | Path | Version |
+|-------|------|------|---------|
+| **async-python-patterns** | Any async/await, aiogram, aiohttp | `async-python-patterns/SKILL.md` | 1.0.0 |
+| **python-testing-patterns** | Writing tests, pytest, AsyncMock | `python-testing-patterns/SKILL.md` | 1.0.0 |
+| **telegram-bot-architecture** | Structuring aiogram bot project | `telegram-bot-architecture/SKILL.md` | 1.0.0 |
+| **python-packaging** | pyproject.toml, dependencies, setup | `python-packaging/SKILL.md` | 1.0.0 |
+| **python-performance-optimization** | Profiling, bottlenecks, optimization | `python-performance-optimization/SKILL.md` | 1.0.0 |
+| **uv-package-manager** | Fast dependency management with uv | `uv-package-manager/SKILL.md` | 1.0.0 |
+
+### ARCHITECTURE & API
+
+| Skill | When | Path | Version |
+|-------|------|------|---------|
+| **architecture-patterns** | Clean Architecture, SOLID, DI, repos | `architecture-patterns/SKILL.md` | 1.0.0 |
+| **api-design-principles** | REST API, webhooks, FastAPI endpoints | `api-design-principles/SKILL.md` | 1.0.0 |
+
+### SECURITY
+
+| Skill | When | Path | Version |
+|-------|------|------|---------|
+| **security-checklist** | Personal data, input validation, encryption | `security-checklist/SKILL.md` | 1.0.0 |
+| **secret-scanner** | Detect hardcoded secrets, API keys | `secret-scanner/SKILL.md` | 1.0.0 |
+
+### TESTING & CODE QUALITY
+
+| Skill | When | Path | Version |
+|-------|------|------|---------|
+| **test-generator** | Scaffold tests for existing code | `test-generator/SKILL.md` | 1.0.0 |
+| **code-reviewer** | Automated code review | `code-reviewer/SKILL.md` | 1.0.0 |
+| **testing-anti-patterns** | Avoid bad testing practices | `testing-anti-patterns/SKILL.md` | 1.0.0 |
 
 ### SITUATIONAL (use based on context)
 
@@ -42,7 +87,6 @@ Use these when the specific situation applies.
 | **root-cause-tracing** | Error deep in call stack | `root-cause-tracing/SKILL.md` | 1.0.0 |
 | **defense-in-depth** | Bug from invalid data | `defense-in-depth/SKILL.md` | 1.0.0 |
 | **condition-based-waiting** | Flaky tests, race conditions | `condition-based-waiting/SKILL.md` | 1.0.0 |
-| **testing-anti-patterns** | Writing/changing tests | `testing-anti-patterns/SKILL.md` | 1.0.0 |
 | **dispatching-parallel-agents** | 3+ independent failures | `dispatching-parallel-agents/SKILL.md` | 1.0.0 |
 
 ### WORKFLOW (choose one per task)
@@ -82,7 +126,8 @@ cat .claude/skills/<folder>/SKILL.md
 
 # Examples
 cat .claude/skills/systematic-debugging/SKILL.md
-cat .claude/skills/test-driven-development/SKILL.md
+cat .claude/skills/async-python-patterns/SKILL.md
+cat .claude/skills/security-checklist/SKILL.md
 ```
 
 ---
@@ -98,14 +143,50 @@ cat .claude/skills/test-driven-development/SKILL.md
 
 ## Typical Combinations
 
+### General Development
+
 | Task | Skills |
 |------|--------|
 | Simple bug | systematic-debugging |
 | Bug with new test | systematic-debugging + TDD |
-| Complex bug | systematic-debugging + TDD + code-review |
+| Complex bug | systematic-debugging + TDD + code-reviewer |
 | New feature task | TDD + executing-plans |
 | Flaky test fix | condition-based-waiting + TDD |
 | Final check | verification-before-completion |
+
+### Python/aiogram Development
+
+| Task | Skills |
+|------|--------|
+| New bot handler | TDD + async-python-patterns + telegram-bot-architecture |
+| Async bug | systematic-debugging + async-python-patterns |
+| Writing pytest tests | python-testing-patterns + TDD |
+| Refactor bot structure | telegram-bot-architecture + architecture-patterns |
+| Personal data feature | security-checklist + secret-scanner + TDD |
+| FSM flow | telegram-bot-architecture + python-testing-patterns |
+| New API endpoint | api-design-principles + TDD |
+| Performance issue | python-performance-optimization |
+| New project setup | python-packaging + uv-package-manager |
+| Add tests to existing code | test-generator + python-testing-patterns |
+| Code review | code-reviewer |
+
+---
+
+## Skill Count Summary
+
+**Total: 30 skills**
+
+| Category | Count | Skills |
+|----------|-------|--------|
+| Mandatory | 4 | debugging, TDD, verification, security-checklist |
+| Python-specific | 6 | async, testing, bot-arch, packaging, perf, uv |
+| Architecture & API | 2 | architecture-patterns, api-design |
+| Security | 2 | security-checklist, secret-scanner |
+| Testing & Quality | 3 | test-generator, code-reviewer, testing-anti-patterns |
+| Situational | 4 | root-cause, defense, waiting, parallel |
+| Workflow | 4 | executing, subagent, finishing, worktrees |
+| Code Review | 2 | requesting, receiving |
+| Meta | 4 | superpowers, writing, testing-skills, sharing |
 
 ---
 
@@ -115,3 +196,5 @@ cat .claude/skills/test-driven-development/SKILL.md
 - Loading skills "just in case"
 - Skipping mandatory skills when they apply
 - Using more than 3 skills simultaneously
+- **Skipping `security-checklist` when handling personal data**
+- **Skipping `secret-scanner` before commits**
