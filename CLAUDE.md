@@ -19,27 +19,56 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 ---
 
-# BLOCKING RULES
+# STOP! BLOCKING RULES
 
 **These rules CANNOT be bypassed. Violation = task failure.**
 
-## Before ANY code (fix/feature/refactor)
+## Dynamic Skill Selection
+
+### When to re-evaluate skills:
+- At the START of working on a task
+- When CHANGING phases (research -> code -> tests -> completion)
+- When the SITUATION CHANGED (found different problem, approach changed)
+
+### Algorithm (MANDATORY):
 
 ```
-1. cat .claude/skills/SKILLS_INDEX.md
-2. Select 1-3 skills → load EACH: cat .claude/skills/<name>/SKILL.md
-3. Follow the skill
+1. STOP
+2. Write to user: "Situation: [what I'm doing now]"
+3. cat .claude/skills/SKILLS_INDEX.md
+4. Analyze ALL 30 skills - which fit the current situation?
+5. Write to user: "Skills: [list with brief reasoning]"
+6. Load EACH: cat .claude/skills/<name>/SKILL.md
+7. Follow loaded skills
 ```
 
-**Writing/changing code WITHOUT these steps is FORBIDDEN.**
+### Checkpoint (BLOCKING):
+
+**I CANNOT write/change code without this message:**
+```
+Situation: [description of current phase]
+Skills: [skill1] (reason), [skill2] (reason)
+```
+
+This message = proof that I analyzed and selected.
+**Without this message, writing code is FORBIDDEN.**
+
+### Switching between skills:
+
+When situation changes:
+```
+1. Write: "Phase change: [was] -> [became]"
+2. Repeat selection algorithm
+3. Old skills "unload", work with new ones
+```
 
 ## After EVERY code change
 
 ```
-1. Write test/script for THIS specific change
-2. Run → collect logs
+1. Write test/script for THIS change
+2. Run -> collect logs
 3. Compare result with requirements (user request / tasks.md / proposal.md)
-4. Doesn't match? → Fix → Repeat
+4. Doesn't match? -> Fix -> Repeat
 ```
 
 **Without test, the change is NOT COMPLETE.**
@@ -47,10 +76,25 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 ## Before saying "done" / "fixed" / "complete"
 
 ```
-cat .claude/skills/verification-before-completion/SKILL.md
-→ Execute verification
-→ Only then claim completion
+1. Write: "Phase change: code -> verification"
+2. cat .claude/skills/verification-before-completion/SKILL.md
+3. Execute verification per skill
+4. Only then claim completion
 ```
+
+## After task completion - AUTO-COMMIT
+
+**I CANNOT say "done" / "Ready for archive" without commit.**
+
+```
+1. Verification passed
+2. git add <changed files>
+3. git commit -m "type: description"
+4. git push origin dev
+5. Only then claim completion
+```
+
+**Without commit, task is NOT COMPLETE.**
 
 ## Rule Exceptions
 
@@ -63,9 +107,9 @@ A rule can be violated ONLY if:
 # OpenSpec Workflow
 
 ```
-proposal/spec/new feature? → openspec/AGENTS.md (skills NOT needed)
-openspec apply?            → Load skills → TDD → tests
-openspec archive?          → openspec/AGENTS.md (skills NOT needed)
+proposal/spec/new feature? -> openspec/AGENTS.md (skills NOT needed)
+openspec apply?            -> Load skills -> TDD -> tests
+openspec archive?          -> openspec/AGENTS.md (skills NOT needed)
 ```
 
 ---
@@ -86,13 +130,13 @@ py -3.12 script.py
 
 ## Git Workflow
 
-- `dev` — working branch, commit here
-- `main` — production, auto-deploy
+- `dev` - working branch, commit here
+- `main` - production, auto-deploy
 
 **Rules:**
 1. Commit IMMEDIATELY after each completed change
 2. DON'T touch `main` directly
-3. `deploy` → merge dev into main
+3. `deploy` -> merge dev into main
 
 ```bash
 git add <files> && git commit -m "fix: description" && git push origin dev
@@ -115,7 +159,7 @@ py -3.12 -m pytest tests/ --cov=bot       # coverage
 
 ## aiogram Best Practices
 
-1. Handlers thin — logic in services
+1. Handlers thin - logic in services
 2. Dependency injection via middleware
 3. FSM states in separate files
 4. AsyncMock for handler tests
@@ -130,16 +174,16 @@ py -3.12 -m pytest tests/ --cov=bot       # coverage
 
 ### After EVERY code change:
 
-1. **WRITE TEST** — script/test for THIS change
-2. **RUN** — execute, collect logs
-3. **ANALYZE** — read logs in detail
-4. **COMPARE** — compare with requirements:
+1. **WRITE TEST** - script/test for THIS change
+2. **RUN** - execute, collect logs
+3. **ANALYZE** - read logs in detail
+4. **COMPARE** - compare with requirements:
    - User request
    - `proposal.md` / `design.md`
    - `tasks.md`
 5. **CONCLUDE**:
-   - Matches → Done
-   - Doesn't match → Fix → Repeat from step 1
+   - Matches -> Done
+   - Doesn't match -> Fix -> Repeat from step 1
 
 ### Report format:
 
@@ -164,7 +208,7 @@ py -3.12 -m pytest tests/ --cov=bot       # coverage
    - Select skills (usually TDD + executing-plans)
    - Load each skill
    - Execute task per skill
-   - **TEST** — verify the change
+   - **TEST** - verify the change
    - Mark `[x]` in tasks.md
 4. After ALL tasks:
    - `verification-before-completion`
@@ -175,19 +219,36 @@ py -3.12 -m pytest tests/ --cov=bot       # coverage
 <details>
 <summary>Bug Fix Flow (expand)</summary>
 
+### Phase 1: Research
 ```
-1. cat .claude/skills/SKILLS_INDEX.md
-2. Evaluate complexity:
-   - Simple → systematic-debugging
-   - Medium → + TDD
-   - Complex → + code-review
-3. Load selected skills
-4. Find root cause
-5. Write failing test
-6. Fix
-7. Test → logs → compare with bug description
-8. verification-before-completion
+Situation: Investigating bug, looking for root cause
+Skills: systematic-debugging (finding cause), [+ others as needed]
 ```
+-> Load skills -> Find root cause
+
+### Phase 2: Writing code
+```
+Phase change: research -> code
+Situation: Writing fix in Python
+Skills: async-python-patterns (async code), [+ others as needed]
+```
+-> Load skills -> Write fix
+
+### Phase 3: Tests
+```
+Phase change: code -> tests
+Situation: Writing tests for fix
+Skills: test-driven-development, python-testing-patterns
+```
+-> Load skills -> Write tests -> Run
+
+### Phase 4: Completion
+```
+Phase change: tests -> verification
+Situation: Verifying everything is ready
+Skills: verification-before-completion
+```
+-> Load skill -> Verify -> Claim "done"
 
 </details>
 
@@ -196,16 +257,16 @@ py -3.12 -m pytest tests/ --cov=bot       # coverage
 
 ```
 Q1: Tasks depend on each other?
-  Yes → DIRECT execution
-  No  → Q2
+  Yes -> DIRECT execution
+  No  -> Q2
 
 Q2: More than 5 independent tasks?
-  No  → DIRECT execution
-  Yes → Q3
+  No  -> DIRECT execution
+  Yes -> Q3
 
 Q3: Each task > 50 lines of code?
-  No  → DIRECT execution
-  Yes → SUBAGENTS
+  No  -> DIRECT execution
+  Yes -> SUBAGENTS
 
 DEFAULT: DIRECT. Subagents = exception.
 ```
@@ -277,9 +338,9 @@ Global config `~/.claude/deploy.json`:
 
 # FORBIDDEN
 
-- `@.claude/skills` — loads EVERYTHING, fills context
-- Code without loading skills
-- Bug-fix without `systematic-debugging`
-- "Done" without `verification-before-completion`
+- `@.claude/skills` - loads EVERYTHING, fills context
+- Code without checkpoint message "Situation: ... Skills: ..."
+- Phase change without message "Phase change: X -> Y"
+- "Done" without loading `verification-before-completion`
 - Change without test
 - Violating rules without documented exception
