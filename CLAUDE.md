@@ -1,116 +1,337 @@
-<!-- OPENSPEC:START -->
-# OpenSpec Instructions
+# Project: [PROJECT NAME]
 
-These instructions are for AI assistants working in this project.
+> **[ОДНО ПРЕДЛОЖЕНИЕ - О ЧЕМ ЭТОТ ПРОЕКТ]**
 
-Always open `@/openspec/AGENTS.md` when the request:
-- Mentions planning or proposals (words like proposal, spec, change, plan)
-- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
-- Sounds ambiguous and you need the authoritative spec before coding
+---
 
-Use `@/openspec/AGENTS.md` to learn:
-- How to create and apply change proposals
-- Spec format and conventions
-- Project structure and guidelines
+## Как работает этот проект
 
-Keep this managed block so 'openspec update' can refresh the instructions.
+**Контекст:** Все знания о проекте в `.claude/skills/project-knowledge/` - guides по архитектуре, паттернам, git workflow, UX, базе данных и деплою.
 
-<!-- OPENSPEC:END -->
+**Основная ветка:** `dev`
+
+**Методология:** AI-First Development — spec-driven workflow с Just-In-Time context loading.
 
 ---
 
 # STOP! BLOCKING RULES
 
-**These rules CANNOT be bypassed. Violation = task failure.**
+**Эти правила НЕЛЬЗЯ обойти. Нарушение = провал задачи.**
 
-## Dynamic Skill Selection
+## Session Start (BLOCKING)
 
-### When to re-evaluate skills:
-- At the START of working on a task
-- When CHANGING phases (research -> code -> tests -> completion)
-- When the SITUATION CHANGED (found different problem, approach changed)
+**При КАЖДОМ начале сессии (первое сообщение):**
 
-### Algorithm (MANDATORY):
+1. Прочитать `work/STATE.md`
+2. Если есть незавершённая работа (status != completed):
+   ```
+   Незавершённая работа:
+   - Task: [название из Current Work]
+   - Status: [статус]
+   - Last session: [дата из Session Notes]
 
-```
-1. STOP
-2. Write to user: "Situation: [what I'm doing now]"
-3. cat .claude/skills/SKILLS_INDEX.md
-4. Analyze ALL 30 skills - which fit the current situation?
-5. Write to user: "Skills: [list with brief reasoning]"
-6. Load EACH: cat .claude/skills/<name>/SKILL.md
-7. Follow loaded skills
-```
+   Продолжить? (да/нет/показать детали)
+   ```
+3. Если нет незавершённой работы → продолжить с запросом пользователя
 
-### Checkpoint (BLOCKING):
-
-**I CANNOT write/change code without this message:**
-```
-Situation: [description of current phase]
-Skills: [skill1] (reason), [skill2] (reason)
-```
-
-This message = proof that I analyzed and selected.
-**Without this message, writing code is FORBIDDEN.**
-
-### Switching between skills:
-
-When situation changes:
-```
-1. Write: "Phase change: [was] -> [became]"
-2. Repeat selection algorithm
-3. Old skills "unload", work with new ones
-```
-
-## After EVERY code change
-
-```
-1. Write test/script for THIS change
-2. Run -> collect logs
-3. Compare result with requirements (user request / tasks.md / proposal.md)
-4. Doesn't match? -> Fix -> Repeat
-```
-
-**Without test, the change is NOT COMPLETE.**
-
-## Before saying "done" / "fixed" / "complete"
-
-```
-1. Write: "Phase change: code -> verification"
-2. cat .claude/skills/verification-before-completion/SKILL.md
-3. Execute verification per skill
-4. Only then claim completion
-```
-
-## After task completion - AUTO-COMMIT
-
-**I CANNOT say "done" / "Ready for archive" without commit.**
-
-```
-1. Verification passed
-2. git add <changed files>
-3. git commit -m "type: description"
-4. git push origin dev
-5. Only then claim completion
-```
-
-**Without commit, task is NOT COMPLETE.**
-
-## Rule Exceptions
-
-A rule can be violated ONLY if:
-1. Documented: which rule, why, what risks
-2. User explicitly confirmed the exception
+**Это правило для агента, НЕ hooks.**
 
 ---
 
-# OpenSpec Workflow
+## State Management (BLOCKING)
+
+### Before starting work:
+1. Check if `work/STATE.md` exists
+2. If exists: Read it
+3. Write: `"Resuming: [task] from [date]"` (или `"Starting fresh"` если пусто)
+4. Check blockers and previous decisions
+
+### After finishing work (or session end):
+1. Update `work/STATE.md`:
+   - Current Work section (phase, task, status)
+   - Session Notes with today's date
+   - Next Steps
+2. If made decisions → add to Key Decisions table
+3. If found blockers → add to Blockers section
+
+**Без обновления STATE.md сессия НЕ ЗАВЕРШЕНА.**
+
+---
+
+## Dynamic Skill Selection
+
+### Когда переоценивать skills:
+- В НАЧАЛЕ работы над задачей
+- При СМЕНЕ фаз (research -> code -> tests -> completion)
+- Когда СИТУАЦИЯ ИЗМЕНИЛАСЬ (нашел другую проблему, подход изменился)
+
+### Алгоритм (ОБЯЗАТЕЛЬНЫЙ):
 
 ```
-proposal/spec/new feature? -> openspec/AGENTS.md (skills NOT needed)
-openspec apply?            -> Load skills -> TDD -> tests
-openspec archive?          -> openspec/AGENTS.md (skills NOT needed)
+1. СТОП
+2. Написать пользователю: "Situation: [что я делаю сейчас]"
+3. cat .claude/skills/SKILLS_INDEX.md
+4. Проанализировать ВСЕ skills - какие подходят для текущей ситуации?
+5. Написать пользователю: "Skills: [список с кратким обоснованием]"
+6. Загрузить КАЖДЫЙ: cat .claude/skills/<name>/SKILL.md
+7. Следовать загруженным skills
 ```
+
+### Checkpoint (БЛОКИРУЮЩИЙ):
+
+**Я НЕ МОГУ писать/менять код без этого сообщения:**
+```
+Situation: [описание текущей фазы]
+Skills: [skill1] (причина), [skill2] (причина)
+```
+
+Это сообщение = доказательство что я проанализировал и выбрал.
+**Без этого сообщения писать код ЗАПРЕЩЕНО.**
+
+### Переключение между skills:
+
+Когда ситуация меняется:
+```
+1. Написать: "Phase change: [было] -> [стало]"
+2. Повторить алгоритм выбора
+3. Старые skills "выгружаются", работаю с новыми
+```
+
+---
+
+## Autowork Mode (Автоматический режим)
+
+**Trigger:** Сообщение начинается с "autowork:" или "ulw:"
+
+**Пример:** "autowork: добавить авторизацию пользователей"
+
+### Автоматический Pipeline
+
+1. **Intent Classification** (orchestrator)
+   - Определить тип задачи (feature/bug/refactoring)
+   - Выбрать подходящие skills автоматически
+   - Проверить наличие prerequisite артефактов
+
+2. **Spec Generation** (если нужно)
+   - user-spec-planning → tech-spec-planning
+   - Ждать approval пользователя на каждом этапе
+
+3. **Execution** (subagent-driven-development)
+   - Wave parallelization для независимых задач
+   - Code review после каждой задачи
+   - Progress tracking в background-tasks.json
+
+4. **Quality Gates** (BLOCKING!)
+   - user-acceptance-testing → получить подтверждение пользователя
+   - verification-before-completion → собрать evidence
+
+5. **Completion** (auto-commit если всё прошло)
+   - Коммит изменений
+   - Обновление STATE.md
+
+### Intervention Points
+
+Пользователь может вмешаться на любом checkpoint:
+- После intent classification
+- После spec generation
+- После каждой wave выполнения
+- На UAT
+- Перед commit
+
+### Fallback
+
+Если autowork не справляется → переключается на manual skill selection.
+
+---
+
+## После КАЖДОГО изменения кода
+
+```
+1. Написать тест/скрипт для ЭТОГО изменения
+2. Запустить -> собрать логи
+3. Сравнить результат с требованиями (запрос пользователя / tasks.md / user-spec.md)
+4. Не совпадает? -> Исправить -> Повторить
+```
+
+**Без теста изменение НЕ ЗАВЕРШЕНО.**
+
+## После реализации фичи - UAT (BLOCKING)
+
+**Я НЕ МОГУ сказать "готово" без UAT подтверждения от пользователя.**
+
+```
+1. Написать: "Phase change: implementation -> UAT"
+2. cat .claude/skills/user-acceptance-testing/SKILL.md
+3. Сгенерировать UAT сценарии из user-spec.md:
+   - Секция "Как должно работать"
+   - Секция "Критерии готовности"
+   - Секция "Сценарии использования"
+4. Представить пользователю чеклист для проверки
+5. Получить ответ: "UAT прошёл" или список проблем
+6. Есть проблемы? → Исправить → Повторить UAT
+7. Прошёл? → Переходить к verification-before-completion
+```
+
+**Без UAT подтверждения реализация НЕ ЗАВЕРШЕНА.**
+
+## Управление размером контекста (BLOCKING)
+
+**Качество деградирует при заполнении контекста:**
+- 0-30%: Пиковое качество
+- 30-50%: Хорошее качество
+- 50-70%: Деградация
+- 70%+: Низкое качество
+
+**Правила:**
+1. Один план: максимум 3 задачи
+2. Контекст > 50%: запустить субагента или разбить задачу
+3. Свежий контекст для сложных задач
+4. Не накапливать контекст - использовать STATE.md для persistence
+
+## Проверка от цели - Goal-backward Verification (BLOCKING)
+
+**Проверяй от цели, а не от задач. Завершение задачи ≠ Достижение цели.**
+
+```
+1. Что должно быть ИСТИНОЙ для достижения цели?
+   → Список наблюдаемых поведений (user can X, system does Y)
+
+2. Что должно СУЩЕСТВОВАТЬ для этих истин?
+   → Конкретные файлы, функции, endpoints
+
+3. Что должно быть СВЯЗАНО для работы артефактов?
+   → Импорты, вызовы, подключения к БД
+
+4. Проверь КАЖДЫЙ уровень:
+   - Артефакт СУЩЕСТВУЕТ? (файл есть)
+   - Артефакт СОДЕРЖАТЕЛЬНЫЙ? (не заглушка, >15 строк для компонента)
+   - Артефакт ПОДКЛЮЧЁН? (импортирован И используется)
+```
+
+**Если артефакт существует но не подключён = цель НЕ достигнута.**
+
+## Перед словами "готово" / "исправлено" / "завершено"
+
+```
+1. Написать: "Phase change: code -> verification"
+2. cat .claude/skills/verification-before-completion/SKILL.md
+3. Выполнить верификацию по skill
+4. Только тогда заявлять о завершении
+```
+
+## После завершения задачи - AUTO-COMMIT
+
+**Я НЕ МОГУ сказать "готово" без коммита.**
+
+```
+1. Верификация пройдена
+2. git add <измененные файлы>
+3. git commit -m "type: описание"
+4. git push origin dev
+5. Только тогда заявлять о завершении
+```
+
+**Без коммита задача НЕ ЗАВЕРШЕНА.**
+
+## Cleanup - удаление временных файлов
+
+**После каждой сессии или перед коммитом:**
+
+```bash
+rm -f tmpclaude*
+```
+
+Эти файлы создаются Claude Code автоматически и не нужны.
+
+## Исключения из правил
+
+Правило можно нарушить ТОЛЬКО если:
+1. Задокументировано: какое правило, почему, какие риски
+2. Пользователь явно подтвердил исключение
+
+---
+
+# Work Items Workflow
+
+## Spec-Driven Development Flow
+
+```
+Context → Discuss (optional) → User Spec → Tech Spec → Tasks → Code → UAT → Verification → Commit
+```
+
+**Каждый уровень уточняет предыдущий:**
+1. `project.md` - что строим
+2. `user-spec.md` - что хочет пользователь (Russian)
+3. `tech-spec.md` - как реализуем (English)
+4. `tasks/*.md` - атомарные задачи
+
+## Для новой фичи/бага:
+
+```
+1. Создать work/<feature-name>/
+2. /new-user-spec → заполнить user-spec.md (интервью с пользователем)
+3. /new-tech-spec → заполнить tech-spec.md (технические решения)
+4. Разбить на tasks/*.md
+5. Реализовать задачи (с использованием skills - Dynamic Skill Selection)
+6. После деплоя: переместить в work/completed/
+```
+
+## Для хранения архитектуры:
+
+```
+Вся проектная информация в:
+.claude/skills/project-knowledge/guides/
+
+Обновлять guides после значительных изменений в архитектуре.
+```
+
+---
+
+# AI-First Methodology Concepts
+
+## Just-In-Time Context
+Агент читает только необходимую информацию для текущей задачи, не весь контекст.
+
+- Task development → read task.md, tech-spec.md, relevant guides
+- Feature development → read all tasks, tech-spec, user-spec
+- Context update → read only modified files
+
+## Single Source of Truth
+Каждая информация хранится в одном месте, остальные ссылаются на неё.
+
+- Project description → `project-knowledge/guides/project.md`
+- Tech stack → `project-knowledge/guides/architecture.md`
+- Database schema → `project-knowledge/guides/database.md`
+- Deployment config → `project-knowledge/guides/deployment.md`
+
+## Agent Orchestration
+Главный агент координирует специализированных субагентов.
+
+**Orchestrator (`.claude/agents/orchestrator.md`):**
+- Intent classification (autowork trigger)
+- Автоматический выбор skills
+- Validation prerequisite артефактов
+- Model selection (opus/sonnet/haiku)
+- Coordination субагентов
+
+**Субагенты (`.claude/agents/`):**
+- `code-developer` - реализует код и тесты (sonnet)
+- `code-reviewer` - ревьюит качество кода (sonnet)
+- `secret-scanner` - сканирует на секреты
+- `security-auditor` - аудит OWASP Top 10
+
+---
+
+# Available Commands
+
+| Command | Purpose |
+|---------|---------|
+| `/init-project` | Инициализация нового проекта с шаблоном и CI/CD |
+| `/init-context` | Заполнение контекстных файлов проекта |
+| `/project-context` | Загрузка контекста проекта |
+| `/new-user-spec` | Создание user-spec через интервью |
+| `/new-tech-spec` | Создание tech-spec и tasks |
+| `/resume` | Продолжить незавершённую работу из STATE.md |
 
 ---
 
@@ -118,9 +339,9 @@ openspec archive?          -> openspec/AGENTS.md (skills NOT needed)
 
 ## Windows: Python Commands
 
-**Problem:** `python` returns exit code 49 due to Cyrillic in path.
+**Проблема:** `python` возвращает exit code 49 из-за кириллицы в пути.
 
-**Solution:** Use `py -3.12`:
+**Решение:** Использовать `py -3.12`:
 
 ```bash
 py -3.12 -m pytest tests/
@@ -130,13 +351,13 @@ py -3.12 script.py
 
 ## Git Workflow
 
-- `dev` - working branch, commit here
-- `main` - production, auto-deploy
+- `dev` - рабочая ветка, коммитим сюда
+- `main` - продакшен, авто-деплой
 
-**Rules:**
-1. Commit IMMEDIATELY after each completed change
-2. DON'T touch `main` directly
-3. `deploy` -> merge dev into main
+**Правила:**
+1. Коммитить СРАЗУ после каждого завершенного изменения
+2. НЕ трогать `main` напрямую
+3. `deploy` -> merge dev в main
 
 ```bash
 git add <files> && git commit -m "fix: description" && git push origin dev
@@ -145,202 +366,68 @@ git add <files> && git commit -m "fix: description" && git push origin dev
 ## Commands
 
 ```bash
-py -3.12 -m pytest tests/ -v              # tests
-py -3.12 -m ruff check src tests          # linting
+py -3.12 -m pytest tests/ -v              # тесты
+py -3.12 -m ruff check src tests          # линтинг
 py -3.12 -m pytest tests/ --cov=bot       # coverage
 ```
 
 ## Code Style
 
-- Line length: 100
-- Type hints on public functions
-- snake_case (functions), PascalCase (classes)
-- Async: `async def`, `await` for I/O
+- Длина строки: 100
+- Type hints на public функциях
+- snake_case (функции), PascalCase (классы)
+- Async: `async def`, `await` для I/O
 
 ## aiogram Best Practices
 
-1. Handlers thin - logic in services
-2. Dependency injection via middleware
-3. FSM states in separate files
-4. AsyncMock for handler tests
-5. Don't block event loop
+1. Handlers тонкие - логика в services
+2. Dependency injection через middleware
+3. FSM states в отдельных файлы
+4. AsyncMock для тестов handlers
+5. Не блокировать event loop
 
 ---
 
-# Detailed Instructions
+# Key Skills Reference
 
-<details>
-<summary>Testing Algorithm (expand)</summary>
+## Planning Skills
+- `methodology` - AI-First методология, workflows
+- `project-planning` - планирование проекта (project.md, features.md, roadmap.md)
+- `user-spec-planning` - создание user-spec через интервью
+- `tech-spec-planning` - создание tech-spec и tasks
 
-### After EVERY code change:
+## Infrastructure Skills
+- `infrastructure` - CI/CD, Docker, GitHub Actions, pre-commit hooks
+- `testing` - стратегия тестирования (smoke → unit → integration → E2E)
 
-1. **WRITE TEST** - script/test for THIS change
-2. **RUN** - execute, collect logs
-3. **ANALYZE** - read logs in detail
-4. **COMPARE** - compare with requirements:
-   - User request
-   - `proposal.md` / `design.md`
-   - `tasks.md`
-5. **CONCLUDE**:
-   - Matches -> Done
-   - Doesn't match -> Fix -> Repeat from step 1
+## Mandatory Skills
+- `systematic-debugging` - при любом баге
+- `test-driven-development` - при любом новом коде
+- `user-acceptance-testing` - после реализации, перед verification
+- `verification-before-completion` - перед "готово"
+- `security-checklist` - при работе с персональными данными
 
-### Report format:
+## Context & Mapping Skills
+- `context-capture` - для размытых требований, перед user-spec
+- `codebase-mapping` - для нового/незнакомого проекта
 
-```
-## Test Result
-
-**Change:** [what was changed]
-**Test:** [how tested]
-**Expected:** [what was expected per requirements]
-**Actual:** [what happened]
-**Status:** Matches / Does not match
-```
-
-</details>
-
-<details>
-<summary>OpenSpec Apply (expand)</summary>
-
-1. Read `proposal.md`, `design.md`, `tasks.md`
-2. `cat .claude/skills/SKILLS_INDEX.md`
-3. For each task:
-   - Select skills (usually TDD + executing-plans)
-   - Load each skill
-   - Execute task per skill
-   - **TEST** - verify the change
-   - Mark `[x]` in tasks.md
-4. After ALL tasks:
-   - `verification-before-completion`
-5. Report: "Ready for `openspec archive`"
-
-</details>
-
-<details>
-<summary>Bug Fix Flow (expand)</summary>
-
-### Phase 1: Research
-```
-Situation: Investigating bug, looking for root cause
-Skills: systematic-debugging (finding cause), [+ others as needed]
-```
--> Load skills -> Find root cause
-
-### Phase 2: Writing code
-```
-Phase change: research -> code
-Situation: Writing fix in Python
-Skills: async-python-patterns (async code), [+ others as needed]
-```
--> Load skills -> Write fix
-
-### Phase 3: Tests
-```
-Phase change: code -> tests
-Situation: Writing tests for fix
-Skills: test-driven-development, python-testing-patterns
-```
--> Load skills -> Write tests -> Run
-
-### Phase 4: Completion
-```
-Phase change: tests -> verification
-Situation: Verifying everything is ready
-Skills: verification-before-completion
-```
--> Load skill -> Verify -> Claim "done"
-
-</details>
-
-<details>
-<summary>Execution Mode Decision (expand)</summary>
-
-```
-Q1: Tasks depend on each other?
-  Yes -> DIRECT execution
-  No  -> Q2
-
-Q2: More than 5 independent tasks?
-  No  -> DIRECT execution
-  Yes -> Q3
-
-Q3: Each task > 50 lines of code?
-  No  -> DIRECT execution
-  Yes -> SUBAGENTS
-
-DEFAULT: DIRECT. Subagents = exception.
-```
-
-</details>
-
-<details>
-<summary>Python Skills Reference (expand)</summary>
-
-| Task | Skills |
-|------|--------|
-| Any async code | `async-python-patterns` |
-| Writing tests | `python-testing-patterns` |
-| New handler/router | `telegram-bot-architecture` |
-| Personal data | `security-checklist` |
-| New API/webhook | `api-design-principles` |
-| Architecture refactor | `architecture-patterns` |
-| Performance issues | `python-performance-optimization` |
-
-</details>
-
-<details>
-<summary>Security Checklist (expand)</summary>
-
-Before ANY code handling personal data:
-- [ ] Load `security-checklist` skill
-- [ ] Validate all user input
-- [ ] Encrypt sensitive data at rest
-- [ ] Mask PII in logs
-- [ ] Use parameterized queries
-- [ ] Set file upload limits
-
-</details>
-
-<details>
-<summary>New Project Setup (expand)</summary>
-
-```bash
-git clone <template> my-new-project
-cd my-new-project
-claude
-/init-project
-```
-
-Claude automatically:
-1. Takes name from folder
-2. Reads `~/.claude/deploy.json`
-3. Creates GitHub repo
-4. Configures Secrets
-5. Connects to server
-6. Adds Deploy Key
-7. Runs test deploy
-
-Global config `~/.claude/deploy.json`:
-```json
-{
-  "github_owner": "eseninik",
-  "server_host": "16.170.136.118",
-  "server_user": "ubuntu",
-  "base_path": "/home/ubuntu",
-  "ssh_key": "C:/Users/USERNAME/.ssh/id_ed25519",
-  "ssh_config": "C:/Users/USERNAME/.ssh/config"
-}
-```
-
-</details>
+## Python Skills
+- `async-python-patterns` - async/await, aiogram, aiohttp
+- `telegram-bot-architecture` - структура aiogram проекта
+- `python-testing-patterns` - pytest, AsyncMock
 
 ---
 
 # FORBIDDEN
 
-- `@.claude/skills` - loads EVERYTHING, fills context
-- Code without checkpoint message "Situation: ... Skills: ..."
-- Phase change without message "Phase change: X -> Y"
-- "Done" without loading `verification-before-completion`
-- Change without test
-- Violating rules without documented exception
+- `@.claude/skills` - загружает ВСЁ, забивает контекст
+- Код без checkpoint сообщения "Situation: ... Skills: ..."
+- Смена фазы без сообщения "Phase change: X -> Y"
+- "Готово" без загрузки `verification-before-completion`
+- Изменение без теста
+- Нарушение правил без задокументированного исключения
+- **Пропуск `security-checklist` при работе с персональными данными**
+- **Пропуск `secret-scanner` перед коммитами**
+- **Пропуск UAT после реализации фичи**
+- **Заявление "готово" без UAT подтверждения от пользователя**
+- **Игнорирование Goal-backward Verification (проверять artifacts без проверки wiring)**

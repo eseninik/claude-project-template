@@ -1,0 +1,23 @@
+{
+  "version": "1.0",
+  "description": "Tracks parallel subagent task execution",
+  "schema": {
+    "task": {
+      "id": "string - unique task identifier (e.g., 'task-001-wave1')",
+      "taskFile": "string - path to task.md file",
+      "taskTitle": "string - human-readable task title",
+      "agent": "string - agent type (e.g., 'code-developer', 'code-reviewer')",
+      "model": "string - model used (e.g., 'claude-opus-4-5-20251101')",
+      "wave": "number - wave number (1, 2, 3...)",
+      "status": "string - 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'",
+      "startedAt": "string - ISO 8601 timestamp when task started",
+      "completedAt": "string - ISO 8601 timestamp when task completed (null if not done)",
+      "duration": "number - duration in seconds (null if not completed)",
+      "result": "string - summary of what was accomplished (null if not completed)",
+      "error": "string - error message if failed (null if no error)"
+    }
+  },
+  "tasks": [],
+  "activeWave": null,
+  "lastUpdated": null
+}
