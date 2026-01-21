@@ -1,7 +1,32 @@
 ---
 name: using-git-worktrees
-version: 1.0.0
-description: Use when starting feature work that needs isolation from current workspace or before executing implementation plans - creates isolated git worktrees with smart directory selection and safety verification
+version: 2.1.0
+description: |
+  Use for isolated workspace creation OR parallel task execution.
+
+  v2.0 adds:
+  - Multi-worktree creation for parallel tasks
+  - Merge flow with conflict classification
+  - Batch cleanup
+  - Platform detection
+
+  v2.1 adds:
+  - Corrupted worktree recovery
+  - Pre-cleanup safety check (uncommitted changes)
+
+changelog:
+  - version: 2.1.0
+    date: 2026-01-21
+    changes:
+      - Added Corrupted Worktree Recovery section
+      - Added Pre-Cleanup Safety Check (uncommitted changes)
+  - version: 2.0.0
+    date: 2026-01-21
+    changes:
+      - Added Multi-Worktree Parallel Execution section
+      - Added Conflict Classification (5 types)
+      - Added Batch Cleanup
+      - Added Platform Detection
 ---
 
 # Using Git Worktrees
@@ -188,6 +213,212 @@ Tests passing (47 tests, 0 failures)
 Ready to implement auth feature
 ```
 
+---
+
+## Multi-Worktree Parallel Execution (v2.0+)
+
+For use with `subagent-driven-development` Worktree Mode.
+
+### Creating Multiple Worktrees
+
+```bash
+# Create worktrees for each conflicting task
+for task_num in $CONFLICTING_TASKS; do
+  WORKTREE_PATH=".worktrees/task-$task_num"
+  BRANCH_NAME="wt/task-$task_num"
+
+  # Verify .gitignore first
+  if ! grep -q "^\.worktrees/$" .gitignore; then
+    echo ".worktrees/" >> .gitignore
+    git add .gitignore
+    git commit -m "chore: add .worktrees/ to .gitignore"
+  fi
+
+  git worktree add "$WORKTREE_PATH" -b "$BRANCH_NAME"
+done
+```
+
+### Batch Cleanup
+
+```bash
+# Remove all task worktrees
+for worktree in .worktrees/task-*; do
+  if [ -d "$worktree" ]; then
+    git worktree remove "$worktree" --force
+  fi
+done
+
+# Prune worktree metadata
+git worktree prune
+
+# Delete branches
+for branch in $(git branch | grep "wt/task-"); do
+  git branch -D "$branch"
+done
+```
+
+---
+
+## Pre-Cleanup Safety Check (v2.1)
+
+**Before removing any worktree, check for uncommitted changes:**
+
+### Check for Uncommitted Work
+
+```bash
+WORKTREE_PATH=".worktrees/task-001"
+
+# Check for uncommitted changes
+cd "$WORKTREE_PATH"
+UNCOMMITTED=$(git status --porcelain)
+
+if [ -n "$UNCOMMITTED" ]; then
+  echo "⚠️ Uncommitted changes in $WORKTREE_PATH:"
+  git status --short
+fi
+```
+
+### If Uncommitted Changes Found
+
+```
+⚠️ Uncommitted changes detected in worktree
+
+Worktree: .worktrees/task-001
+Branch: wt/task-001
+
+Uncommitted files:
+ M src/user.py
+ A src/new_file.py
+?? tests/test_new.py
+
+Options:
+1. Stash changes (Recommended)
+   → git stash -m "Auto-stash from worktree cleanup"
+   → Changes can be recovered later with: git stash pop
+
+2. Commit changes
+   → git add . && git commit -m "WIP: uncommitted work from worktree"
+   → Creates a commit on the worktree branch
+
+3. Discard changes
+   → Proceed with removal (DATA LOSS WARNING)
+   → Cannot be recovered
+
+4. Abort cleanup
+   → Keep worktree, stop cleanup process
+
+Which option? [1]:
+```
+
+### Default Behavior
+
+If no response in automated mode, default to **Stash** (option 1):
+- Preserves work
+- Allows cleanup to proceed
+- User can recover later
+
+### Integration with Batch Cleanup
+
+```bash
+# In batch cleanup loop
+for worktree in .worktrees/task-*; do
+  # Safety check before removal
+  if has_uncommitted_changes "$worktree"; then
+    handle_uncommitted_changes "$worktree"  # Stash/commit/discard
+  fi
+
+  git worktree remove "$worktree"
+done
+```
+
+---
+
+## Corrupted Worktree Recovery (v2.1)
+
+Handle cases where worktree is corrupted or inconsistent.
+
+### Detection Signs
+
+A worktree may be corrupted if:
+- `git worktree list` shows it, but directory doesn't exist
+- Directory exists, but `git worktree remove` fails with "not a git worktree"
+- Branch exists, but worktree was deleted manually
+- `.git` file in worktree is missing or corrupted
+
+### Detection Command
+
+```bash
+# Check worktree validity
+git worktree list --porcelain | grep -A2 "worktree .worktrees/task-001"
+
+# Signs of corruption:
+# - "prunable" flag present
+# - "locked" but no lock reason
+# - Path exists but not recognized
+```
+
+### Recovery Procedure
+
+```bash
+# Step 1: Try normal remove first
+git worktree remove .worktrees/task-001 2>/dev/null
+if [ $? -eq 0 ]; then
+  echo "Worktree removed normally"
+  exit 0
+fi
+
+# Step 2: If fails, check what's wrong
+if [ -d ".worktrees/task-001" ]; then
+  echo "Directory exists but git doesn't recognize it"
+
+  # Step 3: Force directory removal
+  rm -rf .worktrees/task-001
+
+  # Step 4: Prune worktree metadata
+  git worktree prune
+
+else
+  echo "Directory doesn't exist, cleaning metadata"
+  git worktree prune
+fi
+
+# Step 5: Delete orphan branch (if exists)
+git branch -D wt/task-001 2>/dev/null || true
+
+# Step 6: Verify cleanup
+echo "Verification:"
+git worktree list | grep task-001 && echo "WARNING: still in list" || echo "OK: removed from list"
+git branch | grep wt/task-001 && echo "WARNING: branch exists" || echo "OK: branch removed"
+```
+
+### When Corruption Detected — User Message
+
+```
+⚠️ Corrupted worktree detected: .worktrees/task-001
+
+Symptoms:
+- Directory exists but git doesn't recognize it as worktree
+- OR: Git metadata exists but directory is missing
+
+Recovery will:
+1. Remove directory (if exists)
+2. Prune git worktree metadata
+3. Delete orphan branch (wt/task-001)
+
+This is safe and won't affect your main branch.
+
+Proceed with recovery? (yes/no)
+```
+
+### Automatic Recovery in Session Resumption
+
+When session-resumption detects stale worktrees, it should:
+1. First try normal cleanup
+2. If fails, offer corrupted recovery
+3. Log recovery actions for debugging
+
+---
+
 ## Red Flags
 
 **Never:**
@@ -196,12 +427,16 @@ Ready to implement auth feature
 - Proceed with failing tests without asking
 - Assume directory location when ambiguous
 - Skip CLAUDE.md check
+- **Remove worktrees with uncommitted changes without warning (v2.1)**
+- **Skip corrupted worktree recovery when needed (v2.1)**
 
 **Always:**
 - Follow directory priority: existing > CLAUDE.md > ask
 - Verify .gitignore for project-local
 - Auto-detect and run project setup
 - Verify clean test baseline
+- **Check for uncommitted changes before cleanup (v2.1)**
+- **Attempt corrupted worktree recovery before giving up (v2.1)**
 
 ## Integration
 

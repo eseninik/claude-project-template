@@ -22,6 +22,7 @@
 | Bug / Error | `systematic-debugging` | + TDD if fix needs new code |
 | New code (any) | `test-driven-development` | + others as needed |
 | Executing plan | `executing-plans` | or `subagent-driven-development` |
+| **Parallel tasks with file conflicts** | `subagent-driven-development` | + `using-git-worktrees` (auto) |
 | Flaky test | `condition-based-waiting` | - |
 | **Реализация завершена** | `user-acceptance-testing` | затем verification |
 | Before "done" | `verification-before-completion` | - |
@@ -146,9 +147,9 @@ Choose the appropriate workflow skill.
 | Skill | When | Path | Version |
 |-------|------|------|---------|
 | **executing-plans** | Execute plan with review checkpoints | `executing-plans/SKILL.md` | 1.0.0 |
-| **subagent-driven-development** | Independent tasks, same session | `subagent-driven-development/SKILL.md` | 1.0.0 |
+| **subagent-driven-development** | Independent tasks, same session. v3.1: Worktree Mode with validation & rollback | `subagent-driven-development/SKILL.md` | 3.1.0 |
 | **finishing-a-development-branch** | Merge, PR, complete branch | `finishing-a-development-branch/SKILL.md` | 1.0.0 |
-| **using-git-worktrees** | Need isolated workspace | `using-git-worktrees/SKILL.md` | 1.0.0 |
+| **using-git-worktrees** | Need isolated workspace. v2.1: Multi-worktree + recovery | `using-git-worktrees/SKILL.md` | 2.1.0 |
 
 ### CODE REVIEW
 
@@ -175,7 +176,7 @@ Skills for automated execution, session management, and error handling.
 
 | Skill | When | Path | Version |
 |-------|------|------|---------|
-| **session-resumption** | Session start with incomplete work, /resume command | `session-resumption/SKILL.md` | 1.0.0 |
+| **session-resumption** | Session start with incomplete work, /resume command. v2.0: Git state + worktree checks | `session-resumption/SKILL.md` | 2.0.0 |
 | **context-monitor** | Monitor context usage, warn at 50%, block at 70% | `context-monitor/SKILL.md` | 1.0.0 |
 | **error-recovery** | Tool errors, test failures, timeouts (triggers systematic-debugging for tests) | `error-recovery/SKILL.md` | 1.0.0 |
 | **self-completion** | Auto-continue through pending todos until complete | `self-completion/SKILL.md` | 1.0.0 |

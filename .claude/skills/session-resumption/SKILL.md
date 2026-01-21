@@ -1,6 +1,6 @@
 ---
 name: session-resumption
-version: 1.0.0
+version: 2.0.0
 description: |
   Resume incomplete work from previous session.
 
@@ -9,6 +9,18 @@ description: |
   - User says "/resume" or "продолжить работу"
 
   Do NOT use for: starting fresh work (just start normally)
+
+  NEW in v2.0:
+  - Git State Check (interrupted merge/rebase)
+  - Worktree Cleanup Check (stale worktrees from Worktree Mode)
+
+changelog:
+  - version: 2.0.0
+    date: 2026-01-21
+    changes:
+      - Added Git State Check for interrupted merge/rebase
+      - Added Worktree Cleanup Check for stale worktrees
+      - Integration with subagent-driven-development Worktree Mode
 ---
 
 # Session Resumption Skill
@@ -33,6 +45,211 @@ Activate this skill when:
 **Do NOT use for:**
 - Fresh starts with no previous work
 - Completed work (STATE.md status = completed)
+
+---
+
+## Check Order (v2.0)
+
+On session start, perform checks in this order:
+
+```
+SESSION START:
+  1. Git State Check (merge/rebase in progress)  ← NEW
+  2. Worktree Cleanup Check (stale worktrees)    ← NEW
+  3. STATE.md Check (incomplete work)            ← EXISTING
+```
+
+---
+
+## Git State Check (v2.0 — FIRST CHECK)
+
+**On session start, BEFORE anything else, check for interrupted git operations:**
+
+### Check 1: Interrupted Merge
+
+```bash
+# Check if merge is in progress
+if git rev-parse MERGE_HEAD >/dev/null 2>&1; then
+  MERGE_IN_PROGRESS=true
+  MERGING_BRANCH=$(git name-rev MERGE_HEAD --name-only 2>/dev/null || echo "unknown")
+fi
+```
+
+**If merge in progress, display:**
+
+```
+⚠️ Found interrupted merge operation
+
+Merging branch: wt/task-002
+Status: Conflicts need resolution
+
+Files with conflicts:
+$(git diff --name-only --diff-filter=U)
+
+This likely happened because:
+- Previous session ended during Worktree Mode merge
+- Network/power failure during merge
+- Claude Code was terminated
+
+Options:
+1. Abort merge and rollback
+   → git merge --abort
+   → Returns to state before merge started
+
+2. Continue merge
+   → Resolve conflicts manually
+   → Then: git add <files> && git commit
+
+3. Show conflict details
+   → Display git diff for conflicted files
+
+Which option?
+```
+
+### Check 2: Interrupted Rebase
+
+```bash
+# Check if rebase is in progress
+if [ -d ".git/rebase-merge" ] || [ -d ".git/rebase-apply" ]; then
+  REBASE_IN_PROGRESS=true
+fi
+```
+
+**If rebase in progress, display:**
+
+```
+⚠️ Found interrupted rebase operation
+
+Options:
+1. Abort rebase → git rebase --abort
+2. Continue rebase → git rebase --continue (after resolving conflicts)
+3. Skip current commit → git rebase --skip
+
+Which option?
+```
+
+### Check 3: Uncommitted Changes in Main Branch
+
+```bash
+# Check for uncommitted changes
+UNCOMMITTED=$(git status --porcelain)
+if [ -n "$UNCOMMITTED" ]; then
+  HAS_UNCOMMITTED=true
+fi
+```
+
+**If uncommitted changes, warn:**
+
+```
+⚠️ Uncommitted changes in working directory
+
+Modified files:
+$(git status --short)
+
+This may affect Worktree Mode operation.
+
+Options:
+1. Stash changes → git stash -m "Auto-stash before worktree mode"
+2. Commit changes → Will prompt for commit message
+3. Continue anyway → May cause issues (not recommended)
+
+Which option?
+```
+
+### Integration with Worktree Cleanup
+
+After Git State Check passes, proceed to Worktree Cleanup Check:
+
+```
+IF git state clean:
+  → Proceed to Worktree Cleanup Check
+ELSE:
+  → Handle git state issue first
+  → Then re-run checks
+```
+
+---
+
+## Worktree Cleanup Check (v2.0)
+
+**After Git State Check, check for stale worktrees:**
+
+```bash
+# Check for task worktrees from previous session
+STALE_WORKTREES=$(git worktree list | grep "wt/task-" || true)
+
+if [ -n "$STALE_WORKTREES" ]; then
+  echo "Found stale task worktrees from previous session:"
+  echo "$STALE_WORKTREES"
+fi
+```
+
+**If found, present options:**
+
+```
+Found stale task worktrees from previous session:
+- .worktrees/task-001 (branch: wt/task-001)
+- .worktrees/task-002 (branch: wt/task-002)
+
+This may indicate interrupted Worktree Mode execution.
+
+State file: $(cat .worktrees/.state 2>/dev/null || echo "not found")
+
+Options:
+1. Cleanup worktrees and start fresh
+   → Remove all task worktrees and branches
+   → Clear state file
+
+2. Attempt to resume merge from where it stopped
+   → Read .worktrees/.state
+   → Continue from last successful merge
+   → Requires state file to exist
+
+3. Keep worktrees (investigate manually)
+   → Just warn and continue
+   → User will handle cleanup
+
+Which option?
+```
+
+### Option 1: Cleanup (with safety check)
+
+```bash
+# Check for uncommitted changes first (Pre-Cleanup Safety)
+for worktree in .worktrees/task-*; do
+  if [ -d "$worktree" ]; then
+    cd "$worktree"
+    if [ -n "$(git status --porcelain)" ]; then
+      echo "⚠️ Uncommitted changes in $worktree"
+      # Offer stash/commit/discard options
+    fi
+    cd -
+  fi
+done
+
+# Then cleanup
+git worktree remove .worktrees/task-001 --force
+git worktree remove .worktrees/task-002 --force
+git branch -D wt/task-001 wt/task-002
+git worktree prune
+rm -f .worktrees/.state
+rm -f .worktrees/.lock
+```
+
+### Option 2: Resume merge
+
+- Read `.worktrees/.state` if exists
+- Get WAVE_START, MERGED, PENDING
+- Continue from last successful merge
+- If no state file, fall back to Option 1
+
+### Option 3: Keep
+
+- Just warn and continue
+- User will handle manually
+- May cause issues if user forgets
+
+---
 
 ## STATE.md Parsing Algorithm
 
