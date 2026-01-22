@@ -99,6 +99,20 @@ Skills: [skill1] (причина), [skill2] (причина)
 
 ---
 
+## Plan Execution (BLOCKING)
+
+**При выполнении плана с tasks/*.md ОБЯЗАТЕЛЬНО:**
+
+```
+1. Загрузить subagent-driven-development skill
+2. Следовать MANDATORY Decision Algorithm из skill
+3. Если файлы пересекаются + platform check passes → Worktree Mode
+```
+
+**Это НЕ опционально.** Пропуск subagent-driven-development при выполнении плана = нарушение.
+
+---
+
 ## Autowork Mode (Автоматический режим)
 
 **Trigger:** Сообщение начинается с "autowork:" или "ulw:"
@@ -159,6 +173,11 @@ Skills: [skill1] (причина), [skill2] (причина)
 
 **Я НЕ МОГУ сказать "готово" без UAT подтверждения от пользователя.**
 
+**Scope:**
+- **Фичи (features)** — UAT ОБЯЗАТЕЛЕН, проверка с пользователем
+- **Bug fixes** — UAT НЕ требуется, достаточно verification-before-completion
+- **Refactoring** — UAT НЕ требуется, достаточно verification + tests pass
+
 ```
 1. Написать: "Phase change: implementation -> UAT"
 2. cat .claude/skills/user-acceptance-testing/SKILL.md
@@ -172,7 +191,7 @@ Skills: [skill1] (причина), [skill2] (причина)
 7. Прошёл? → Переходить к verification-before-completion
 ```
 
-**Без UAT подтверждения реализация НЕ ЗАВЕРШЕНА.**
+**Без UAT подтверждения фича НЕ ЗАВЕРШЕНА.**
 
 ## Управление размером контекста (BLOCKING)
 
@@ -431,3 +450,6 @@ py -3.12 -m pytest tests/ --cov=bot       # coverage
 - **Пропуск UAT после реализации фичи**
 - **Заявление "готово" без UAT подтверждения от пользователя**
 - **Игнорирование Goal-backward Verification (проверять artifacts без проверки wiring)**
+- **Выполнение плана (tasks/*.md) без загрузки `subagent-driven-development`**
+- **Пропуск Worktree Mode когда файлы пересекаются И platform check проходит**
+- **Утверждение "файлы пересекаются, поэтому последовательно" — использовать Worktree Mode!**
