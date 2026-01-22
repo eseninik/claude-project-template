@@ -69,21 +69,29 @@
 
 ```
 1. СТОП
-2. Написать пользователю: "Situation: [что я делаю сейчас]"
-3. cat .claude/skills/SKILLS_INDEX.md
-4. Проанализировать ВСЕ skills - какие подходят для текущей ситуации?
-5. Написать пользователю: "Skills: [список с кратким обоснованием]"
-6. Загрузить КАЖДЫЙ: cat .claude/skills/<name>/SKILL.md
-7. Следовать загруженным skills
+2. AUTO-CHECK: Есть work/*/tasks/*.md с 3+ задачами?
+   ├─ ДА → subagent-driven-development ОБЯЗАТЕЛЕН (добавить к списку)
+   └─ НЕТ → продолжить
+3. Написать пользователю: "Situation: [что я делаю сейчас]"
+4. cat .claude/skills/SKILLS_INDEX.md
+5. Проанализировать ВСЕ skills - какие подходят для текущей ситуации?
+6. Написать пользователю: "Skills: [список с кратким обоснованием]"
+7. Загрузить КАЖДЫЙ: cat .claude/skills/<name>/SKILL.md
+8. Следовать загруженным skills
 ```
+
+**AUTO-INCLUDE RULE:** Если существует план (work/*/tasks/*.md) с 3+ задачами → `subagent-driven-development` добавляется АВТОМАТИЧЕСКИ, без анализа.
 
 ### Checkpoint (БЛОКИРУЮЩИЙ):
 
 **Я НЕ МОГУ писать/менять код без этого сообщения:**
 ```
 Situation: [описание текущей фазы]
+Plan detected: [yes/no] (если yes → subagent-driven-development включён)
 Skills: [skill1] (причина), [skill2] (причина)
 ```
+
+**VALIDATION:** Если `Plan detected: yes` но `subagent-driven-development` НЕ в списке → НАРУШЕНИЕ.
 
 Это сообщение = доказательство что я проанализировал и выбрал.
 **Без этого сообщения писать код ЗАПРЕЩЕНО.**
