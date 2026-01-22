@@ -76,6 +76,29 @@ Execute plan by dispatching fresh subagent per task, with code review after each
 
 **IMPORTANT:** "Same files" is NOT a reason to skip parallelization! Worktree Mode exists specifically for this case.
 
+### MANDATORY Decision Algorithm
+
+**You MUST follow this algorithm. No exceptions.**
+
+```
+START: Have 3+ tasks with depends_on: []?
+  │
+  ├─ NO → Execute sequentially (standard flow)
+  │
+  └─ YES → Check files_modified overlap
+           │
+           ├─ Files DON'T overlap → Standard parallel (same worktree)
+           │
+           └─ Files DO overlap → MUST use Worktree Mode
+                                 │
+                                 ├─ Platform check passes? → Execute in worktrees
+                                 │
+                                 └─ Platform check fails? → Sequential (fallback ONLY)
+```
+
+**BLOCKING RULE:** If files overlap AND platform check passes → Worktree Mode is MANDATORY.
+Skipping Worktree Mode when it's available = violation of this skill.
+
 ### How it works:
 
 **Step 1: Analyze dependencies**
@@ -1183,9 +1206,11 @@ UAT passed. Ready to complete.
 **Never:**
 - Skip code review between tasks (or after each wave)
 - Proceed with unfixed Critical issues
-- Run parallel tasks that modify SAME files (check files_modified!) — unless using Worktree Mode
+- Run parallel tasks that modify SAME files WITHOUT Worktree Mode
+- **Skip Worktree Mode when files overlap AND platform check passes** ← VIOLATION
 - Implement without reading plan task
 - Run more than 3 subagents in parallel (quality degrades)
+- Claim "files overlap so can't parallelize" — use Worktree Mode instead!
 
 **If subagent fails task:**
 - Dispatch fix subagent with specific instructions
