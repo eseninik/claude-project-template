@@ -56,15 +56,25 @@ Execute plan by dispatching fresh subagent per task, with code review after each
 
 **When NOT to use:**
 - Need to review plan first (use executing-plans)
-- Tasks are tightly coupled (manual execution better)
+- Tasks are sequentially dependent (task B needs output of task A in same file)
 - Plan needs revision (brainstorm first)
+
+**Common misconception:** "Tasks modify same files" ≠ "can't parallelize". Use Worktree Mode for this!
 
 ## Wave Parallelization (AUTO)
 
 ### When it activates:
 - 3+ tasks in plan
 - Tasks have `depends_on` field (or empty = independent)
-- Independent tasks don't modify same files
+
+### Two parallelization modes:
+
+| Condition | Mode | How it works |
+|-----------|------|--------------|
+| Tasks modify **different** files | Standard parallel | Run in same worktree simultaneously |
+| Tasks modify **same** files | **Worktree Mode** | Run in isolated worktrees → merge with conflict resolution |
+
+**IMPORTANT:** "Same files" is NOT a reason to skip parallelization! Worktree Mode exists specifically for this case.
 
 ### How it works:
 
@@ -135,15 +145,26 @@ Result: 3 tasks execute simultaneously instead of 5 sequential
 
 ### Why quality doesn't drop:
 - Each subagent gets FRESH 200K tokens (no shared context)
-- Tasks are INDEPENDENT (no conflicts)
+- Tasks are INDEPENDENT (no logical dependencies)
 - Code review after EACH wave (quality gate)
-- File conflicts detected BEFORE execution
+- File conflicts handled via Worktree Mode (isolation + merge)
 
 ---
 
 ## Worktree Mode (v3.0+)
 
+**Purpose:** SOLVE the "same file" problem, not avoid it.
+
 **When enabled:** Tasks modifying the same file run in parallel using isolated git worktrees, then merge results automatically.
+
+**Key insight:** Without Worktree Mode, tasks with file conflicts must run sequentially. WITH Worktree Mode, they run in parallel and conflicts are resolved during merge phase.
+
+**USE Worktree Mode when:**
+- Multiple tasks modify overlapping files (e.g., all update `src/models/user.py`)
+- Tasks are logically independent (don't need each other's output)
+- You want parallelization despite file overlap
+
+**DO NOT skip Worktree Mode just because files overlap** — that's exactly what it's for!
 
 ### Platform Detection
 
@@ -176,13 +197,6 @@ if (( AVAILABLE_SPACE < REQUIRED_SPACE )); then
   WORKTREE_MODE_AVAILABLE=false
   FALLBACK_REASON="Insufficient disk space (need ${REQUIRED_SPACE}MB, have ${AVAILABLE_SPACE}MB)"
 fi
-```
-
-**Known Issue — current project:**
-```
-Path: c:\Users\Никита\Desktop\Боты\Migrator bots\claude-project-template-update
-Contains Cyrillic: Никита, Боты
-→ Worktree Mode will be DISABLED in this project by default
 ```
 
 ### Platform-Specific Script Execution
