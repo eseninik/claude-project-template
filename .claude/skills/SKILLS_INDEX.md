@@ -19,6 +19,7 @@
 | **Новый проект с нуля** | `methodology` | + project-planning |
 | **Неясные требования** | `context-capture` | затем user-spec-planning |
 | **Планирование фичи** | `user-spec-planning` | затем tech-spec-planning |
+| **Задача без явного плана** | `task-decomposition` | AUTO-CHECK вариант C |
 | Bug / Error | `systematic-debugging` | + TDD if fix needs new code |
 | New code (any) | `test-driven-development` | + others as needed |
 | Executing plan | `executing-plans` | or `subagent-driven-development` |
@@ -82,6 +83,33 @@ Skills for understanding and capturing context.
 | **context-capture** | Размытые требования, исследование проблемы | `context-capture/SKILL.md` | 1.0.0 |
 | **codebase-mapping** | Новый/незнакомый проект, устаревшие guides | `codebase-mapping/SKILL.md` | 1.0.0 |
 
+### TASK ANALYSIS & DECOMPOSITION
+
+Skills for automatic parallelization detection without explicit plan files.
+
+| Skill | When | Path | Version |
+|-------|------|------|---------|
+| **task-decomposition** | Контекстный анализ задачи (AUTO-CHECK вариант C) | `task-decomposition/SKILL.md` | 1.0.0 |
+
+**Purpose:** Определить возможность параллелизации даже если план только в памяти агента.
+
+**Triggers:**
+- AUTO-CHECK нет явного плана (нет tasks/*.md, нет plan.md)
+- Задача выглядит сложной (может быть 3+ подзадач)
+- Пользователь спрашивает "Можно распараллелить?"
+
+**Process:**
+1. Парсинг описания задачи
+2. Поиск паттернов в `.claude/knowledge/parallelization-patterns.md`
+3. Определение подзадач и зависимостей
+4. Оценка уверенности
+5. Предложение вариантов пользователю
+
+**Outcome:**
+- Высокая уверенность → предложить создать tasks/*.md
+- Средняя уверенность → спросить о зависимостях
+- Низкая уверенность → спросить детали или sequential
+
 ### MANDATORY (use when applicable)
 
 These skills are REQUIRED when the situation matches.
@@ -142,7 +170,23 @@ Use these when the specific situation applies.
 
 ### WORKFLOW (choose one per task)
 
-Choose the appropriate workflow skill.
+Choose the appropriate workflow skill based on this decision tree:
+
+```
+Need to execute tasks from plan?
+├─ YES → Do tasks modify SAME files?
+│        ├─ YES → subagent-driven-development (Worktree Mode)
+│        └─ NO → Do you need human review between batches?
+│                ├─ YES → executing-plans (batch by 3, human review)
+│                └─ NO → subagent-driven-development (parallel + code review)
+└─ NO → Just finishing work?
+         └─ finishing-a-development-branch
+```
+
+**Quick reference:**
+- `executing-plans` — human-in-loop между батчами, явный контроль
+- `subagent-driven-development` — автономная работа, agent code review, worktrees для конфликтов
+- `using-git-worktrees` — вызывается автоматически из subagent-driven-development при конфликтах
 
 | Skill | When | Path | Version |
 |-------|------|------|---------|
@@ -162,11 +206,7 @@ Choose the appropriate workflow skill.
 
 | Skill | When | Path | Version |
 |-------|------|------|---------|
-| **using-superpowers** | Starting session, finding skills | `using-superpowers/SKILL.md` | 1.0.0 |
-| **writing-skills** | Creating new skill | `writing-skills/SKILL.md` | 1.0.0 |
-| **testing-skills-with-subagents** | Testing a skill | `testing-skills-with-subagents/SKILL.md` | 1.0.0 |
-| **sharing-skills** | Contributing skill upstream | `sharing-skills/SKILL.md` | 1.0.0 |
-| **skill-creator** | Guide for creating skills | `skill-creator/SKILL.md` | 1.0.0 |
+| **skill-development** | Creating, testing, deploying skills (TDD for process docs) | `skill-development/SKILL.md` | 1.0.0 |
 | **command-manager** | Manage slash commands | `command-manager/SKILL.md` | 1.0.0 |
 | **documentation** | Manage project documentation | `documentation/SKILL.md` | 1.0.0 |
 
@@ -251,7 +291,7 @@ cat .claude/skills/user-spec-planning/SKILL.md
 
 ## Skill Count Summary
 
-**Total: 47 skills**
+**Total: 43 skills** (reduced from 47 after cleanup)
 
 | Category | Count | Skills |
 |----------|-------|--------|
@@ -267,8 +307,13 @@ cat .claude/skills/user-spec-planning/SKILL.md
 | Situational | 4 | root-cause, defense, waiting, parallel |
 | Workflow | 4 | executing, subagent, finishing, worktrees |
 | Code Review | 2 | requesting, receiving |
-| Meta | 7 | superpowers, writing, testing-skills, sharing, skill-creator, command-manager, documentation |
+| Meta | 3 | skill-development, command-manager, documentation |
 | Automation & Orchestration | 4 | session-resumption, context-monitor, error-recovery, self-completion |
+
+**Removed skills (duplicates or no added value):**
+- `using-superpowers` → merged into CLAUDE.md Dynamic Skill Selection
+- `sharing-skills` → standard git workflow, no specialized knowledge
+- `skill-creator`, `writing-skills`, `testing-skills-with-subagents` → merged into `skill-development`
 
 ---
 

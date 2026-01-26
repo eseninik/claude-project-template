@@ -76,8 +76,22 @@
           2. Использовать executing-plans (параллельная сессия)
           3. Работать последовательно"
 
-   C. Нет плана или < 3 задач?
-      └─ продолжить обычным workflow
+   C. Контекстный анализ задачи (нет явного плана)
+      1. cat .claude/skills/task-decomposition/SKILL.md
+      2. Применить процесс анализа:
+         - Парсинг описания задачи
+         - Поиск паттернов в .claude/knowledge/parallelization-patterns.md
+         - Определение подзадач и зависимостей
+         - Построение waves
+         - Оценка уверенности
+      3. IF 3+ подзадачи AND уверенность > 60%:
+         └─ ПРЕДЛОЖИТЬ пользователю:
+            "Варианты:
+             1. Создать tasks/*.md и выполнить параллельно
+             2. Работать последовательно
+             3. Уточнить детали для точного плана"
+      4. ELSE:
+         └─ продолжить обычным workflow
 
 3. Написать: "Situation: [что делаю]"
 4. cat .claude/skills/SKILLS_INDEX.md
@@ -89,8 +103,13 @@
 **Checkpoint перед кодом:**
 ```
 Situation: [описание]
-Plan format: [tasks/*.md / plan.md / none]
+Plan format: [tasks/*.md / plan.md / implicit / none]
 Plan tasks count: [N]
+Parallelization analysis: [detected / not applicable / uncertain]
+  If detected:
+    - Subtasks: [список подзадач]
+    - Waves: [Wave 1: [...], Wave 2: [...]]
+    - Confidence: [high / medium / low]
 Skills: [список]
 ```
 
