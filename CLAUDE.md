@@ -62,9 +62,23 @@
 
 ```
 1. СТОП
-2. AUTO-CHECK: Есть work/*/tasks/*.md с 3+ задачами?
-   ├─ ДА → subagent-driven-development ОБЯЗАТЕЛЕН
-   └─ НЕТ → продолжить
+2. AUTO-CHECK: Есть чёткий план для реализации?
+
+   A. План в формате work/*/tasks/*.md с 3+ задачами?
+      └─ ДА → subagent-driven-development ОБЯЗАТЕЛЕН
+
+   B. План в другом формате (plan.md, IMPLEMENTATION_PROMPT.md)?
+      └─ ДА → СПРОСИТЬ пользователя:
+         "Есть план с [N] задачами, но не в формате tasks/*.md.
+
+          Варианты:
+          1. Создать tasks/*.md из плана (рекомендуется для 3+ независимых задач)
+          2. Использовать executing-plans (параллельная сессия)
+          3. Работать последовательно"
+
+   C. Нет плана или < 3 задач?
+      └─ продолжить обычным workflow
+
 3. Написать: "Situation: [что делаю]"
 4. cat .claude/skills/SKILLS_INDEX.md
 5. Выбрать подходящие skills
@@ -75,7 +89,8 @@
 **Checkpoint перед кодом:**
 ```
 Situation: [описание]
-Plan detected: [yes/no]
+Plan format: [tasks/*.md / plan.md / none]
+Plan tasks count: [N]
 Skills: [список]
 ```
 
@@ -133,4 +148,5 @@ Skills: [список]
 - Epistemic cowardice — размытые ответы
 - "Файлы пересекаются → последовательно" — использовать Worktree!
 - "Готово" без verification
-- План без `subagent-driven-development`
+- План с tasks/*.md без `subagent-driven-development`
+- Игнорирование плана в другом формате — предложить варианты
