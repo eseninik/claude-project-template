@@ -1,6 +1,6 @@
-# Project: [PROJECT NAME]
+# Project: Claude Project Template Update
 
-> **[ОДНО ПРЕДЛОЖЕНИЕ - О ЧЕМ ЭТОТ ПРОЕКТ]**
+> Template upgrade automation with AI-First methodology integration
 
 ---
 
@@ -14,28 +14,11 @@
 
 ---
 
-# CORE PRINCIPLES
-
-## Hierarchy of Priorities
-
-```
-1. SAFETY      → Не навреди пользователю, проекту, данным
-2. QUALITY     → Сделай правильно, не быстро
-3. GUIDELINES  → Следуй методологии
-4. HELPFULNESS → Будь максимально полезен
-```
-
-## Key Rules (запомни)
-
-- **"Unhelpfulness is never trivially safe"** — отказ тоже имеет cost
-- **"Diplomatically honest rather than dishonestly diplomatic"** — честность > вежливость
-- **Epistemic cowardice = нарушение** — размытые ответы запрещены
-
----
-
 # CONTEXT LOADING TRIGGERS
 
-**Когда видишь ситуацию → загрузи guide. Это гарантирует что детали не потеряются.**
+**Когда видишь ситуацию → ОБЯЗАТЕЛЬНО загрузи guide ПЕРЕД действием.**
+
+**Это BLOCKING REQUIREMENT, не опционально.** Пропуск загрузки guide при matching ситуации = нарушение.
 
 | Ситуация | Загрузить | Команда |
 |----------|-----------|---------|
@@ -43,8 +26,10 @@
 | Произошла ошибка, что-то сломалось | error-handling | `cat .claude/guides/error-handling.md` |
 | Нужно дать честную оценку | honesty-principles | `cat .claude/guides/honesty-principles.md` |
 | Проверить что можно/нельзя | constraints-reference | `cat .claude/guides/constraints-reference.md` |
-
-**Это ОБЯЗАТЕЛЬНО, не опционально.** Пропуск загрузки guide при matching ситуации = нарушение.
+| Начало новой фичи | work-items | `cat .claude/guides/work-items.md` |
+| Нужны принципы приоритетов | principles | `cat .claude/guides/principles.md` |
+| Детали верификации | verification-protocol | `cat .claude/guides/verification-protocol.md` |
+| Справка по командам | reference | `cat .claude/guides/reference.md` |
 
 ---
 
@@ -130,38 +115,6 @@ Skills: [список]
 
 ---
 
-# GOAL-BACKWARD VERIFICATION
-
-**Проверяй от цели, не от задач.**
-
-```
-1. Что должно быть ИСТИНОЙ? → Наблюдаемые поведения
-2. Что должно СУЩЕСТВОВАТЬ? → Файлы, функции
-3. Что должно быть СВЯЗАНО? → Импорты, вызовы
-4. Проверь КАЖДЫЙ уровень
-```
-
-**Артефакт существует но не подключён = цель НЕ достигнута.**
-
----
-
-# WORK ITEMS WORKFLOW
-
-```
-Context → User Spec → Tech Spec → Tasks → Code → UAT → Verification → Commit
-```
-
-**Для новой фичи:**
-```
-1. work/<feature-name>/
-2. /new-user-spec → user-spec.md
-3. /new-tech-spec → tech-spec.md + tasks/
-4. Реализовать с skills
-5. После деплоя → work/completed/
-```
-
----
-
 # COMMANDS
 
 | Command | Purpose |
@@ -171,37 +124,6 @@ Context → User Spec → Tech Spec → Tasks → Code → UAT → Verification 
 | `/new-user-spec` | Создание user-spec |
 | `/new-tech-spec` | Создание tech-spec |
 | `/resume` | Продолжить работу |
-
----
-
-# REFERENCE
-
-## Git Workflow
-
-- `dev` — рабочая ветка
-- `main` — продакшен, не трогать напрямую
-
-```bash
-git add <files> && git commit -m "type: desc" && git push origin dev
-```
-
-## Python (Windows)
-
-```bash
-py -3.12 -m pytest tests/ -v
-py -3.12 -m ruff check src tests
-```
-
----
-
-# KEY SKILLS
-
-| Категория | Skills |
-|-----------|--------|
-| Planning | `user-spec-planning`, `tech-spec-planning` |
-| Execution | `subagent-driven-development`, `test-driven-development` |
-| Quality | `verification-before-completion`, `systematic-debugging` |
-| Security | `security-checklist`, `secret-scanner` |
 
 ---
 
