@@ -1,89 +1,60 @@
-# Промпт для обновления проекта до новой версии template
+# Промпт для обновления до v2.0
 
-**Для использования в других проектах, построенных на этом шаблоне.**
-
----
-
-## Команда для агента
+**Короткий вариант (рекомендуется):**
 
 ```
-Обнови этот проект до новой версии claude-project-template (commit 7db9f10).
-
-Изменения в template:
-1. Обновлён AUTO-CHECK rule в CLAUDE.md (гибкое определение плана)
-2. Создан guide: .claude/guides/plan-format-conversion.md
-3. Обновлены FORBIDDEN PATTERNS
-
-Инструкция:
-
-ЭТАП 1: Анализ текущего CLAUDE.md
-1. cat CLAUDE.md
-2. Найти секцию "## Dynamic Skill Selection"
-3. Проверить есть ли там AUTO-CHECK правило
-
-ЭТАП 2: Backup
-1. Создать backup: cp CLAUDE.md CLAUDE.md.backup
-
-ЭТАП 3: Обновление AUTO-CHECK
-1. cat c:/Bots/Migrator\ bots/claude-project-template-update/CLAUDE.md
-2. Найти строки 61-95 (секция Dynamic Skill Selection)
-3. Скопировать НОВОЕ правило AUTO-CHECK (с вариантами A, B, C)
-4. Заменить СТАРОЕ правило в текущем CLAUDE.md
-5. ВАЖНО: Сохранить все остальные секции без изменений
-
-ЭТАП 4: Обновление Checkpoint
-1. Найти "**Checkpoint перед кодом:**"
-2. Заменить на новый формат:
-   ```
-   Situation: [описание]
-   Plan format: [tasks/*.md / plan.md / none]
-   Plan tasks count: [N]
-   Skills: [список]
-   ```
-
-ЭТАП 5: Обновление FORBIDDEN PATTERNS
-1. Найти секцию "# FORBIDDEN PATTERNS"
-2. Заменить строку "План без subagent-driven-development" на:
-   - "План с tasks/*.md без subagent-driven-development"
-   - "Игнорирование плана в другом формате — предложить варианты"
-
-ЭТАП 6: Копирование guide
-1. Создать папку .claude/guides/ если нет
-2. Скопировать файл:
-   cp c:/Bots/Migrator\ bots/claude-project-template-update/.claude/guides/plan-format-conversion.md .claude/guides/
-
-ЭТАП 7: Верификация
-1. cat CLAUDE.md | grep "AUTO-CHECK"
-2. Проверить что видно новое правило с вариантами A, B, C
-3. cat .claude/guides/plan-format-conversion.md
-4. Проверить что guide скопирован
-
-ЭТАП 8: Git
-1. git diff CLAUDE.md
-2. Показать мне изменения для подтверждения
-3. СТОП - дождаться моего подтверждения
-4. После подтверждения:
-   git add CLAUDE.md .claude/guides/plan-format-conversion.md
-   git commit -m "refactor: update AUTO-CHECK rule from template (7db9f10)"
-
-ВАЖНО:
-- НЕ удалять другие секции CLAUDE.md
-- НЕ менять project-specific настройки
-- Только обновить AUTO-CHECK, Checkpoint, FORBIDDEN PATTERNS
-- Спросить перед коммитом
+Обнови проект до template v2.0 (commit b0dbba0): скопируй из "c:/Bots/Migrator bots/claude-project-template-update/" файлы .claude/knowledge/parallelization-patterns.md, .claude/skills/task-decomposition/, обнови CLAUDE.md (AUTO-CHECK вариант C строки 79-92 + checkpoint строки 89-100), SKILLS_INDEX.md (добавь task-decomposition в Entry Points и новую категорию TASK ANALYSIS), закоммить как "feat: upgrade to v2.0 (b0dbba0)".
 ```
 
 ---
 
-## После обновления
+## Детальный вариант (если нужны пошаговые инструкции)
 
-Проект получит:
-- ✅ Гибкое определение плана (tasks/*.md, plan.md)
-- ✅ Предложение вариантов для конвертации
-- ✅ Guide для ручной конвертации планов
+<details>
+<summary>Развернуть подробную инструкцию</summary>
 
-**НО:**
-- ⚠️ Всё ещё требует явный файл плана
-- ⚠️ Неявные планы (в памяти агента) не обнаруживаются
+```
+Обнови этот проект до claude-project-template v2.0 (commit b0dbba0).
 
-Для полностью универсального решения см.: [work/templates/universal-parallelization-proposal.md](universal-parallelization-proposal.md)
+# Backup
+cp CLAUDE.md CLAUDE.md.backup
+
+# Копирование файлов template
+mkdir -p .claude/knowledge
+cp "c:/Bots/Migrator bots/claude-project-template-update/.claude/knowledge/parallelization-patterns.md" .claude/knowledge/
+
+mkdir -p .claude/skills/task-decomposition
+cp "c:/Bots/Migrator bots/claude-project-template-update/.claude/skills/task-decomposition/SKILL.md" .claude/skills/task-decomposition/
+
+# Обновление CLAUDE.md
+cat "c:/Bots/Migrator bots/claude-project-template-update/CLAUDE.md"
+
+Найди строки 79-92 (AUTO-CHECK вариант C) и замени в моём CLAUDE.md.
+Найди строки 89-100 (checkpoint format) и замени в моём CLAUDE.md.
+
+# Обновление SKILLS_INDEX.md
+Добавь в Entry Points:
+| **Задача без явного плана** | `task-decomposition` | AUTO-CHECK вариант C |
+
+Добавь категорию TASK ANALYSIS & DECOMPOSITION из template SKILLS_INDEX.md (строки 86-110).
+
+# Верификация
+cat CLAUDE.md | grep "Контекстный анализ"
+cat .claude/knowledge/parallelization-patterns.md | head -20
+
+# Git
+git diff CLAUDE.md
+git add CLAUDE.md .claude/knowledge/ .claude/skills/task-decomposition/ .claude/skills/SKILLS_INDEX.md
+git commit -m "feat: upgrade to v2.0 - universal parallelization detection (b0dbba0)"
+```
+
+</details>
+
+---
+
+## Что получите
+
+- ✅ Универсальное определение параллелизации (tasks/*.md, plan.md, память агента)
+- ✅ База знаний паттернов
+- ✅ Контекстный анализ задач без явного плана
+- ✅ Автоматическое создание tasks/*.md по запросу
