@@ -140,6 +140,11 @@ TRIGGER: Choosing technology, changing data structure, new integration pattern
 
 # BLOCKING RULES
 
+## Plan Detected (BLOCKING)
+
+ENFORCE VIA: `cat .claude/guides/plan-execution-enforcer.md`
+BLOCK: Cannot start implementation without valid checkpoint output
+
 ## Before Commit (BLOCKING)
 
 ```

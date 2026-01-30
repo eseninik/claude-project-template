@@ -109,18 +109,10 @@
 
 # BLOCKING RULES
 
-## Plan Detected
+## Plan Detected (BLOCKING)
 
-```
-TRIGGER: План упоминается / файл плана / задача с 3+ шагами
-
-1. STOP - не начинать реализацию
-2. ANNOUNCE: "Обнаружен план. Загружаю протокол..."
-3. LOAD: cat .claude/guides/plan-execution-protocol.md
-4. EXECUTE GATE FUNCTION from protocol
-5. DECISION: PP > 0% → tasks/*.md, PP = 0% → executing-plans
-6. LOAD skill based on decision
-```
+ENFORCE VIA: `cat .claude/guides/plan-execution-enforcer.md`
+BLOCK: Cannot start implementation without valid checkpoint output
 
 ## After Code Changes
 
