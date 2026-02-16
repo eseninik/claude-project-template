@@ -21,7 +21,6 @@ Context → User Spec → Tech Spec → Tasks → Code → UAT → Verification 
 ### 1. Context Capture
 - Понять требования пользователя
 - Уточнить неясности
-- Skill: `context-capture`
 
 ### 2. User Spec
 - Описать фичу с точки зрения пользователя
@@ -39,7 +38,6 @@ Context → User Spec → Tech Spec → Tasks → Code → UAT → Verification 
 
 ### 5. UAT
 - Пользователь тестирует реальное поведение
-- Skill: `user-acceptance-testing`
 
 ### 6. Verification
 - Технические проверки

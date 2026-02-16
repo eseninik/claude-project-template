@@ -1,5 +1,12 @@
 # Dependency Analysis Guide
 
+> **Loaded from:** plan-execution-protocol.md (STEP 2 of Gate Function)
+
+**This guide provides the Decision Algorithm for plan analysis.**
+**Do not use directly - always load via plan-execution-protocol.md**
+
+---
+
 ## Purpose
 
 Determine if tasks in a plan are independent (can run in parallel) or dependent (must run sequentially).

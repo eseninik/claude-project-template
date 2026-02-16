@@ -1,409 +1,122 @@
-# Skills Index — Unified Catalog
+# Skills Index — 14-Skill System
 
-> **This file is a CATALOG of skills.**
-> The algorithm for when to use skills is in `CLAUDE.md`.
-> This file tells you WHICH skill to load and WHERE to find it.
->
-> **See also:** `methodology/guides/skill-composition.md` for input/output contracts.
-
----
-
-## Agent Teams Integration
-
-Agents in `.claude/agents/` have **preloaded skills** via the `skills` frontmatter field.
-These skills are injected into the agent's context at startup — no manual loading needed.
-
-| Agent | Preloaded Skills |
-|-------|-----------------|
-| `code-developer` | test-driven-development, verification-before-completion |
-| `code-reviewer` | testing-anti-patterns |
-| `security-auditor` | security-checklist |
-| `orchestrator` | — (skill selection logic in prompt) |
-| `secret-scanner` | — (specialized enough) |
-
-When creating **Agent Teams** (TeamCreate), refer to the TEAM ROLE SKILLS MAPPING in CLAUDE.md
-for which additional skills to reference in teammate task prompts.
+> Skills exist ONLY for complex multi-step procedures that an agent can't derive from general knowledge.
+> Generic best practices (TDD, async patterns, security) are handled by CLAUDE.md one-liners.
 
 ---
 
 ## Entry Points
 
-**Start here based on your task:**
-
-| Situation | Start With | Then |
-|-----------|------------|------|
-| **Понять проект** | `project-knowledge` | читай нужные guides |
-| **Новый/незнакомый проект** | `codebase-mapping` | затем project-knowledge |
-| **Новый проект с нуля** | `methodology` | + project-planning |
-| **Неясные требования** | `context-capture` | затем user-spec-planning |
-| **Планирование фичи** | `user-spec-planning` | затем tech-spec-planning |
-| **Задача без явного плана** | `task-decomposition` | AUTO-CHECK вариант C |
-| Bug / Error | `systematic-debugging` | + TDD if fix needs new code |
-| New code (any) | `test-driven-development` | + others as needed |
-| Executing plan | `executing-plans` | or `subagent-driven-development` |
-| **Parallel tasks with file conflicts** | `subagent-driven-development` | + `using-git-worktrees` (auto) |
-| Flaky test | `condition-based-waiting` | - |
-| **Реализация завершена** | `user-acceptance-testing` | затем verification |
-| Before "done" | `verification-before-completion` | - |
-| Finishing branch | `finishing-a-development-branch` | - |
-| **Infrastructure setup** | `infrastructure` | CI/CD, Docker, tests |
-| **Testing strategy** | `testing` | smoke → unit → integration → E2E |
-| **Python async code** | `async-python-patterns` | + `python-testing-patterns` |
-| **Telegram bot** | `telegram-bot-architecture` | + `async-python-patterns` |
-| **Personal data** | `security-checklist` | + `secret-scanner` |
-| **New API endpoint** | `api-design-principles` | + security if needed |
-| **Major refactoring** | `architecture-patterns` | + TDD |
-| **New project setup** | `python-packaging` | + `uv-package-manager` |
-| **Performance issues** | `python-performance-optimization` | after profiling |
-| **Need tests scaffold** | `test-generator` | + python-testing-patterns |
-| **Code review needed** | `code-reviewer` | - |
+| Situation | Skill | Then |
+|-----------|-------|------|
+| **Understand project** | `project-knowledge` | read relevant guides |
+| **New/unfamiliar codebase** | `codebase-mapping` | then project-knowledge |
+| **Task without clear plan** | `task-decomposition` | detect parallelization |
+| **Bug / Error** | `systematic-debugging` | 4-phase framework |
+| **Executing plan** | `executing-plans` | or `subagent-driven-development` |
+| **Parallel tasks with conflicts** | `subagent-driven-development` | + `using-git-worktrees` |
+| **Before "done"** | `verification-before-completion` | evidence-based check |
+| **Finishing branch** | `finishing-a-development-branch` | merge/PR workflow |
 | **Session start** | `session-resumption` | check for incomplete work |
-| **Context overflow** | `context-monitor` | warn at 50%, block at 70% |
+| **Context overflow** | `context-monitor` | warn at thresholds |
+| **Error occurred** | `error-recovery` | retry/backoff patterns |
 | **Auto-continue** | `self-completion` | for incomplete todos |
-| **Error occurred** | `error-recovery` | structured recovery patterns |
-| **Нужен внешний сервис (поиск, scraping, документация)** | `mcp-integration` | По необходимости |
-| **Agent Teams Mode / экспертная панель** | `expert-panel` | → implementation pipeline |
-| **Autonomous pipeline / multi-phase task** | autonomous-pipeline guide | `cat .claude/guides/autonomous-pipeline.md` |
+| **Agent Teams Mode** | `expert-panel` | multi-agent analysis |
+| **Autonomous pipeline** | guide | `cat .claude/guides/autonomous-pipeline.md` |
+| **External service** | guide | `cat .claude/guides/mcp-integration.md` |
 
 ---
 
-## Skill Categories
+## All Skills (14)
 
-### METHODOLOGY & PLANNING (from AI-First framework)
+### ESSENTIAL (6) — Complex procedures, unique value
 
-Skills for project planning, spec creation, and workflow management.
+| Skill | Purpose | Path |
+|-------|---------|------|
+| **verification-before-completion** | Evidence-based completion claims | `verification-before-completion/SKILL.md` |
+| **expert-panel** | Multi-agent expert analysis (10 roles, 4 phases) | `expert-panel/SKILL.md` |
+| **subagent-driven-development** | Wave parallelization + worktree mode | `subagent-driven-development/SKILL.md` |
+| **session-resumption** | Git state checks + worktree recovery | `session-resumption/SKILL.md` |
+| **project-knowledge** | Project-specific docs router | `project-knowledge/SKILL.md` |
+| **codebase-mapping** | Discovery protocol for unknown codebases | `codebase-mapping/SKILL.md` |
 
-| Skill | When | Path | Version |
-|-------|------|------|---------|
-| **methodology** | Изучить AI-First методологию, workflows, структуру | `methodology/SKILL.md` | 1.0.0 |
-| **project-planning** | Планирование нового проекта (project.md, features.md, roadmap.md) | `project-planning/SKILL.md` | 1.0.0 |
-| **user-spec-planning** | Создание user-spec.md через интервью | `user-spec-planning/SKILL.md` | 1.0.0 |
-| **tech-spec-planning** | Создание tech-spec.md + tasks/*.md | `tech-spec-planning/SKILL.md` | 1.0.0 |
+### USEFUL (8) — Trimmed checklists (~50 lines each)
 
-### INFRASTRUCTURE & TESTING STRATEGY
+| Skill | Purpose | Path |
+|-------|---------|------|
+| **executing-plans** | Batch execution with review checkpoints | `executing-plans/SKILL.md` |
+| **task-decomposition** | Parallelization detection | `task-decomposition/SKILL.md` |
+| **systematic-debugging** | 4-phase debugging checklist | `systematic-debugging/SKILL.md` |
+| **error-recovery** | Retry/backoff patterns for CC tools | `error-recovery/SKILL.md` |
+| **context-monitor** | Threshold-based warnings | `context-monitor/SKILL.md` |
+| **finishing-a-development-branch** | Merge/PR workflow | `finishing-a-development-branch/SKILL.md` |
+| **using-git-worktrees** | Worktree management procedures | `using-git-worktrees/SKILL.md` |
+| **self-completion** | Auto-continue protocol | `self-completion/SKILL.md` |
 
-Skills for CI/CD setup and testing approach.
+---
 
-| Skill | When | Path | Version |
-|-------|------|------|---------|
-| **infrastructure** | CI/CD, Docker, pre-commit hooks, GitHub Actions | `infrastructure/SKILL.md` | 1.0.0 |
-| **testing** | Стратегия тестов: smoke, unit, integration, E2E | `testing/SKILL.md` | 1.0.0 |
-
-### PROJECT KNOWLEDGE
-
-| Skill | When | Path | Version |
-|-------|------|------|---------|
-| **project-knowledge** | Понять архитектуру, tech stack, паттерны, БД, деплой | `project-knowledge/SKILL.md` | 1.0.0 |
-
-### CONTEXT & MAPPING
-
-Skills for understanding and capturing context.
-
-| Skill | When | Path | Version |
-|-------|------|------|---------|
-| **context-capture** | Размытые требования, исследование проблемы | `context-capture/SKILL.md` | 1.0.0 |
-| **codebase-mapping** | Новый/незнакомый проект, устаревшие guides | `codebase-mapping/SKILL.md` | 1.0.0 |
-
-### TASK ANALYSIS & DECOMPOSITION
-
-Skills for automatic parallelization detection without explicit plan files.
-
-| Skill | When | Path | Version |
-|-------|------|------|---------|
-| **task-decomposition** | Контекстный анализ задачи (AUTO-CHECK вариант C) | `task-decomposition/SKILL.md` | 1.0.0 |
-
-**Purpose:** Определить возможность параллелизации даже если план только в памяти агента.
-
-**Triggers:**
-- AUTO-CHECK нет явного плана (нет tasks/*.md, нет plan.md)
-- Задача выглядит сложной (может быть 3+ подзадач)
-- Пользователь спрашивает "Можно распараллелить?"
-
-**Process:**
-1. Парсинг описания задачи
-2. Поиск паттернов в `.claude/knowledge/parallelization-patterns.md`
-3. Определение подзадач и зависимостей
-4. Оценка уверенности
-5. Предложение вариантов пользователю
-
-**Outcome:**
-- Высокая уверенность → предложить создать tasks/*.md
-- Средняя уверенность → спросить о зависимостях
-- Низкая уверенность → спросить детали или sequential
-
-### MANDATORY (use when applicable)
-
-These skills are REQUIRED when the situation matches.
-
-| Skill | When | Path | Version |
-|-------|------|------|---------|
-| **systematic-debugging** | Any bug, error, unexpected behavior | `systematic-debugging/SKILL.md` | 1.0.0 |
-| **test-driven-development** | Any new code | `test-driven-development/SKILL.md` | 1.0.0 |
-| **user-acceptance-testing** | After implementation, BEFORE verification | `user-acceptance-testing/SKILL.md` | 1.0.0 |
-| **verification-before-completion** | Before claiming "done" | `verification-before-completion/SKILL.md` | 1.0.0 |
-| **security-checklist** | Any personal data handling | `security-checklist/SKILL.md` | 1.0.0 |
-
-### PYTHON-SPECIFIC (use for Python projects)
-
-Use these for Python/aiogram/FastAPI development.
-
-| Skill | When | Path | Version |
-|-------|------|------|---------|
-| **async-python-patterns** | Any async/await, aiogram, aiohttp | `async-python-patterns/SKILL.md` | 1.0.0 |
-| **python-testing-patterns** | Writing tests, pytest, AsyncMock | `python-testing-patterns/SKILL.md` | 1.0.0 |
-| **telegram-bot-architecture** | Structuring aiogram bot project | `telegram-bot-architecture/SKILL.md` | 1.0.0 |
-| **python-packaging** | pyproject.toml, dependencies, setup | `python-packaging/SKILL.md` | 1.0.0 |
-| **python-performance-optimization** | Profiling, bottlenecks, optimization | `python-performance-optimization/SKILL.md` | 1.0.0 |
-| **uv-package-manager** | Fast dependency management with uv | `uv-package-manager/SKILL.md` | 1.0.0 |
-
-### ARCHITECTURE & API
-
-| Skill | When | Path | Version |
-|-------|------|------|---------|
-| **architecture-patterns** | Clean Architecture, SOLID, DI, repos | `architecture-patterns/SKILL.md` | 1.0.0 |
-| **api-design-principles** | REST API, webhooks, FastAPI endpoints | `api-design-principles/SKILL.md` | 1.0.0 |
-
-### SECURITY
-
-| Skill | When | Path | Version |
-|-------|------|------|---------|
-| **security-checklist** | Personal data, input validation, encryption | `security-checklist/SKILL.md` | 1.0.0 |
-| **secret-scanner** | Detect hardcoded secrets, API keys | `secret-scanner/SKILL.md` | 1.0.0 |
-
-### TESTING & CODE QUALITY
-
-| Skill | When | Path | Version |
-|-------|------|------|---------|
-| **test-generator** | Scaffold tests for existing code | `test-generator/SKILL.md` | 1.0.0 |
-| **code-reviewer** | Automated code review | `code-reviewer/SKILL.md` | 1.0.0 |
-| **testing-anti-patterns** | Avoid bad testing practices | `testing-anti-patterns/SKILL.md` | 1.0.0 |
-
-### SITUATIONAL (use based on context)
-
-Use these when the specific situation applies.
-
-| Skill | When | Path | Version |
-|-------|------|------|---------|
-| **root-cause-tracing** | Error deep in call stack | `root-cause-tracing/SKILL.md` | 1.0.0 |
-| **defense-in-depth** | Bug from invalid data | `defense-in-depth/SKILL.md` | 1.0.0 |
-| **condition-based-waiting** | Flaky tests, race conditions | `condition-based-waiting/SKILL.md` | 1.0.0 |
-| **dispatching-parallel-agents** | 3+ independent failures | `dispatching-parallel-agents/SKILL.md` | 1.0.0 |
-
-### WORKFLOW (choose one per task)
-
-Choose the appropriate workflow skill based on this decision tree:
-
-```
-Need to execute tasks from plan?
-├─ YES → Do tasks modify SAME files?
-│        ├─ YES → subagent-driven-development (Worktree Mode)
-│        └─ NO → Do you need human review between batches?
-│                ├─ YES → executing-plans (batch by 3, human review)
-│                └─ NO → subagent-driven-development (parallel + code review)
-└─ NO → Just finishing work?
-         └─ finishing-a-development-branch
-```
-
-**Quick reference:**
-- `executing-plans` — human-in-loop между батчами, явный контроль
-- `subagent-driven-development` — автономная работа, agent code review, worktrees для конфликтов
-- `using-git-worktrees` — вызывается автоматически из subagent-driven-development при конфликтах
-
-| Skill | When | Path | Version |
-|-------|------|------|---------|
-| **executing-plans** | Execute plan with review checkpoints | `executing-plans/SKILL.md` | 1.0.0 |
-| **subagent-driven-development** | Independent tasks, same session. v3.1: Worktree Mode with validation & rollback | `subagent-driven-development/SKILL.md` | 3.1.0 |
-| **finishing-a-development-branch** | Merge, PR, complete branch | `finishing-a-development-branch/SKILL.md` | 1.0.0 |
-| **using-git-worktrees** | Need isolated workspace. v2.1: Multi-worktree + recovery | `using-git-worktrees/SKILL.md` | 2.1.0 |
-
-### CODE REVIEW
-
-| Skill | When | Path | Version |
-|-------|------|------|---------|
-| **requesting-code-review** | Need review of your work | `requesting-code-review/SKILL.md` | 1.0.0 |
-| **receiving-code-review** | Got feedback, need to respond | `receiving-code-review/SKILL.md` | 1.0.0 |
-
-### META (skills about skills & commands)
-
-| Skill | When | Path | Version |
-|-------|------|------|---------|
-| **skill-development** | Creating, testing, deploying skills (TDD for process docs) | `skill-development/SKILL.md` | 1.0.0 |
-| **command-manager** | Manage slash commands | `command-manager/SKILL.md` | 1.0.0 |
-| **documentation** | Manage project documentation | `documentation/SKILL.md` | 1.0.0 |
-
-### AUTOMATION & ORCHESTRATION
-
-Skills for automated execution, session management, and error handling.
-
-| Skill | When | Path | Version |
-|-------|------|------|---------|
-| **session-resumption** | Session start with incomplete work, /resume command. v2.0: Git state + worktree checks | `session-resumption/SKILL.md` | 2.0.0 |
-| **context-monitor** | Monitor context usage, warn at 50%, block at 70% | `context-monitor/SKILL.md` | 1.0.0 |
-| **error-recovery** | Tool errors, test failures, timeouts (triggers systematic-debugging for tests) | `error-recovery/SKILL.md` | 1.0.0 |
-| **self-completion** | Auto-continue through pending todos until complete | `self-completion/SKILL.md` | 1.0.0 |
-
-### AUTONOMOUS PIPELINE
-
-Infrastructure for multi-phase autonomous task execution with compaction resilience.
+## AUTONOMOUS PIPELINE
 
 | Resource | Purpose | Path |
 |----------|---------|------|
-| **autonomous-pipeline guide** | Full guide: creation, execution, recovery, anti-drift | `.claude/guides/autonomous-pipeline.md` |
-| **PIPELINE.md template** | State machine with `<- CURRENT` markers and Mode field | `.claude/shared/work-templates/PIPELINE.md` |
+| **autonomous-pipeline guide** | Full pipeline guide: creation, execution, recovery | `.claude/guides/autonomous-pipeline.md` |
+| **PIPELINE.md template** | State machine with `<- CURRENT` markers | `.claude/shared/work-templates/PIPELINE.md` |
 | **PROMPT.md template** | Ralph Loop prompt for fresh-context phases | `.claude/shared/work-templates/PROMPT.md` |
-| **ralph.sh** | Fresh-context loop script (no compaction possible) | `scripts/ralph.sh` |
-
-### EXPERT ANALYSIS
-
-Multi-agent expert panel for complex tasks.
-
-| Skill | When | Path | Version |
-|-------|------|------|---------|
-| **expert-panel** | "Agent Teams Mode", "экспертная панель", complex multi-perspective analysis | `expert-panel/SKILL.md` | 1.0.0 |
-
-### EXTERNAL SERVICES
-
-Skills for integrating with external services via MCP.
-
-| Skill | When | Path | Version |
-|-------|------|------|---------|
-| **mcp-integration** | On-demand MCP через CLI. Workflow: grep → info → call | `mcp-integration/SKILL.md` | 1.0.0 |
+| **ralph.sh** | Fresh-context loop script | `scripts/ralph.sh` |
 
 ---
 
-## How to Load Skills
+## Workflow Decision Tree
 
-```bash
-# Load specific skill
-cat .claude/skills/<folder>/SKILL.md
-
-# Examples
-cat .claude/skills/systematic-debugging/SKILL.md
-cat .claude/skills/methodology/SKILL.md
-cat .claude/skills/user-spec-planning/SKILL.md
+```
+Need to execute tasks from plan?
+├─ YES → Same files?
+│        ├─ YES → subagent-driven-development (Worktree Mode)
+│        └─ NO → executing-plans (batch) or subagent-driven-development (parallel)
+└─ NO → finishing-a-development-branch
 ```
 
 ---
 
-## Selection Rules
+## What Was Removed (and Why)
 
-1. **Maximum 3 skills** simultaneously (mandatory + 1-2 situational)
-2. **Mandatory first** — always load applicable mandatory skills
-3. **Entry point skill** — start with the skill matching your situation
-4. **SUB-SKILL references** — if skill requires another, load it
+30 skills removed — they duplicated knowledge Opus already has.
 
----
+**Replaced by CLAUDE.md one-liners:**
+- TDD, async patterns, pytest patterns, telegram architecture, security checklist
+- Architecture patterns, API design, python packaging, uv, performance optimization
 
-## Typical Combinations
+**Replaced by guides:**
+- mcp-integration → `.claude/guides/mcp-integration.md`
 
-### Project Setup & Planning
-
-| Task | Skills |
-|------|--------|
-| Новый проект с нуля | methodology + project-planning + infrastructure |
-| Понять существующий проект | codebase-mapping → project-knowledge |
-| Неясные требования | context-capture → user-spec-planning |
-| Планирование фичи | user-spec-planning → tech-spec-planning |
-| Настройка CI/CD | infrastructure |
-| Стратегия тестов | testing |
-
-### General Development
-
-| Task | Skills |
-|------|--------|
-| Simple bug | systematic-debugging |
-| Bug with new test | systematic-debugging + TDD |
-| Complex bug | systematic-debugging + TDD + code-reviewer |
-| New feature task | TDD + executing-plans |
-| Flaky test fix | condition-based-waiting + TDD |
-| После реализации фичи | user-acceptance-testing → verification |
-| Final check | verification-before-completion |
-| Research (external services) | mcp-integration + systematic-debugging |
-| Complex task analysis | expert-panel → tech-spec-planning → subagent-driven-development |
-
-### Python/aiogram Development
-
-| Task | Skills |
-|------|--------|
-| New bot handler | TDD + async-python-patterns + telegram-bot-architecture |
-| Async bug | systematic-debugging + async-python-patterns |
-| Writing pytest tests | python-testing-patterns + TDD |
-| Refactor bot structure | telegram-bot-architecture + architecture-patterns |
-| Personal data feature | security-checklist + secret-scanner + TDD |
-| FSM flow | telegram-bot-architecture + python-testing-patterns |
-| New API endpoint | api-design-principles + TDD |
-| Performance issue | python-performance-optimization |
-| New project setup | python-packaging + uv-package-manager |
-| Add tests to existing code | test-generator + python-testing-patterns |
-| Code review | code-reviewer |
-
----
-
-## Skill Count Summary
-
-**Total: 44 skills** (43 + expert-panel)
-
-| Category | Count | Skills |
-|----------|-------|--------|
-| Methodology & Planning | 4 | methodology, project-planning, user-spec-planning, tech-spec-planning |
-| Infrastructure & Testing Strategy | 2 | infrastructure, testing |
-| Project | 1 | project-knowledge |
-| Context & Mapping | 2 | context-capture, codebase-mapping |
-| Mandatory | 5 | debugging, TDD, UAT, verification, security-checklist |
-| Python-specific | 6 | async, testing, bot-arch, packaging, perf, uv |
-| Architecture & API | 2 | architecture-patterns, api-design |
-| Security | 2 | security-checklist, secret-scanner |
-| Testing & Quality | 3 | test-generator, code-reviewer, testing-anti-patterns |
-| Situational | 4 | root-cause, defense, waiting, parallel |
-| Workflow | 4 | executing, subagent, finishing, worktrees |
-| Code Review | 2 | requesting, receiving |
-| Meta | 3 | skill-development, command-manager, documentation |
-| Expert Analysis | 1 | expert-panel |
-| Automation & Orchestration | 4 | session-resumption, context-monitor, error-recovery, self-completion |
-
-**Removed skills (duplicates or no added value):**
-- `using-superpowers` → merged into CLAUDE.md Dynamic Skill Selection
-- `sharing-skills` → standard git workflow, no specialized knowledge
-- `skill-creator`, `writing-skills`, `testing-skills-with-subagents` → merged into `skill-development`
+**Removed entirely (meta/unused):**
+- methodology, project-planning, user/tech-spec-planning (kept as /commands)
+- skill-development, command-manager, documentation (meta-skills)
+- code-reviewer, requesting/receiving-code-review (agent can review without skill)
+- test-generator, testing-anti-patterns, condition-based-waiting, dispatching-parallel-agents
+- defense-in-depth, root-cause-tracing, secret-scanner, context-capture
+- infrastructure, testing, user-acceptance-testing
 
 ---
 
 ## Available Commands
-
-Slash commands in `.claude/commands/`:
 
 | Command | Purpose |
 |---------|---------|
 | `/init-project` | Initialize new project with template |
 | `/init-context` | Fill project context files |
 | `/project-context` | Load project context |
-| `/meta-context` | Load meta-project context |
 | `/new-user-spec` | Create user-spec for feature |
 | `/new-tech-spec` | Create tech-spec for feature |
-| `/resume` | Resume incomplete work from STATE.md |
-| `/expert-panel` | Run expert panel analysis for a task |
+| `/resume` | Resume incomplete work |
+| `/expert-panel` | Run expert panel analysis |
 
 ---
 
-## Available Agents
+## Loading
 
-Subagents in `.claude/agents/`:
+```bash
+cat .claude/skills/<folder>/SKILL.md
+```
 
-| Agent | Purpose |
-|-------|---------|
-| `code-developer` | Implements tasks, writes code and tests |
-| `code-reviewer` | Reviews code quality, finds issues |
-| `secret-scanner` | Scans for hardcoded secrets |
-| `security-auditor` | Audits against OWASP Top 10 |
-| `orchestrator` | Intent classification and automatic skill selection | opus |
-
----
-
-## FORBIDDEN
-
-- Loading ALL skills (`@.claude/skills`)
-- Loading skills "just in case"
-- Skipping mandatory skills when they apply
-- Using more than 3 skills simultaneously
-- **Skipping `security-checklist` when handling personal data**
-- **Skipping `secret-scanner` before commits**
+**Rules:** Max 3 skills simultaneously. Load only when the situation matches.

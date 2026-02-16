@@ -1,77 +1,46 @@
 ---
 name: executing-plans
-version: 1.0.0
-description: Use when partner provides a complete implementation plan to execute in controlled batches with review checkpoints - loads plan, reviews critically, executes tasks in batches, reports for review between batches
+description: |
+  Executes implementation plans in controlled batches with review checkpoints between batches.
+  Use when a partner provides a complete implementation plan, or user says "execute plan", "start implementation".
+  Does NOT create plans (use tech-spec-planning) or handle single ad-hoc tasks.
 ---
 
 # Executing Plans
 
-## Overview
+## When to Use
+- Partner provides a complete implementation plan
+- User says "execute plan" / "start implementation"
 
-Load plan, review critically, execute tasks in batches, report for review between batches.
+## When NOT to Use
+- No plan exists (use tech-spec-planning first)
+- Single ad-hoc task (just do it)
 
-**Core principle:** Batch execution with checkpoints for architect review.
+## Process
 
-**Announce at start:** "I'm using the executing-plans skill to implement this plan."
+1. **Load plan** -- read plan file, identify questions/concerns
+2. **Raise concerns** BEFORE starting (if any)
+3. **Execute batch** (3 tasks default):
+   - Mark in_progress -> follow steps exactly -> verify -> mark completed
+4. **Report**: show what was done + verification output, say "Ready for feedback", WAIT
+5. **Apply feedback** if any, then next batch (repeat 3-4)
+6. **UAT** (mandatory after all tasks):
+   - Announce phase change to UAT
+   - Read user-acceptance-testing skill + user-spec.md
+   - Present UAT checklist, WAIT for user
+   - Issues found -> fix -> re-run UAT
+7. **Complete**: use finishing-a-development-branch skill
 
-## The Process
+## Stop Conditions
 
-### Step 1: Load and Review Plan
-1. Read plan file
-2. Review critically - identify any questions or concerns about the plan
-3. If concerns: Raise them with your human partner before starting
-4. If no concerns: Create TodoWrite and proceed
+STOP executing immediately when:
+- Blocker hit (missing dependency, unclear instruction)
+- Plan has critical gaps
+- Verification fails repeatedly after fix attempts
 
-### Step 2: Execute Batch
-**Default: First 3 tasks**
+Ask for clarification rather than guessing.
 
-For each task:
-1. Mark as in_progress
-2. Follow each step exactly (plan has bite-sized steps)
-3. Run verifications as specified
-4. Mark as completed
-
-### Step 3: Report
-When batch complete:
-- Show what was implemented
-- Show verification output
-- Say: "Ready for feedback."
-
-### Step 4: Continue
-Based on feedback:
-- Apply changes if needed
-- Execute next batch
-- Repeat until complete
-
-### Step 5: Complete Development
-
-After all tasks complete and verified:
-- Announce: "I'm using the finishing-a-development-branch skill to complete this work."
-- **REQUIRED SUB-SKILL:** Use superpowers:finishing-a-development-branch
-- Follow that skill to verify tests, present options, execute choice
-
-## When to Stop and Ask for Help
-
-**STOP executing immediately when:**
-- Hit a blocker mid-batch (missing dependency, test fails, instruction unclear)
-- Plan has critical gaps preventing starting
-- You don't understand an instruction
-- Verification fails repeatedly
-
-**Ask for clarification rather than guessing.**
-
-## When to Revisit Earlier Steps
-
-**Return to Review (Step 1) when:**
-- Partner updates the plan based on your feedback
-- Fundamental approach needs rethinking
-
-**Don't force through blockers** - stop and ask.
-
-## Remember
-- Review plan critically first
-- Follow plan steps exactly
-- Don't skip verifications
-- Reference skills when plan says to
-- Between batches: just report and wait
-- Stop when blocked, don't guess
+## Hard Rules
+- No skipping UAT -- implementation is NOT complete without it
+- Plan changes mid-execution -> stop, re-read plan, adjust remaining tasks
+- No fixes without verification after each batch

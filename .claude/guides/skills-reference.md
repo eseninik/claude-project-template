@@ -8,10 +8,10 @@
 
 | Категория | Skills |
 |-----------|--------|
-| Planning | `user-spec-planning`, `tech-spec-planning` |
-| Execution | `subagent-driven-development`, `test-driven-development` |
+| Execution | `subagent-driven-development`, `executing-plans` |
 | Quality | `verification-before-completion`, `systematic-debugging` |
-| Security | `security-checklist`, `secret-scanner` |
+| Knowledge | `project-knowledge`, `codebase-mapping` |
+| Session | `session-resumption`, `context-monitor` |
 
 ## Когда использовать
 

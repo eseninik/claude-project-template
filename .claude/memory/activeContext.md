@@ -8,7 +8,7 @@
 
 ## Current Focus
 
-Autonomous Pipeline System — implemented and ready for testing. CLAUDE.md restructured for compaction resilience, PIPELINE.md state machine, Ralph Loop script, autonomous-pipeline guide. Next: test pipeline with real task (skills audit).
+Skills Audit & Cleanup pipeline COMPLETE. 44→14 skills, 30 deleted, 8 trimmed to checklists. All cross-references fixed across main and template. Pipeline review written (work/pipeline-review.md). Next: scalable full-project pipeline design.
 
 ---
 
@@ -60,7 +60,7 @@ Autonomous Pipeline System — implemented and ready for testing. CLAUDE.md rest
 
 ## Next Steps
 
-1. **[IN PROGRESS] Test autonomous pipeline** — создать реальный pipeline для аудита скиллов (44 скилла не используются Agent Teams)
+1. **[NEXT] Scalable full-project pipeline design** — conditional branching, quality gates, sub-pipelines, deploy integration
 2. **[WAITING] User decision on telegram-safe-mcp** — ответы на Open Questions в work/expert-analysis.md
 3. Рассмотреть перенос agents/ в new-project template
 4. Обновить upgrade-project чтобы не трогал memory/ и adr/
@@ -75,6 +75,21 @@ Autonomous Pipeline System — implemented and ready for testing. CLAUDE.md rest
 ---
 
 ## Session Log
+
+### 2026-02-16 (сессия 3)
+**Did:** Skills Audit & Cleanup pipeline — Phase 4 (Verification & Review):
+- Fixed stale references to deleted skills in 8+ files across main and template
+- Fixed: teammate-prompt-template.md (both copies) — removed testing-anti-patterns, security-checklist, updated Role-Based Skills and Expert Panel Roles tables
+- Fixed: expert-panel/SKILL.md (both copies) — updated Adaptive Role Pool to use only existing skills
+- Fixed: systematic-debugging/SKILL.md — removed root-cause-tracing references
+- Fixed: skills-reference.md — updated categories to match 14-skill system
+- Fixed: work-items.md — removed context-capture and user-acceptance-testing refs
+- CLAUDE.md (both copies) verified clean — no stale skill references
+- Pipeline review written: work/pipeline-review.md
+- PIPELINE.md marked PIPELINE_COMPLETE
+**Decided:** Agent .md files (orchestrator, code-reviewer) tolerate stale skill references in configs — not critical, clean on next pass
+**Learned:** Template sync must be explicit task in every implementation phase; cross-reference grep should be part of verification-before-completion for deletions; pipeline survived compaction and resumed correctly from `<- CURRENT` marker
+**Next:** Scalable full-project pipeline design based on research agent findings
 
 ### 2026-02-16 (сессия 2)
 **Did:** Autonomous Pipeline System — full implementation (Tier 1-4 from expert-analysis.md):

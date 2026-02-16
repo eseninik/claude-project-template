@@ -122,16 +122,16 @@ BLOCKING: No implementation without work/expert-analysis.md
 
 # TEAM ROLE SKILLS MAPPING
 
-| Role | Required Skills | Additional Skills |
-|------|----------------|-------------------|
-| Developer/Implementer | verification-before-completion | TDD, async-python-patterns, telegram-bot-architecture |
-| Reviewer | testing-anti-patterns | code-reviewer, security-checklist |
-| Researcher/Explorer | — | codebase-mapping, project-knowledge |
-| Debugger | — | systematic-debugging, root-cause-tracing |
-| Security | security-checklist | secret-scanner |
-| Architect/Planner | — | architecture-patterns, tech-spec-planning |
+| Role | Skills (from 14 remaining) |
+|------|---------------------------|
+| Developer/Implementer | verification-before-completion |
+| Researcher/Explorer | codebase-mapping, project-knowledge |
+| Debugger | systematic-debugging |
+| Pipeline Lead | subagent-driven-development, executing-plans |
 
 Expert Panel roles: `cat .claude/guides/expert-panel-workflow.md`
+
+**One-liner rules (replace deleted skills):** Use TDD for new code. Validate all inputs. Never commit secrets. Use pytest + AsyncMock for tests. Follow Clean Architecture. Use uv for packages.
 
 ---
 
