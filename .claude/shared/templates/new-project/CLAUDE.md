@@ -1,167 +1,197 @@
+# Summary instructions
+
+When compacting, ALWAYS preserve these rules (they are lost most often):
+- **AGENT TEAMS**: 3+ independent tasks -> ALWAYS use TeamCreate, not sequential execution
+- **PIPELINE**: Read work/PIPELINE.md after compaction, continue from <- CURRENT marker
+- **MEMORY**: ALWAYS update .claude/memory/activeContext.md before commit/exit
+- **VERIFICATION**: NEVER say "done" without running tests
+After compaction: re-read work/PIPELINE.md and work/STATE.md immediately.
+
+---
+
 # Project: [PROJECT NAME]
 
 > **[ONE SENTENCE - WHAT THIS PROJECT IS ABOUT]**
 
+**Context:** `.claude/skills/project-knowledge/guides/` | **Memory:** `.claude/memory/activeContext.md` | **ADR:** `.claude/adr/` | **Branch:** `dev`
+
 ---
 
-## How This Project Works
+# AUTONOMOUS PIPELINE PROTOCOL
 
-**Context:** `.claude/skills/project-knowledge/` — architecture, patterns, git workflow, database, deployment.
+> The #1 priority: parallelize work via Agent Teams and survive compaction.
 
-**Memory:** `.claude/memory/activeContext.md` — session bridge, decisions, learned patterns.
+## Agent Teams (ALWAYS for 3+ tasks)
 
-**ADR:** `.claude/adr/` — architecture decision records.
+```
+TRIGGER: Task has 3+ independent subtasks (different files/modules)
 
-**Default branch:** `dev`
+ACTION:
+  1. Explain: "[N] independent tasks, can parallelize"
+  2. TeamCreate -> create team, TaskCreate -> create tasks
+  3. Build prompts using .claude/guides/teammate-prompt-template.md
+  4. EVERY prompt MUST have "## Required Skills" section
+  5. EVERY implementer gets verification-before-completion
+
+DO NOT do sequentially what can be parallelized.
+DO NOT forget Agent Teams after compaction — check work/PIPELINE.md Mode field.
+```
+
+## After Compaction (ALWAYS)
+
+```
+1. Re-read work/PIPELINE.md — find <- CURRENT phase
+2. Re-read work/STATE.md — project state
+3. Check phase Mode: if AGENT_TEAMS -> create team
+4. Continue execution from <- CURRENT
+5. DO NOT restart from beginning
+```
+
+## Pipeline State Machine (work/PIPELINE.md)
+
+```
+When task has multiple phases:
+1. Create work/PIPELINE.md with phases, modes, acceptance criteria
+2. Mark first phase <- CURRENT
+3. Execute phase by phase
+4. After each phase: verify -> update PIPELINE.md -> git commit
+5. If all done: set Status: PIPELINE_COMPLETE
+
+Template: .claude/shared/work-templates/PIPELINE.md
+Full guide: cat .claude/guides/autonomous-pipeline.md
+```
+
+## Expert Panel (explicit trigger)
+
+```
+TRIGGER: "Agent Teams Mode" OR "экспертная панель"
+GUIDE: cat .claude/guides/expert-panel-workflow.md
+SKILL: cat .claude/skills/expert-panel/SKILL.md
+BLOCKING: No implementation without work/expert-analysis.md
+```
 
 ---
 
 # AUTO-BEHAVIORS
 
-> Агент выполняет автоматически, БЕЗ команд пользователя.
-
----
-
-## SESSION START (always)
+## Session Start (always)
 
 ```
 1. Read .claude/memory/activeContext.md
 2. Read work/STATE.md
-3. IF unfinished work exists:
-   → Tell user: "Продолжаю: [task]. Контекст: [recent decisions]"
-4. ELSE:
-   → Tell user: "Готов к новой задаче"
+3. IF work/PIPELINE.md exists with <- CURRENT -> resume pipeline
+4. IF unfinished work -> "Продолжаю: [task]"
+5. ELSE -> "Готов к новой задаче"
 ```
 
----
-
-## BEFORE CODE CHANGES (always)
+## Before Code Changes (always)
 
 ```
-TRIGGER: User asks to implement/change/fix something
-
 1. Read .claude/skills/project-knowledge/guides/architecture.md
 2. Read .claude/skills/project-knowledge/guides/patterns.md
-3. IF database-related:
-   → Read .claude/skills/project-knowledge/guides/database.md
-4. IF API-related:
-   → Read .claude/skills/project-knowledge/guides/features.md
-5. Check .claude/adr/decisions.md for relevant decisions
+3. Check .claude/adr/decisions.md for relevant decisions
+```
+
+## After Task Completion (always)
+
+```
+1. Update .claude/memory/activeContext.md (Did/Decided/Learned/Next)
+2. Update work/STATE.md
+3. Update work/PIPELINE.md if pipeline active
+4. IF architectural decision -> create ADR
+5. Commit with meaningful message
+```
+
+## On Error/Bug (always)
+
+```
+1. Check .claude/memory/activeContext.md -> Learned Patterns -> Gotchas
+2. If similar issue solved before -> apply known solution
+3. Else -> debug, fix, add to Gotchas
+```
+
+## On Architecture Decision (always)
+
+```
+1. Check .claude/adr/decisions.md
+2. IF contradicts existing -> explain why
+3. Create ADR using .claude/adr/_template.md
 ```
 
 ---
 
-## AFTER TASK COMPLETION (always)
+# TEAM ROLE SKILLS MAPPING
 
-```
-TRIGGER: Task is done, tests pass, verified
+| Role | Required Skills | Additional Skills |
+|------|----------------|-------------------|
+| Developer/Implementer | verification-before-completion | TDD, async-python-patterns, telegram-bot-architecture |
+| Reviewer | testing-anti-patterns | code-reviewer, security-checklist |
+| Researcher/Explorer | — | codebase-mapping, project-knowledge |
+| Debugger | — | systematic-debugging, root-cause-tracing |
+| Security | security-checklist | secret-scanner |
+| Architect/Planner | — | architecture-patterns, tech-spec-planning |
 
-1. Update .claude/memory/activeContext.md:
-   - Add to Session Log: date, what did, what decided, what learned
-   - Update Recent Decisions if any
-   - Update Learned Patterns if discovered something
-   - Set Next Steps
-
-2. Update work/STATE.md:
-   - Current Work section
-   - Session Notes
-
-3. IF architectural decision was made:
-   → Create .claude/adr/NNN-name.md
-   → Update .claude/adr/decisions.md INDEX
-
-4. Commit with meaningful message
-```
-
----
-
-## AFTER SESSION END (always)
-
-```
-TRIGGER: User ends session OR context limit approaching
-
-1. Update .claude/memory/activeContext.md:
-   - Current Focus: what was being worked on
-   - Next Steps: what to do next
-   - Session Log: summary of session
-
-2. Update work/STATE.md:
-   - Where stopped
-   - Why stopped
-
-3. Tell user: "Сессия сохранена. Следующие шаги: [list]"
-```
-
----
-
-## ON ERROR/BUG (always)
-
-```
-TRIGGER: Something breaks, test fails, unexpected behavior
-
-1. Check .claude/memory/activeContext.md → Learned Patterns → Gotchas
-2. Check if similar issue was solved before
-3. IF solved before:
-   → Apply known solution
-4. ELSE:
-   → Debug, fix, then add to Gotchas
-```
-
----
-
-## ON ARCHITECTURE DECISION (always)
-
-```
-TRIGGER: Choosing technology, changing data structure, new integration pattern
-
-1. Check .claude/adr/decisions.md for existing decisions
-2. IF contradicts existing decision:
-   → Explain why change is needed
-   → Get user confirmation
-3. Create new ADR using .claude/adr/_template.md
-4. Update .claude/adr/decisions.md INDEX
-5. Update .claude/memory/activeContext.md → Recent Decisions
-```
+Expert Panel roles: `cat .claude/guides/expert-panel-workflow.md`
 
 ---
 
 # HARD CONSTRAINTS
 
-| Constraint | Reason |
-|------------|--------|
-| No data deletion without confirmation | Irreversible |
-| No committing secrets | Security |
-| No push to main without permission | Production stability |
-| No "done" without verification | Honesty |
-| Always update memory after work | Context preservation |
-| No commit without memory update | Context loss between sessions |
+| Constraint | Instead Do |
+|------------|-----------|
+| No data deletion without confirmation | Ask user before deleting |
+| No committing secrets | Use .env + .gitignore |
+| No push to main | Push to dev or feature branch |
+| No "done" without verification | ALWAYS run verification-before-completion |
+| No sequential work for 3+ tasks | ALWAYS use Agent Teams (TeamCreate) |
+| No commit without memory update | ALWAYS update activeContext.md first |
+| No teammate without Required Skills | ALWAYS check TEAM ROLE SKILLS MAPPING |
+| Expert Panel -> no impl without analysis | Wait for expert-analysis.md |
 
 ---
 
 # BLOCKING RULES
 
-## Plan Detected (BLOCKING)
+## Plan Detected
+ENFORCE: `cat .claude/guides/plan-execution-enforcer.md`
 
-ENFORCE VIA: `cat .claude/guides/plan-execution-enforcer.md`
-BLOCK: Cannot start implementation without valid checkpoint output
-
-## Before Commit (BLOCKING)
-
+## After Code Changes
 ```
-TRIGGER: About to run git commit
-
-BLOCK: Do NOT commit until memory is updated
-
-1. VERIFY activeContext.md is staged (git status)
-2. IF not staged:
-   a. Update .claude/memory/activeContext.md with:
-      - Did: конкретные изменения
-      - Decided: выбор и обоснование
-      - Learned: gotchas, что работает/не работает
-      - Next: что осталось
-   b. Stage: git add .claude/memory/activeContext.md
-3. THEN proceed with commit
+1. Write test -> 2. Run -> 3. If fail -> fix -> repeat
 ```
+
+## Before Commit
+```
+BLOCK until .claude/memory/activeContext.md is updated and staged.
+```
+
+## Before Spawning Teammate
+```
+BLOCK until prompt has "## Required Skills" section.
+Template: .claude/guides/teammate-prompt-template.md
+```
+
+## Before "done"
+```
+1. cat .claude/skills/verification-before-completion/SKILL.md
+2. Execute verification
+3. Only then claim completion
+```
+
+---
+
+# CONTEXT LOADING TRIGGERS
+
+| Situation | Load |
+|-----------|------|
+| Pipeline execution | `cat .claude/guides/autonomous-pipeline.md` |
+| Error occurred | `cat .claude/guides/error-handling.md` |
+| Complex decision | `cat .claude/guides/decision-making.md` |
+| Plan for implementation | `cat .claude/guides/plan-execution-enforcer.md` |
+| Spawning teammate | `cat .claude/guides/teammate-prompt-template.md` |
+| Expert Panel | `cat .claude/guides/expert-panel-workflow.md` |
+| External service needed | `cat .claude/skills/mcp-integration/SKILL.md` |
+| Dependency analysis | `cat .claude/guides/dependency-analysis.md` |
 
 ---
 
@@ -169,15 +199,13 @@ BLOCK: Do NOT commit until memory is updated
 
 | Need | Location |
 |------|----------|
-| Project architecture | `.claude/skills/project-knowledge/guides/architecture.md` |
-| Code patterns | `.claude/skills/project-knowledge/guides/patterns.md` |
-| Database schema | `.claude/skills/project-knowledge/guides/database.md` |
-| Features list | `.claude/skills/project-knowledge/guides/features.md` |
-| Git workflow | `.claude/skills/project-knowledge/guides/git-workflow.md` |
-| Deployment | `.claude/skills/project-knowledge/guides/deployment.md` |
 | Session context | `.claude/memory/activeContext.md` |
+| Pipeline state | `work/PIPELINE.md` |
 | Task state | `work/STATE.md` |
 | Architecture decisions | `.claude/adr/decisions.md` |
+| Project architecture | `.claude/skills/project-knowledge/guides/` |
+| Pipeline templates | `.claude/shared/work-templates/` |
+| Ralph Loop script | `scripts/ralph.sh` |
 
 ---
 
@@ -185,6 +213,8 @@ BLOCK: Do NOT commit until memory is updated
 
 - Starting work without reading memory/activeContext.md
 - Finishing work without updating memory
-- Making architecture decisions without checking ADR
 - Saying "done" without running tests
-- Ignoring Learned Patterns → Gotchas
+- Doing 3+ tasks sequentially when they can be parallelized
+- `@.claude/skills` (loads everything, wastes context)
+- Plan detected -> starting without plan-execution-protocol.md
+- Ignoring <- CURRENT marker in PIPELINE.md after compaction

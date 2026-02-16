@@ -8,6 +8,24 @@
 
 ---
 
+## Agent Teams Integration
+
+Agents in `.claude/agents/` have **preloaded skills** via the `skills` frontmatter field.
+These skills are injected into the agent's context at startup — no manual loading needed.
+
+| Agent | Preloaded Skills |
+|-------|-----------------|
+| `code-developer` | test-driven-development, verification-before-completion |
+| `code-reviewer` | testing-anti-patterns |
+| `security-auditor` | security-checklist |
+| `orchestrator` | — (skill selection logic in prompt) |
+| `secret-scanner` | — (specialized enough) |
+
+When creating **Agent Teams** (TeamCreate), refer to the TEAM ROLE SKILLS MAPPING in CLAUDE.md
+for which additional skills to reference in teammate task prompts.
+
+---
+
 ## Entry Points
 
 **Start here based on your task:**
@@ -43,6 +61,9 @@
 | **Context overflow** | `context-monitor` | warn at 50%, block at 70% |
 | **Auto-continue** | `self-completion` | for incomplete todos |
 | **Error occurred** | `error-recovery` | structured recovery patterns |
+| **Нужен внешний сервис (поиск, scraping, документация)** | `mcp-integration` | По необходимости |
+| **Agent Teams Mode / экспертная панель** | `expert-panel` | → implementation pipeline |
+| **Autonomous pipeline / multi-phase task** | autonomous-pipeline guide | `cat .claude/guides/autonomous-pipeline.md` |
 
 ---
 
@@ -221,6 +242,33 @@ Skills for automated execution, session management, and error handling.
 | **error-recovery** | Tool errors, test failures, timeouts (triggers systematic-debugging for tests) | `error-recovery/SKILL.md` | 1.0.0 |
 | **self-completion** | Auto-continue through pending todos until complete | `self-completion/SKILL.md` | 1.0.0 |
 
+### AUTONOMOUS PIPELINE
+
+Infrastructure for multi-phase autonomous task execution with compaction resilience.
+
+| Resource | Purpose | Path |
+|----------|---------|------|
+| **autonomous-pipeline guide** | Full guide: creation, execution, recovery, anti-drift | `.claude/guides/autonomous-pipeline.md` |
+| **PIPELINE.md template** | State machine with `<- CURRENT` markers and Mode field | `.claude/shared/work-templates/PIPELINE.md` |
+| **PROMPT.md template** | Ralph Loop prompt for fresh-context phases | `.claude/shared/work-templates/PROMPT.md` |
+| **ralph.sh** | Fresh-context loop script (no compaction possible) | `scripts/ralph.sh` |
+
+### EXPERT ANALYSIS
+
+Multi-agent expert panel for complex tasks.
+
+| Skill | When | Path | Version |
+|-------|------|------|---------|
+| **expert-panel** | "Agent Teams Mode", "экспертная панель", complex multi-perspective analysis | `expert-panel/SKILL.md` | 1.0.0 |
+
+### EXTERNAL SERVICES
+
+Skills for integrating with external services via MCP.
+
+| Skill | When | Path | Version |
+|-------|------|------|---------|
+| **mcp-integration** | On-demand MCP через CLI. Workflow: grep → info → call | `mcp-integration/SKILL.md` | 1.0.0 |
+
 ---
 
 ## How to Load Skills
@@ -270,6 +318,8 @@ cat .claude/skills/user-spec-planning/SKILL.md
 | Flaky test fix | condition-based-waiting + TDD |
 | После реализации фичи | user-acceptance-testing → verification |
 | Final check | verification-before-completion |
+| Research (external services) | mcp-integration + systematic-debugging |
+| Complex task analysis | expert-panel → tech-spec-planning → subagent-driven-development |
 
 ### Python/aiogram Development
 
@@ -291,7 +341,7 @@ cat .claude/skills/user-spec-planning/SKILL.md
 
 ## Skill Count Summary
 
-**Total: 43 skills** (reduced from 47 after cleanup)
+**Total: 44 skills** (43 + expert-panel)
 
 | Category | Count | Skills |
 |----------|-------|--------|
@@ -308,6 +358,7 @@ cat .claude/skills/user-spec-planning/SKILL.md
 | Workflow | 4 | executing, subagent, finishing, worktrees |
 | Code Review | 2 | requesting, receiving |
 | Meta | 3 | skill-development, command-manager, documentation |
+| Expert Analysis | 1 | expert-panel |
 | Automation & Orchestration | 4 | session-resumption, context-monitor, error-recovery, self-completion |
 
 **Removed skills (duplicates or no added value):**
@@ -330,6 +381,7 @@ Slash commands in `.claude/commands/`:
 | `/new-user-spec` | Create user-spec for feature |
 | `/new-tech-spec` | Create tech-spec for feature |
 | `/resume` | Resume incomplete work from STATE.md |
+| `/expert-panel` | Run expert panel analysis for a task |
 
 ---
 
