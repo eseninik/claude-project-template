@@ -120,3 +120,10 @@ cat .claude/skills/<folder>/SKILL.md
 ```
 
 **Rules:** Max 3 skills simultaneously. Load only when the situation matches.
+
+---
+
+## Related Guides
+
+- `.claude/guides/autonomous-pipeline.md` — Pipeline v2 execution guide
+- `.claude/guides/plan-execution-protocol.md` — Plan execution enforcer

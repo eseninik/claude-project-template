@@ -8,7 +8,7 @@
 
 ## Current Focus
 
-Skills Audit & Cleanup pipeline COMPLETE. 44→14 skills, 30 deleted, 8 trimmed to checklists. All cross-references fixed across main and template. Pipeline review written (work/pipeline-review.md). Next: scalable full-project pipeline design.
+Scalable Pipeline v2 system COMPLETE. Full autonomous pipeline: SPEC→REVIEW→PLAN→IMPLEMENT→TEST→FIX→DEPLOY→STRESS_TEST. PIPELINE-v2.md template, 8 phase templates, quality gates (4-verdict), Ralph Loop (compaction-immune), deploy integration (SSH+systemd). All installed in main + new-project template.
 
 ---
 
@@ -60,10 +60,10 @@ Skills Audit & Cleanup pipeline COMPLETE. 44→14 skills, 30 deleted, 8 trimmed 
 
 ## Next Steps
 
-1. **[NEXT] Scalable full-project pipeline design** — conditional branching, quality gates, sub-pipelines, deploy integration
-2. **[WAITING] User decision on telegram-safe-mcp** — ответы на Open Questions в work/expert-analysis.md
-3. Рассмотреть перенос agents/ в new-project template
-4. Обновить upgrade-project чтобы не трогал memory/ и adr/
+1. **[DONE] Scalable full-project pipeline design** — PIPELINE-v2.md, 8 phase templates, quality gates, Ralph Loop, deploy
+2. **[NEXT] Test pipeline v2 with real project** — use PIPELINE-v2.md template on a real Telegram bot project to validate end-to-end
+3. **[WAITING] User decision on telegram-safe-mcp** — ответы на Open Questions в work/expert-analysis.md
+4. Рассмотреть перенос agents/ в new-project template
 
 ---
 
@@ -75,6 +75,17 @@ Skills Audit & Cleanup pipeline COMPLETE. 44→14 skills, 30 deleted, 8 trimmed 
 ---
 
 ## Session Log
+
+### 2026-02-16 (сессия 4)
+**Did:** Scalable Pipeline v2 — full 4-phase pipeline (Research → Design → Implementation → Validation):
+- Phase 1 (Agent Teams, 5 researchers): compaction-specialist, branching-researcher, composability-researcher, deploy-researcher, template-designer → work/scalable-pipeline-research.md
+- Phase 2 (Agent Teams, 4 designers): format-designer, template-writer, gate-designer, deploy-ralph-designer → 15 deliverables
+- Phase 3 (Agent Teams, 2 writers + lead): guide-writer, config-updater → autonomous-pipeline.md v2 (241 lines), CLAUDE.md + SKILLS_INDEX updated, 12+ files synced to template
+- Phase 4 (Solo): validation — all files verified, transition graph validated, PIPELINE.md v2 ready
+- Deliverables: PIPELINE-v2.md template (147 lines), 8 phase templates (SPEC/REVIEW/PLAN/IMPLEMENT/TEST/FIX/DEPLOY/STRESS_TEST), quality gate framework (4-verdict model), ralph.sh script, PROMPT.md template, deploy design, autonomous-pipeline.md v2 guide
+**Decided:** Hybrid approach: Ralph Loop for compaction-immune autonomous execution, PIPELINE.md Mode field for interactive sessions; 4-verdict quality gates (PASS/CONCERNS/REWORK/FAIL); named phases with conditional transitions; max 2-level sub-pipeline nesting
+**Learned:** 4-phase pipeline with Agent Teams per phase scales well (11 agents total across 4 teams); file installations can be done by lead (no agent overhead for copies); Phase 2 design agents are most valuable — they produce reusable artifacts; compaction is eliminated entirely by Ralph Loop (fresh context per phase)
+**Next:** Test pipeline v2 with real project; validate Ralph Loop end-to-end
 
 ### 2026-02-16 (сессия 3)
 **Did:** Skills Audit & Cleanup pipeline — Phase 4 (Verification & Review):

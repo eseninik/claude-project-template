@@ -1,212 +1,241 @@
-# Autonomous Pipeline Guide
+# Autonomous Pipeline Guide (v2)
 
 > On-demand guide for executing autonomous development pipelines.
 > Loaded via: `cat .claude/guides/autonomous-pipeline.md`
 
 ---
 
-## Overview
+## 1. Overview
 
-The autonomous pipeline enables Claude Code to execute complex multi-phase tasks without losing context or focus after compaction. It uses:
+The autonomous pipeline is a **state machine encoded in markdown** that drives multi-phase development without losing context. Components:
 
-1. **PIPELINE.md** -- state machine file with explicit phase markers
-2. **Ralph Loop** -- optional fresh-context shell script for long sessions
-3. **Agent Teams** -- parallel execution for phases with 3+ independent tasks
-4. **Three-layer context** -- contract (CLAUDE.md), working set (PIPELINE.md + STATE.md), noise (historical logs)
-
----
-
-## When to Use
-
-- Task has 3+ phases or stages
-- Task will likely trigger compaction (>60% context window)
-- Task needs autonomous execution without user intervention
-- User explicitly requests "pipeline" or "autonomous mode"
-
-## When NOT to Use
-
-- Simple bug fix (1-2 files)
-- Single-phase task that fits in one context window
-- Task requiring constant user feedback between steps
+1. **PIPELINE.md** -- state machine with named phases, conditional transitions, and quality gates
+2. **Ralph Loop** -- fresh-context shell script that eliminates compaction entirely
+3. **Agent Teams** -- parallel execution via `Mode: AGENT_TEAMS` on phases with 3+ independent tasks
+4. **Quality Gates** -- 4-verdict model (PASS/CONCERNS/REWORK/FAIL) with AUTO/USER_APPROVAL/HYBRID types
+5. **Deploy Integration** -- git workflow, SSH deployment, health checks, stress testing
 
 ---
 
-## Pipeline Creation
+## 2. When to Use / When Not
 
-### Step 1: Analyze the Task
+**Use when:** 3+ phases, likely compaction (>60% context), autonomous execution needed, deploy/stress test phases, or user requests "pipeline"/"autonomous mode".
 
-Break the task into phases (analysis, implementation, testing, verification).
-For each phase: determine mode (SOLO vs AGENT_TEAMS).
-Rule: 3+ independent tasks in a phase = AGENT_TEAMS.
-
-### Step 2: Create work/PIPELINE.md
-
-Use template: `.claude/shared/work-templates/PIPELINE.md`
-
-- Fill in phase names, modes, tasks, acceptance criteria
-- Set first phase as `<- CURRENT`
-- Set Status: `IN_PROGRESS`
-
-### Step 3: Create work/PROMPT.md (Ralph Loop only)
-
-Use template: `.claude/shared/work-templates/PROMPT.md`
-
-- Customize context-loading steps for your project
-- Add project-specific verification commands
-- Add any special constraints
-
-### Step 4: Execute
-
-**Interactive mode:** Agent reads PIPELINE.md, executes phases sequentially, updates state after each.
-
-**Ralph Loop mode:** User runs `./scripts/ralph.sh` for fully autonomous execution with fresh context per phase.
+**Do NOT use when:** Simple bug fix (1-2 files), single-phase task, or task requiring constant user feedback.
 
 ---
 
-## Phase Execution Protocol
+## 3. Pipeline Creation
 
-### SOLO Phases
+**Step 1: Analyze.** Break into phases. For each: Mode (`SOLO`/`AGENT_TEAMS`/`SUB_PIPELINE`), Gate Type (`AUTO`/`USER_APPROVAL`/`HYBRID`), transitions (PASS/FAIL/REWORK).
 
+**Step 2: Create work/PIPELINE.md** from `.claude/shared/work-templates/PIPELINE-v2.md`. Delete unused phases, set first phase `<- CURRENT`, set `Status: IN_PROGRESS`.
+
+**Step 3: Create work/PROMPT.md** (Ralph Loop only) from `.claude/shared/work-templates/PROMPT.md`. Customize context-loading and verification commands.
+
+**Step 4: Execute.** Interactive: read PIPELINE.md, execute sequentially. Ralph Loop: `./scripts/ralph.sh`.
+
+---
+
+## 4. Phase Execution Protocol
+
+### SOLO
 ```
-1. Read phase tasks and acceptance criteria from PIPELINE.md
-2. Implement changes
-3. Run tests
-4. If tests fail -> fix -> retest (max 3 attempts)
-5. If still failing -> mark phase BLOCKED, alert user
-6. If passing -> mark phase [x], advance <- CURRENT to next phase
+1. Read phase from PIPELINE.md, read Inputs
+2. Implement changes, produce Outputs
+3. Run quality gate, apply verdict
+4. Update state, advance <- CURRENT
 ```
 
-### AGENT_TEAMS Phases
-
+### AGENT_TEAMS
 ```
-1. Analyze phase tasks for parallelization potential
-2. TeamCreate with appropriate team size (2-5 agents)
-3. Build teammate prompts using .claude/guides/teammate-prompt-template.md
-4. MANDATORY: each prompt has ## Required Skills section
-5. Wait for all agents to complete
-6. Verify combined results against acceptance criteria
-7. Mark phase [x], advance <- CURRENT to next phase
+1. Analyze tasks for parallelization
+2. TeamCreate (2-5 agents), prompts via .claude/guides/teammate-prompt-template.md
+3. MANDATORY: each prompt has ## Required Skills section
+4. Verify combined results against gate, apply verdict
+```
+
+### SUB_PIPELINE
+```
+1. Execute referenced Pipeline file to completion (or BLOCKED)
+2. Return to parent, apply verdict based on sub-pipeline outcome
 ```
 
 ---
 
-## Compaction Recovery
+## 5. Quality Gates
 
-When compaction occurs during interactive mode:
+### 4-Verdict Model
 
-1. System automatically re-loads CLAUDE.md (always in context)
-2. CLAUDE.md Summary Instructions remind: "re-read PIPELINE.md"
-3. Agent reads `work/PIPELINE.md`, finds `<- CURRENT` marker
-4. Agent reads `work/STATE.md` for latest results
-5. Agent continues from exactly where it left off
-6. Phase mode (SOLO/AGENT_TEAMS) is preserved in PIPELINE.md
+| Verdict | Action |
+|---------|--------|
+| **PASS** | Git checkpoint tag, advance `<- CURRENT` to `On PASS` target |
+| **CONCERNS** | Log in Decisions, checkpoint, advance |
+| **REWORK** | Increment `Attempts`. If `>= Max` -> FAIL. Else re-execute phase |
+| **FAIL** | Set `Status: BLOCKED`, stop pipeline, alert user |
 
-**This is why PIPELINE.md is critical** -- it is the agent's external memory that survives compaction. Without it, the agent forgets the plan and drifts.
+**Priority rule:** Worst verdict wins. FAIL > REWORK > CONCERNS > PASS.
+
+### Gate Types
+
+- **AUTO** -- Shell commands. All exit 0 = PASS, any non-zero = REWORK.
+- **USER_APPROVAL** -- Present artifact to user. User picks verdict.
+- **HYBRID** -- Auto first. Fail = REWORK (skip user). Pass = ask user for final verdict.
+
+### Execution Protocol
+```
+1. Phase signals completion -> read Gate from PIPELINE.md
+2. Execute checks (commands / prompt / auto+user)
+3. Worst verdict wins -> record in work/gate-results/{phase}-attempt-{n}.md
+4. Apply: advance, rework, or block
+```
 
 ---
 
-## Ralph Loop Details
+## 6. Conditional Transitions
 
-The Ralph Loop (`scripts/ralph.sh`) provides compaction-immune execution:
+Each phase defines its own transitions inline:
+```markdown
+### Phase: IMPLEMENT  <- CURRENT
+- On PASS: -> TEST
+- On FAIL: -> FIX
+- On REWORK: -> PLAN
+- On BLOCKED: -> STOP
+```
 
-- Each phase runs in a FRESH `claude -p` process (200K clean context)
-- State persists through PIPELINE.md + STATE.md + git history
-- No compaction possible (each phase completes within one context window)
-- Automatic git checkpoints between phases
+**Bounded loops:** `Attempts: X of Y` prevents infinite cycling. When `Attempts >= Max`, auto-escalates to BLOCKED.
+```
+TEST -> FAIL -> FIX -> PASS -> TEST   (loop)
+FIX: Attempts 3 of 3 -> BLOCKED       (bounded exit)
+```
+
+**Named phases:** UPPERCASE semantic names (SPEC, PLAN, IMPLEMENT, etc.). `On PASS: -> TEST` is self-documenting and survives compaction -- grep `### Phase: TEST` directly.
+
+---
+
+## 7. Phase Templates
+
+Reference: `.claude/shared/work-templates/phases/`
+
+| Template | Purpose |
+|----------|---------|
+| `SPEC.md` | User spec creation with acceptance criteria |
+| `REVIEW.md` | Expert panel analysis |
+| `PLAN.md` | Tech spec + task decomposition + wave analysis |
+| `IMPLEMENT.md` | Code implementation via Agent Teams |
+| `TEST.md` | Test suite execution |
+| `FIX.md` | Bug fixing with debugging teams |
+| `DEPLOY.md` | SSH deployment + health checks |
+| `STRESS_TEST.md` | Locust load testing + performance report |
+
+Delete unused phases from PIPELINE.md. Transitions still work for remaining phases.
+
+---
+
+## 8. Ralph Loop (Autonomous Mode)
+
+`scripts/ralph.sh` eliminates compaction by giving each phase a fresh `claude -p` process with clean 200K context. State persists through files (PIPELINE.md, STATE.md, git), not conversation memory.
+
+**Use Ralph Loop when:** 5+ phases, multiple AGENT_TEAMS phases, autonomous execution, session >100K tokens estimated.
+
+**Use Interactive when:** 2-3 phases, user wants review between phases, phases need user input.
 
 ### Usage
-
 ```bash
 ./scripts/ralph.sh                           # Default: 20 iterations
-./scripts/ralph.sh --max-iterations 10       # Custom iteration limit
-./scripts/ralph.sh --prompt work/PROMPT.md   # Custom prompt file
+./scripts/ralph.sh --max-iterations 10       # Custom limit
+./scripts/ralph.sh --pipeline work/PIPELINE.md --prompt work/PROMPT.md
+./scripts/ralph.sh --model claude-sonnet-4-5-20250929   # Override model
+./scripts/ralph.sh --dry-run                 # Print without executing
 ```
 
 ### How It Works
-
 ```
 for each iteration:
-  1. Read work/PIPELINE.md
-  2. If Status = PIPELINE_COMPLETE -> exit success
-  3. If Status = BLOCKED -> exit with error
-  4. Spawn: claude -p work/PROMPT.md
-  5. Agent executes ONE phase (reads PIPELINE.md, finds <- CURRENT)
-  6. Agent updates PIPELINE.md, STATE.md, memory
-  7. Agent commits checkpoint
-  8. Loop back to step 1 with fresh context
+  1. Check PIPELINE.md for PIPELINE_COMPLETE -> exit 0
+  2. Check PIPELINE.md for BLOCKED -> exit 1
+  3. Spawn: claude -p "$(cat PROMPT.md)" --dangerously-skip-permissions
+  4. Agent reads PIPELINE.md, finds <- CURRENT, executes ONE phase
+  5. Agent updates PIPELINE.md, STATE.md, memory
+  6. ralph.sh creates git checkpoint: pipeline-iter-{N}
+  7. Loop with fresh context
 ```
 
----
+**Exit codes:** 0 = complete, 1 = blocked, 2 = max iterations reached, 3 = files not found.
 
-## Verification Protocol
-
-After each phase (MANDATORY):
-
-1. Run project test suite (`uv run pytest` or equivalent)
-2. Check acceptance criteria from PIPELINE.md
-3. Apply 4-verdict model:
-   - **PASS**: All criteria met, proceed to next phase
-   - **CONCERNS**: Minor issues documented, proceed
-   - **REWORK**: Fix issues, re-verify (max 3 attempts)
-   - **FAIL**: Mark phase BLOCKED, stop pipeline, alert user
+**PROMPT.md** (`.claude/shared/work-templates/PROMPT.md`): Keep under 50 lines. Loaded every iteration, so Agent Teams enforcement **cannot be lost to compaction**.
 
 ---
 
-## Memory Updates
+## 9. Deploy Integration
+
+**Git workflow:** `feature/{name} -> dev -> main -> deploy to server`
+
+**Deploy phases:** GIT_RELEASE (PR + merge + tag) -> DEPLOY (rsync + restart) -> SMOKE_TEST (health check) -> STRESS_TEST (locust).
+
+**SSH deployment:** rsync uploads code, systemctl restarts service. Env vars (`DEPLOY_SSH_HOST`, `DEPLOY_SSH_KEY`, etc.) from `.env` (never committed).
+
+**Health checks:** Poll health endpoint 3x with 5s delay. Check journalctl for errors.
+
+**Stress testing:** Locust with standard config. Thresholds: p95 < 500ms, error rate < 1%. Results: `work/performance-report.md`.
+
+See full details: `work/scalable-pipeline-design-deploy.md`
+
+---
+
+## 10. Compaction Recovery
+
+When compaction occurs during interactive mode:
+1. System auto-loads CLAUDE.md (always in context)
+2. CLAUDE.md Summary Instructions remind: "re-read PIPELINE.md"
+3. Agent reads `work/PIPELINE.md`, finds `<- CURRENT` marker
+4. Agent reads `work/STATE.md` for latest results
+5. Agent continues from where it left off
+
+**Why v2 survives compaction:**
+- `<- CURRENT` on phase header line -- one grep finds location
+- Mode field persisted in file, not memory
+- Inline transitions -- each phase self-contained
+- Execution Rules section at PIPELINE.md bottom tells agent the protocol
+- Ralph Loop eliminates compaction entirely
+
+---
+
+## 11. Memory Updates
 
 After each phase (MANDATORY -- do NOT skip):
-
-1. **PIPELINE.md**: Mark phase done `[x]`, advance `<- CURRENT` marker
-2. **work/STATE.md**: Record phase results, current project state
-3. **.claude/memory/activeContext.md**:
-   - Did: phase results and key changes
-   - Decided: architectural or design decisions
-   - Learned: gotchas, what worked, what didn't
-   - Next: remaining phases and known blockers
-4. **Git commit**: Checkpoint with meaningful message
+1. **PIPELINE.md**: Set phase `Status: DONE`, advance `<- CURRENT`
+2. **work/STATE.md**: Record phase results
+3. **.claude/memory/activeContext.md**: Did/Decided/Learned/Next
+4. **Git commit**: Checkpoint with meaningful message + tag
 
 ---
 
-## Anti-Drift Patterns
+## 12. Anti-Drift Patterns
 
-### Todo-List Rewriting
+**Todo-list rewriting:** PIPELINE.md is re-read every phase, keeping state in agent's recent attention.
 
-PIPELINE.md serves as the persistent todo list. By reading and updating it each phase, the pipeline state stays in the agent's recent attention span. This prevents drift caused by compaction or context overflow.
+**Controlled variation:** If agents loop on same error 3+ times -- try different angle, spawn fresh agent, or mark BLOCKED.
 
-### Controlled Variation
-
-If agents loop on the same error 3+ times:
-- Try a different debugging angle or test strategy
-- Spawn a fresh agent with a different prompt framing
-- Mark the phase BLOCKED rather than looping indefinitely
-
-### Keep Wrong Turns
-
-Do not strip errors from context. Failed attempts help the agent avoid repeating the same mistakes. PIPELINE.md Decisions section captures what was tried and why it failed.
+**Keep wrong turns:** Do not strip errors. Decisions section captures what was tried and why it failed (append-only).
 
 ---
 
-## Common Pitfalls
-
-| Pitfall | Prevention |
-|---------|------------|
-| Forgetting Agent Teams after compaction | PIPELINE.md Mode field preserves the decision |
-| Phase too large for one context window | Split into sub-phases if >60% context estimate |
-| No verification between phases | Always test before advancing `<- CURRENT` |
-| Stale PIPELINE.md | Always update BEFORE exiting or committing |
-| No git checkpoints | Always commit between phases |
-| Agent drifts from plan | Re-read PIPELINE.md at start of every phase |
-| Skipping memory update | BLOCKING RULE: no commit without memory update |
-
----
-
-## Quick Reference
+## 13. Quick Reference
 
 ```
-CREATE:   PIPELINE.md (from template) + PROMPT.md (Ralph Loop only)
-EXECUTE:  Read <- CURRENT -> implement -> test -> update state -> advance marker
-RECOVER:  Re-read PIPELINE.md -> find <- CURRENT -> continue
-VERIFY:   Tests pass + acceptance criteria met -> 4-verdict model
-UPDATE:   PIPELINE.md + STATE.md + activeContext.md + git commit
-FINISH:   All phases [x] -> Status: PIPELINE_COMPLETE
+CREATE:     PIPELINE.md (from PIPELINE-v2.md template) + PROMPT.md (Ralph Loop only)
+TEMPLATE:   .claude/shared/work-templates/PIPELINE-v2.md
+PHASES:     .claude/shared/work-templates/phases/{SPEC,REVIEW,PLAN,IMPLEMENT,TEST,FIX,DEPLOY,STRESS_TEST}.md
+PROMPT:     .claude/shared/work-templates/PROMPT.md
+SCRIPT:     scripts/ralph.sh
+
+EXECUTE:    Find <- CURRENT -> read Inputs -> implement -> run Gate -> apply verdict -> update state
+MODES:      SOLO (direct) | AGENT_TEAMS (TeamCreate) | SUB_PIPELINE (nested)
+GATES:      AUTO (commands) | USER_APPROVAL (human) | HYBRID (auto + human)
+VERDICTS:   PASS (advance) | CONCERNS (log + advance) | REWORK (retry) | FAIL (block)
+
+RECOVER:    Re-read PIPELINE.md -> find <- CURRENT -> continue
+UPDATE:     PIPELINE.md + STATE.md + activeContext.md + git commit
+FINISH:     All phases DONE -> Status: PIPELINE_COMPLETE
 ```

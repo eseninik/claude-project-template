@@ -183,6 +183,8 @@ Template: .claude/guides/teammate-prompt-template.md
 | Spawning teammate | `cat .claude/guides/teammate-prompt-template.md` |
 | Expert Panel | `cat .claude/guides/expert-panel-workflow.md` |
 | External service needed | `cat .claude/skills/mcp-integration/SKILL.md` |
+| Phase template needed | `cat .claude/shared/work-templates/phases/{PHASE}.md` |
+| Quality gate check | `cat work/scalable-pipeline-design-gates.md` |
 | Dependency analysis | `cat .claude/guides/dependency-analysis.md` |
 
 ---
@@ -197,6 +199,7 @@ Template: .claude/guides/teammate-prompt-template.md
 | Architecture decisions | `.claude/adr/decisions.md` |
 | Project architecture | `.claude/skills/project-knowledge/guides/` |
 | Pipeline templates | `.claude/shared/work-templates/` |
+| Phase templates | `.claude/shared/work-templates/phases/` |
 | Ralph Loop script | `scripts/ralph.sh` |
 
 ---
