@@ -20,20 +20,20 @@ status: planned
 Files that code-developer subagent should read:
 
 **Required (always include):**
-- `.claude/skills/project-knowledge/guides/architecture.md`
-- `.claude/skills/project-knowledge/guides/patterns.md`
-- `.claude/skills/project-knowledge/guides/project.md`
-- `~/.claude/skills/testing/guides/unit-tests.md`
+- `.claude/guides/project/architecture.md`
+- `.claude/guides/project/patterns.md`
+- `.claude/guides/project/project.md`
+- `.claude/memory/activeContext.md`
 - `work/FEATURE-NAME/user-spec.md`
 - `work/FEATURE-NAME/tech-spec.md`
 
 **Additional (add if relevant):**
 
 Context files:
-- `.claude/skills/project-knowledge/guides/database.md` - for database/schema tasks
-- `.claude/skills/project-knowledge/guides/deployment.md` - for deployment/infrastructure tasks
-- `.claude/skills/project-knowledge/guides/git-workflow.md` - for git/CI/CD tasks
-- `.claude/skills/project-knowledge/guides/ux-guidelines.md` - for UI/text/design tasks
+- `.claude/guides/project/database.md` - for database/schema tasks
+- `.claude/guides/project/deployment.md` - for deployment/infrastructure tasks
+- `.claude/adr/decisions.md` - for architecture decisions
+- `.claude/guides/project/ux-guidelines.md` - for UI/text/design tasks
 
 Testing rules:
 - `~/.claude/skills/testing/guides/integration-tests.md` - for integration tests

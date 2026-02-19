@@ -9,6 +9,15 @@
 - Max Attempts: 1
 - Checkpoint: pipeline-checkpoint-IMPLEMENT
 
+## Phase Context Loading
+Before starting this phase, load:
+- `work/{feature}/tech-spec.md` — architecture to implement
+- `work/{feature}/tasks/*.md` — task definitions
+- `.claude/memory/codebase-map.json` — file locations and module structure
+- `.claude/memory/patterns.md` — coding patterns to follow
+- `.claude/memory/gotchas.md` — pitfalls to avoid
+- Query Graphiti: `search_memory_facts(query="implementation patterns and known issues", max_facts=10)`
+
 ## Inputs
 - `work/{feature}/tech-spec.md` (architecture)
 - `work/{feature}/tasks/*.md` (atomic task definitions)

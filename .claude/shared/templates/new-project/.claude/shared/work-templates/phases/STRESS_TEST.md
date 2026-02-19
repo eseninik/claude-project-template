@@ -9,6 +9,12 @@
 - Max Attempts: 1
 - Checkpoint: pipeline-checkpoint-STRESS_TEST
 
+## Phase Context Loading
+Before starting this phase, load:
+- Deploy results (service URL, health check status)
+- Performance baselines (if they exist from previous runs)
+- Query Graphiti: `search_memory_facts(query="performance benchmarks and optimization", max_facts=10)`
+
 ## Inputs
 - Running deployed service (from DEPLOY phase)
 - `work/{feature}/tech-spec.md` (performance requirements if any)

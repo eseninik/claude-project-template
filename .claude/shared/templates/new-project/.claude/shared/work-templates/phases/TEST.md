@@ -9,6 +9,12 @@
 - Max Attempts: 1
 - Checkpoint: pipeline-checkpoint-TEST
 
+## Phase Context Loading
+Before starting this phase, load:
+- `work/{feature}/test-results.md` (if retry — see what failed last time)
+- `.claude/memory/gotchas.md` — known testing pitfalls
+- Query Graphiti: `search_memory_facts(query="test failures and debugging insights", max_facts=10)`
+
 ## Inputs
 - Source code and tests (from IMPLEMENT or FIX phase)
 - `work/{feature}/tech-spec.md` (expected behavior reference)

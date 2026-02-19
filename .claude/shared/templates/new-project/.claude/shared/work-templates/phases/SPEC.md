@@ -9,12 +9,19 @@
 - Max Attempts: 1
 - Checkpoint: pipeline-checkpoint-SPEC
 
+## Phase Context Loading
+Before starting this phase, load:
+- `.claude/adr/decisions.md` — existing architectural decisions
+- `.claude/memory/activeContext.md` — recent session context
+- Previous user-specs (if this is a revision)
+- Query Graphiti: `search_memory_facts(query="user requirements and feature specs", max_facts=10)`
+
 ## Inputs
 - User's initial task description (conversation or issue)
-- `.claude/skills/project-knowledge/` (project context)
+- `.claude/adr/decisions.md` (existing architectural decisions)
 
 ## Process
-1. Read project context: `cat .claude/skills/project-knowledge/guides/architecture.md`
+1. Read project context: check `.claude/adr/decisions.md` and `.claude/memory/activeContext.md`
 2. Analyze user request — identify ambiguities and missing details
 3. Run adaptive interview (3-7 questions, stop when acceptance criteria are clear)
 4. Extract functional requirements, non-functional requirements, constraints

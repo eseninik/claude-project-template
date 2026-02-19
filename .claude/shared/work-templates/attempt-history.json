@@ -1,0 +1,23 @@
+{
+  "_schema": "Recovery Manager: Attempt History",
+  "_version": "1.0",
+  "_docs": "Tracks subtask attempts, circular fix detection, and good commits. See .claude/guides/recovery-manager.md",
+  "_subtask_entry_format": {
+    "_comment": "Each key in 'subtasks' is a subtask ID. Structure per subtask:",
+    "attempts": [
+      {
+        "timestamp": "ISO 8601 datetime",
+        "approach": "Human-readable description of what was tried",
+        "outcome": "success | failure",
+        "error": "Error message if failure, null if success",
+        "files_changed": ["list of file paths modified"],
+        "keywords": ["3-5 keywords extracted from approach"]
+      }
+    ],
+    "status": "pending | in_progress | completed | stuck",
+    "circular_detected": false,
+    "retry_count": 0
+  },
+  "good_commits": [],
+  "subtasks": {}
+}

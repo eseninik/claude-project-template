@@ -6,19 +6,19 @@
 
 ## Current Task
 
-**Task:** Skills Audit & Cleanup
+**Task:** Extract Ralph Loop Features + Graphiti Integration
 **Pipeline:** work/PIPELINE.md
-**Phase:** 1 of 4 (Deep Analysis)
-**Mode:** AGENT_TEAMS
-**Status:** in_progress
+**Phase:** ALL COMPLETE
+**Mode:** INTERACTIVE
+**Status:** PIPELINE_COMPLETE
 
 ---
 
 ## Context
 
-**Problem:** 44 skills exist but Agent Teams teammates never use them.
-**Goal:** Determine which skills are needed, fix broken ones, remove unused ones.
-**Pipeline test:** This is also a test of the autonomous pipeline system.
+**Problem:** Ralph Loop has useful patterns (Phase Transition Protocol, Insight Extraction, phase-specific context loading) that user's interactive pipeline flow doesn't use. Graphiti is set up but has 401 auth error and was never actually integrated into the workflow.
+**Goal:** Extract Ralph Loop's best features into interactive pipeline, integrate Graphiti for automatic context preservation, test everything, remove Ralph Loop.
+**Approach:** Fix Graphiti auth → implement changes (Agent Teams) → sync template → test context preservation → cleanup Ralph Loop → final sync.
 
 ---
 
@@ -26,13 +26,14 @@
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
-| 2026-02-16 | Use pipeline for skills audit | Tests the system we just built |
+| 2026-02-19 | Extract Phase Transition Protocol from Ralph Loop | User's flow lacks structured phase transitions with insight extraction |
+| 2026-02-19 | Graphiti in Before Commit blocking rule | Ensures automatic writes without relying on agent remembering |
+| 2026-02-19 | Graphiti reads at Session Start + After Compaction | Most impactful moments for context recovery |
+| 2026-02-19 | Remove Ralph Loop after extraction | User uses interactive pipeline + Agent Teams, not ralph.sh |
+| 2026-02-19 | Insight Extraction between phases, not post-session | Adapted for single-session model (no separate claude -p process) |
 
 ---
 
-## Next Steps
+## Deliverables
 
-1. Execute Phase 1: Deep Analysis with Agent Teams (4 researchers)
-2. Phase 2: Classification based on research results
-3. Phase 3: Implementation (remove/fix/update)
-4. Phase 4: Verification and pipeline review
+TBD — will be filled after IMPLEMENT phase.

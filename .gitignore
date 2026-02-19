@@ -54,3 +54,7 @@ htmlcov/
 
 # Claude Code temporary files
 tmpclaude*
+
+# Sensitive files
+SSH_SERVER_CONNECTION.md
+nul

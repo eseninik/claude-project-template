@@ -73,21 +73,19 @@ Skill(documentation)
 # Check 1: В проекте?
 test -f CLAUDE.md && echo "HAS_CLAUDE_MD" || echo "NO_CLAUDE_MD"
 
-# Check 2: Есть .claude/skills/project-knowledge/guides/?
-test -d .claude/skills/project-knowledge/guides && echo "HAS_CONTEXT_DIR" || echo "NO_CONTEXT_DIR"
+# Check 2: Есть .claude/guides/project/?
+test -d .claude/guides/project && echo "HAS_CONTEXT_DIR" || echo "NO_CONTEXT_DIR"
 
 # Check 3: Есть git?
 git rev-parse --git-dir 2>/dev/null && echo "HAS_GIT" || echo "NO_GIT"
 
-# Check 4: Количество файлов совпадает с template?
-TEMPLATE_COUNT=$(ls -1 ~/.claude/shared/templates/new-project/.claude/skills/project-knowledge/guides/*.md 2>/dev/null | wc -l)
-PROJECT_COUNT=$(ls -1 .claude/skills/project-knowledge/guides/*.md 2>/dev/null | wc -l)
-test "$TEMPLATE_COUNT" -eq "$PROJECT_COUNT" && echo "FILES_MATCH" || echo "FILES_MISMATCH"
+# Check 4: Есть необходимые guide файлы?
+test -f .claude/guides/project/project.md && echo "HAS_PROJECT_MD" || echo "NO_PROJECT_MD"
 ```
 
 **Handle errors:**
 - If `NO_CLAUDE_MD`: STOP with message: "❌ Не в проекте. Откройте папку проекта."
-- If `NO_CONTEXT_DIR` or `FILES_MISMATCH`: STOP with message: "❌ Запустите `/init-project`"
+- If `NO_CONTEXT_DIR` or `NO_PROJECT_MD`: STOP with message: "❌ Запустите `/init-project`"
 - If `NO_GIT`: STOP with message: "❌ Запустите `/init-project`"
 - If all checks pass: Proceed
 
@@ -128,7 +126,7 @@ Use **AskUserQuestion** (Russian):
 **READ file:**
 
 ```bash
-cat .claude/skills/project-knowledge/guides/project.md
+cat .claude/guides/project/project.md
 ```
 
 **Validate:**
@@ -157,14 +155,14 @@ test -d old && echo "HAS_OLD" || echo "NO_OLD"
 **READ project.md:**
 
 ```bash
-cat .claude/skills/project-knowledge/guides/project.md
+cat .claude/guides/project/project.md
 ```
 
 **Check for additional planning docs:**
 
 ```bash
-test -f .claude/skills/project-knowledge/guides/features.md && echo "HAS_FEATURES" || echo "NO_FEATURES"
-test -f .claude/skills/project-knowledge/guides/roadmap.md && echo "HAS_ROADMAP" || echo "NO_ROADMAP"
+test -f .claude/guides/project/features.md && echo "HAS_FEATURES" || echo "NO_FEATURES"
+test -f .claude/guides/project/roadmap.md && echo "HAS_ROADMAP" || echo "NO_ROADMAP"
 ```
 
 **If features.md exists:** Read it to understand complete feature list and priorities
@@ -360,17 +358,17 @@ UI text and design guidelines.
 ```
 Технический контекст заполнен (4 обязательных файла):
 
-- [architecture.md](.claude/skills/project-knowledge/guides/architecture.md) - Tech stack и архитектура
-- [database.md](.claude/skills/project-knowledge/guides/database.md) - База данных
-- [deployment.md](.claude/skills/project-knowledge/guides/deployment.md) - Деплой
-- [ux-guidelines.md](.claude/skills/project-knowledge/guides/ux-guidelines.md) - UI/UX guidelines
+- [architecture.md](.claude/guides/project/architecture.md) - Tech stack и архитектура
+- [database.md](.claude/guides/project/database.md) - База данных
+- [deployment.md](.claude/guides/project/deployment.md) - Деплой
+- [ux-guidelines.md](.claude/guides/project/ux-guidelines.md) - UI/UX guidelines
 
 [IF monitoring.md was updated:]
 Опционально обновлены:
-- [monitoring.md](.claude/skills/project-knowledge/guides/monitoring.md) - Monitoring и observability
+- [monitoring.md](.claude/guides/project/monitoring.md) - Monitoring и observability
 
 [IF business-rules.md was updated:]
-- [business-rules.md](.claude/skills/project-knowledge/guides/business-rules.md) - Бизнес-правила
+- [business-rules.md](.claude/guides/project/business-rules.md) - Бизнес-правила
 
 Посмотри, пожалуйста. Всё правильно? Есть что изменить?
 ```
@@ -397,18 +395,18 @@ UI text and design guidelines.
 **Add files to git:**
 ```bash
 # Always add 4 required files
-git add .claude/skills/project-knowledge/guides/architecture.md \
-        .claude/skills/project-knowledge/guides/database.md \
-        .claude/skills/project-knowledge/guides/deployment.md \
-        .claude/skills/project-knowledge/guides/ux-guidelines.md
+git add .claude/guides/project/architecture.md \
+        .claude/guides/project/database.md \
+        .claude/guides/project/deployment.md \
+        .claude/guides/project/ux-guidelines.md
 
 # If monitoring.md was updated, add it
 [IF monitoring.md was updated:]
-git add .claude/skills/project-knowledge/guides/monitoring.md
+git add .claude/guides/project/monitoring.md
 
 # If business-rules.md was updated, add it
 [IF business-rules.md was updated:]
-git add .claude/skills/project-knowledge/guides/business-rules.md
+git add .claude/guides/project/business-rules.md
 ```
 
 **Create commit:**

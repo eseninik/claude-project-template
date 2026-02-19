@@ -89,8 +89,7 @@ Analyze this task ONLY from the {domain} perspective:
 
 ## Project Context
 Read these before analysis:
-- `cat .claude/skills/project-knowledge/guides/architecture.md`
-- `cat .claude/skills/project-knowledge/guides/patterns.md`
+- `cat .claude/adr/decisions.md`
 
 ## Output Format
 Send your analysis to the team lead via SendMessage with:
@@ -151,7 +150,7 @@ TeamDelete after all experts shut down
 2. Run wave analysis on tasks
 3. Execute via:
    - subagent-driven-development (independent tasks)
-   - executing-plans (tasks needing human review)
+   - sequential execution (tasks needing human review)
    - TeamCreate (3+ non-trivial parallel tasks)
 4. Standard verification-before-completion flow
 ```

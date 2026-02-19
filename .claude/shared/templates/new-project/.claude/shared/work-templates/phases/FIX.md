@@ -9,6 +9,14 @@
 - Max Attempts: 3
 - Checkpoint: pipeline-checkpoint-FIX
 
+## Phase Context Loading
+Before starting this phase, load:
+- `work/{feature}/test-results.md` — what's failing
+- `work/qa-issues.md` — QA-identified problems
+- `.claude/memory/gotchas.md` — known pitfalls
+- `work/attempt-history.json` — previous fix attempts (avoid circular fixes)
+- Query Graphiti: `search_memory_facts(query="debugging approaches and fix patterns", max_facts=10)`
+
 ## Inputs
 - `work/{feature}/test-results.md` (failure details from TEST phase)
 - Source code and test files

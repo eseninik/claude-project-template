@@ -9,9 +9,15 @@
 - Max Attempts: 1
 - Checkpoint: pipeline-checkpoint-REVIEW
 
+## Phase Context Loading
+Before starting this phase, load:
+- `work/{feature}/user-spec.md` — requirements to review
+- `.claude/memory/codebase-map.json` — project structure
+- `.claude/memory/patterns.md` — established project patterns
+- Query Graphiti: `search_memory_facts(query="architecture decisions and patterns", max_facts=10)`
+
 ## Inputs
 - `work/{feature}/user-spec.md` (from SPEC phase)
-- `.claude/skills/project-knowledge/` (project context)
 - `.claude/adr/decisions.md` (existing architectural decisions)
 
 ## Process

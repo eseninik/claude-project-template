@@ -1,4 +1,4 @@
-# Autonomous Pipeline Guide (v2)
+# Autonomous Pipeline Guide (v3)
 
 > On-demand guide for executing autonomous development pipelines.
 > Loaded via: `cat .claude/guides/autonomous-pipeline.md`
@@ -10,10 +10,18 @@
 The autonomous pipeline is a **state machine encoded in markdown** that drives multi-phase development without losing context. Components:
 
 1. **PIPELINE.md** -- state machine with named phases, conditional transitions, and quality gates
-2. **Ralph Loop** -- fresh-context shell script that eliminates compaction entirely
+2. **Phase Transition Protocol** -- knowledge preservation between phases via typed memory + Graphiti
 3. **Agent Teams** -- parallel execution via `Mode: AGENT_TEAMS` on phases with 3+ independent tasks
 4. **Quality Gates** -- 4-verdict model (PASS/CONCERNS/REWORK/FAIL) with AUTO/USER_APPROVAL/HYBRID types
-5. **Deploy Integration** -- git workflow, SSH deployment, health checks, stress testing
+5. **QA Validation Loop** -- automated review-fix cycle between implementation and testing
+6. **Agent Chains** -- sequential agent pipelines for deep quality (spec chain, QA chain, debug chain)
+7. **Deploy Integration** -- git workflow, SSH deployment, health checks, stress testing
+8. **Typed Memory** -- structured knowledge persistence (.claude/memory/patterns.md, gotchas.md, codebase-map.json)
+9. **Complexity Assessment** -- risk-proportional QA depth (.claude/guides/complexity-assessment.md)
+10. **Recovery Manager** -- attempt tracking and circular fix detection (work/attempt-history.json)
+11. **Graphiti Integration** -- semantic cross-session memory (.claude/guides/graphiti-integration.md)
+12. **Focused Prompts** -- role-specific agent prompts (.claude/prompts/)
+13. **Agent Registry** -- single source of truth for agent types (.claude/agents/registry.md)
 
 ---
 
@@ -29,11 +37,9 @@ The autonomous pipeline is a **state machine encoded in markdown** that drives m
 
 **Step 1: Analyze.** Break into phases. For each: Mode (`SOLO`/`AGENT_TEAMS`/`SUB_PIPELINE`), Gate Type (`AUTO`/`USER_APPROVAL`/`HYBRID`), transitions (PASS/FAIL/REWORK).
 
-**Step 2: Create work/PIPELINE.md** from `.claude/shared/work-templates/PIPELINE-v2.md`. Delete unused phases, set first phase `<- CURRENT`, set `Status: IN_PROGRESS`.
+**Step 2: Create work/PIPELINE.md** from `.claude/shared/work-templates/PIPELINE-v3.md`. Delete unused phases, set first phase `<- CURRENT`, set `Status: IN_PROGRESS`. Note: the v3 template includes a QA_REVIEW phase between IMPLEMENT and TEST by default; keep it unless the project has no implementation phases.
 
-**Step 3: Create work/PROMPT.md** (Ralph Loop only) from `.claude/shared/work-templates/PROMPT.md`. Customize context-loading and verification commands.
-
-**Step 4: Execute.** Interactive: read PIPELINE.md, execute sequentially. Ralph Loop: `./scripts/ralph.sh`.
+**Step 3: Execute.** Read PIPELINE.md, execute phase by phase with Phase Transition Protocol between phases.
 
 ---
 
@@ -61,9 +67,48 @@ The autonomous pipeline is a **state machine encoded in markdown** that drives m
 2. Return to parent, apply verdict based on sub-pipeline outcome
 ```
 
+### AGENT_CHAINS (within a phase)
+```
+1. Identify chain type (spec, QA, debug, or custom)
+2. Execute agents sequentially: output of agent N -> input of agent N+1
+3. Each agent is a fresh subagent (never reuse)
+4. Reference: .claude/guides/agent-chains.md
+```
+
 ---
 
-## 5. Quality Gates
+## 5. Phase Transition Protocol
+
+Between completing one phase and starting the next, execute this protocol to preserve knowledge:
+
+### Steps
+1. **Git commit checkpoint**: `git add -A && git commit -m "pipeline: {PHASE} complete"` + `git tag pipeline-checkpoint-{PHASE}`
+2. **Insight extraction** (2-3 min quick pass):
+   - What worked in this phase?
+   - What failed or required multiple attempts?
+   - New patterns discovered?
+   - New gotchas to record?
+3. **Update typed memory**:
+   - `.claude/memory/patterns.md` — append new patterns (deduplicate)
+   - `.claude/memory/gotchas.md` — append new gotchas (deduplicate)
+   - `.claude/memory/codebase-map.json` — update if new files discovered
+4. **Save to Graphiti**: `add_memory(name="phase_{PHASE}_insight", episode_body=<what was learned>)`
+5. **Context refresh**: Re-read `work/PIPELINE.md` + `work/STATE.md` + typed memory files
+6. **Advance**: Move `<- CURRENT` marker to next phase, start execution
+
+### Why This Matters
+- Interactive mode loses context gradually (compaction, attention decay)
+- Phase transitions are natural checkpoints for knowledge preservation
+- Without this protocol, insights from early phases are lost by later phases
+- Graphiti persists knowledge across sessions, not just within one
+
+### When to Skip
+- Never fully skip. At minimum do steps 1 and 6 (commit + advance).
+- Steps 2-5 can be abbreviated for trivial phases (e.g., a SOLO phase that only reads files).
+
+---
+
+## 6. Quality Gates
 
 ### 4-Verdict Model
 
@@ -92,7 +137,7 @@ The autonomous pipeline is a **state machine encoded in markdown** that drives m
 
 ---
 
-## 6. Conditional Transitions
+## 7. Conditional Transitions
 
 Each phase defines its own transitions inline:
 ```markdown
@@ -113,7 +158,7 @@ FIX: Attempts 3 of 3 -> BLOCKED       (bounded exit)
 
 ---
 
-## 7. Phase Templates
+## 8. Phase Templates
 
 Reference: `.claude/shared/work-templates/phases/`
 
@@ -125,6 +170,7 @@ Reference: `.claude/shared/work-templates/phases/`
 | `IMPLEMENT.md` | Code implementation via Agent Teams |
 | `TEST.md` | Test suite execution |
 | `FIX.md` | Bug fixing with debugging teams |
+| `QA_REVIEW.md` | Automated reviewer+fixer cycle |
 | `DEPLOY.md` | SSH deployment + health checks |
 | `STRESS_TEST.md` | Locust load testing + performance report |
 
@@ -132,42 +178,25 @@ Delete unused phases from PIPELINE.md. Transitions still work for remaining phas
 
 ---
 
-## 8. Ralph Loop (Autonomous Mode)
+## 9. Agent Chains
 
-`scripts/ralph.sh` eliminates compaction by giving each phase a fresh `claude -p` process with clean 200K context. State persists through files (PIPELINE.md, STATE.md, git), not conversation memory.
+Agent Chains are sequential agent pipelines within a phase. Use when a phase needs multiple specialized perspectives.
 
-**Use Ralph Loop when:** 5+ phases, multiple AGENT_TEAMS phases, autonomous execution, session >100K tokens estimated.
+**Built-in chains:**
+- Spec Chain: Gatherer -> Researcher -> Writer -> Critic
+- QA Chain: Reviewer -> Fixer -> Re-reviewer (loop max 3)
+- Debug Chain: Reproducer -> Analyzer -> Fixer -> Verifier
 
-**Use Interactive when:** 2-3 phases, user wants review between phases, phases need user input.
+**Integration with pipeline:**
+- SPEC phase can use Spec Chain for deeper specifications
+- QA_REVIEW phase uses QA Chain automatically
+- FIX phase can use Debug Chain for systematic debugging
 
-### Usage
-```bash
-./scripts/ralph.sh                           # Default: 20 iterations
-./scripts/ralph.sh --max-iterations 10       # Custom limit
-./scripts/ralph.sh --pipeline work/PIPELINE.md --prompt work/PROMPT.md
-./scripts/ralph.sh --model claude-sonnet-4-5-20250929   # Override model
-./scripts/ralph.sh --dry-run                 # Print without executing
-```
-
-### How It Works
-```
-for each iteration:
-  1. Check PIPELINE.md for PIPELINE_COMPLETE -> exit 0
-  2. Check PIPELINE.md for BLOCKED -> exit 1
-  3. Spawn: claude -p "$(cat PROMPT.md)" --dangerously-skip-permissions
-  4. Agent reads PIPELINE.md, finds <- CURRENT, executes ONE phase
-  5. Agent updates PIPELINE.md, STATE.md, memory
-  6. ralph.sh creates git checkpoint: pipeline-iter-{N}
-  7. Loop with fresh context
-```
-
-**Exit codes:** 0 = complete, 1 = blocked, 2 = max iterations reached, 3 = files not found.
-
-**PROMPT.md** (`.claude/shared/work-templates/PROMPT.md`): Keep under 50 lines. Loaded every iteration, so Agent Teams enforcement **cannot be lost to compaction**.
+**Full reference:** `cat .claude/guides/agent-chains.md`
 
 ---
 
-## 9. Deploy Integration
+## 10. Deploy Integration
 
 **Git workflow:** `feature/{name} -> dev -> main -> deploy to server`
 
@@ -183,7 +212,7 @@ See full details: `work/scalable-pipeline-design-deploy.md`
 
 ---
 
-## 10. Compaction Recovery
+## 11. Compaction Recovery
 
 When compaction occurs during interactive mode:
 1. System auto-loads CLAUDE.md (always in context)
@@ -192,26 +221,35 @@ When compaction occurs during interactive mode:
 4. Agent reads `work/STATE.md` for latest results
 5. Agent continues from where it left off
 
-**Why v2 survives compaction:**
+**Why v3 survives compaction:**
 - `<- CURRENT` on phase header line -- one grep finds location
 - Mode field persisted in file, not memory
 - Inline transitions -- each phase self-contained
 - Execution Rules section at PIPELINE.md bottom tells agent the protocol
-- Ralph Loop eliminates compaction entirely
+- Phase Transition Protocol preserves knowledge between phases
 
 ---
 
-## 11. Memory Updates
+## 12. Memory Updates
 
 After each phase (MANDATORY -- do NOT skip):
 1. **PIPELINE.md**: Set phase `Status: DONE`, advance `<- CURRENT`
 2. **work/STATE.md**: Record phase results
 3. **.claude/memory/activeContext.md**: Did/Decided/Learned/Next
-4. **Git commit**: Checkpoint with meaningful message + tag
+4. **Graphiti**: `add_memory(name="phase_insight", episode_body=<learnings from this phase>)`
+5. **Typed memory**:
+   - `.claude/memory/patterns.md`: New patterns (deduplicate)
+   - `.claude/memory/gotchas.md`: New gotchas (deduplicate)
+   - `.claude/memory/codebase-map.json`: New file discoveries
+   - `.claude/memory/session-insights/NNN.json`: Structured session data
+6. **work/attempt-history.json**: Record good commit hash
+7. **Git commit**: Checkpoint with meaningful message + tag
+
+These steps are automated by the Phase Transition Protocol (section 5).
 
 ---
 
-## 12. Anti-Drift Patterns
+## 13. Anti-Drift Patterns
 
 **Todo-list rewriting:** PIPELINE.md is re-read every phase, keeping state in agent's recent attention.
 
@@ -221,20 +259,28 @@ After each phase (MANDATORY -- do NOT skip):
 
 ---
 
-## 13. Quick Reference
+## 14. Quick Reference
 
 ```
-CREATE:     PIPELINE.md (from PIPELINE-v2.md template) + PROMPT.md (Ralph Loop only)
-TEMPLATE:   .claude/shared/work-templates/PIPELINE-v2.md
-PHASES:     .claude/shared/work-templates/phases/{SPEC,REVIEW,PLAN,IMPLEMENT,TEST,FIX,DEPLOY,STRESS_TEST}.md
-PROMPT:     .claude/shared/work-templates/PROMPT.md
-SCRIPT:     scripts/ralph.sh
+CREATE:     PIPELINE.md (from PIPELINE-v3.md template)
+TEMPLATE:   .claude/shared/work-templates/PIPELINE-v3.md
+PHASES:     .claude/shared/work-templates/phases/{SPEC,REVIEW,PLAN,IMPLEMENT,QA_REVIEW,TEST,FIX,DEPLOY,STRESS_TEST}.md
+CHAINS:     .claude/guides/agent-chains.md
+QA SKILL:   .claude/skills/qa-validation-loop/SKILL.md
 
 EXECUTE:    Find <- CURRENT -> read Inputs -> implement -> run Gate -> apply verdict -> update state
-MODES:      SOLO (direct) | AGENT_TEAMS (TeamCreate) | SUB_PIPELINE (nested)
+MODES:      SOLO (direct) | AGENT_TEAMS (TeamCreate) | AGENT_CHAINS (sequential) | SUB_PIPELINE (nested)
 GATES:      AUTO (commands) | USER_APPROVAL (human) | HYBRID (auto + human)
 VERDICTS:   PASS (advance) | CONCERNS (log + advance) | REWORK (retry) | FAIL (block)
 
+MEMORY:     .claude/memory/ (patterns.md, gotchas.md, codebase-map.json, session-insights/)
+REGISTRY:   .claude/agents/registry.md (agent types, tools, skills, thinking levels)
+PROMPTS:    .claude/prompts/ (planner.md, coder.md, qa-reviewer.md, qa-fixer.md, insight-extractor.md)
+COMPLEXITY: .claude/guides/complexity-assessment.md
+RECOVERY:   .claude/guides/recovery-manager.md
+GRAPHITI:   .claude/guides/graphiti-integration.md
+
+TRANSITION: Git commit -> insight extraction -> typed memory -> Graphiti -> context refresh -> advance
 RECOVER:    Re-read PIPELINE.md -> find <- CURRENT -> continue
 UPDATE:     PIPELINE.md + STATE.md + activeContext.md + git commit
 FINISH:     All phases DONE -> Status: PIPELINE_COMPLETE

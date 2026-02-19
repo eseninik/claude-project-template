@@ -7,12 +7,12 @@ description: |
   TRIGGERS:
   - "autowork:" or "ulw:" prefix in user message
   - Complex multi-step tasks requiring skill coordination
-  - Session start with incomplete work (delegates to session-resumption)
+  - Session start with incomplete work (reads STATE.md + PIPELINE.md)
 
   Examples:
   - "autowork: add user authentication" → full pipeline
   - "ulw: fix the login bug" → debugging pipeline
-  - [session start with STATE.md] → session-resumption skill
+  - [session start with STATE.md] → resume from CLAUDE.md Session Start behavior
 model: opus
 color: gold
 allowed-tools:
@@ -410,7 +410,7 @@ IF quality gate fails:
 ### Required Skills
 
 Orchestrator coordinates these skills:
-- `session-resumption` - Resume incomplete work
+- CLAUDE.md Session Start - Resume incomplete work (reads STATE.md + PIPELINE.md)
 - `context-capture` - Clarify vague requirements
 - `user-spec-planning` - Create user specifications
 - `tech-spec-planning` - Create technical specifications

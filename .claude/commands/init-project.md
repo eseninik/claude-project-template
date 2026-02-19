@@ -374,23 +374,13 @@ git push -u origin feature/migration-ai-first
 ```bash
 # Ensure work/ templates are in place (copied from template, verify they exist)
 test -f work/PIPELINE.md && echo "PIPELINE template OK" || echo "PIPELINE template MISSING"
-test -f work/PROMPT.md && echo "PROMPT template OK" || echo "PROMPT template MISSING"
-test -f scripts/ralph.sh && echo "Ralph Loop OK" || echo "Ralph Loop MISSING"
 ```
 
 **If any files missing, copy from shared templates:**
 
 ```bash
 if [ ! -f work/PIPELINE.md ]; then
-  cp .claude/shared/work-templates/PIPELINE.md work/PIPELINE.md
-fi
-if [ ! -f work/PROMPT.md ]; then
-  cp .claude/shared/work-templates/PROMPT.md work/PROMPT.md
-fi
-if [ ! -f scripts/ralph.sh ]; then
-  mkdir -p scripts
-  cp .claude/shared/templates/new-project/scripts/ralph.sh scripts/ralph.sh
-  chmod +x scripts/ralph.sh
+  cp .claude/shared/work-templates/PIPELINE-v3.md work/PIPELINE.md
 fi
 ```
 
@@ -418,7 +408,6 @@ GitHub: {url}
   work/             - папка для фич и задач
   work/STATE.md     - сохранение состояния между сессиями
   work/PIPELINE.md  - шаблон автономного pipeline
-  scripts/ralph.sh  - Ralph Loop для автономной работы
   .gitignore        - правила игнорирования
   CLAUDE.md         - настройки для Claude Code
 

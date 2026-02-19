@@ -18,7 +18,7 @@ It compares current project config with the template and applies updates safely.
 **PROTECTED DIRECTORIES (never overwrite):**
 - `.claude/memory/` — project-specific session data
 - `.claude/adr/` — project-specific architecture decisions
-- `.claude/skills/project-knowledge/` — project-specific documentation
+- `.claude/guides/project/` — project-specific documentation
 - `work/` — project work items and state
 
 ## 1. Check Current State
@@ -75,7 +75,7 @@ Tell user (Russian):
 ⚠️ НЕ будут затронуты (проектные данные):
 - Существующий контент в memory/
 - Существующие ADR
-- project-knowledge guides
+- guides/project/ documentation
 - work/ folders
 
 Применить обновления?
@@ -228,8 +228,6 @@ Read project name and description from current CLAUDE.md, then write new version
 
 ## How This Project Works
 
-**Context:** `.claude/skills/project-knowledge/` — architecture, patterns, git workflow, database, deployment.
-
 **Memory:** `.claude/memory/activeContext.md` — session bridge, decisions, learned patterns.
 
 **ADR:** `.claude/adr/` — architecture decision records.
@@ -255,9 +253,8 @@ Read project name and description from current CLAUDE.md, then write new version
 
 ## BEFORE CODE CHANGES (always)
 
-1. Read .claude/skills/project-knowledge/guides/architecture.md
-2. Read .claude/skills/project-knowledge/guides/patterns.md
-3. Check .claude/adr/decisions.md for relevant decisions
+1. Check .claude/adr/decisions.md for relevant decisions
+2. Read .claude/memory/activeContext.md for recent context
 
 ---
 
@@ -293,8 +290,7 @@ Read project name and description from current CLAUDE.md, then write new version
 
 | Need | Location |
 |------|----------|
-| Project architecture | `.claude/skills/project-knowledge/guides/architecture.md` |
-| Code patterns | `.claude/skills/project-knowledge/guides/patterns.md` |
+| Architecture decisions | `.claude/adr/decisions.md` |
 | Session context | `.claude/memory/activeContext.md` |
 | Task state | `work/STATE.md` |
 | Architecture decisions | `.claude/adr/decisions.md` |
@@ -365,6 +361,6 @@ git push
 # Important Notes
 
 - This command is SAFE - it only ADDS to protected directories, never removes
-- Existing content in memory/, adr/, project-knowledge/ is NEVER overwritten
+- Existing content in memory/, adr/, guides/project/ is NEVER overwritten
 - User must confirm before any changes are applied
 - Git hooks require manual setup on Windows (symlinks may not work)

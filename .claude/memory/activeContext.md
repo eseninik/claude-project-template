@@ -2,13 +2,47 @@
 
 > Мост между сессиями. Агент читает в начале, обновляет в конце.
 
-**Last updated:** 2026-02-16
+**Last updated:** 2026-02-18
 
 ---
 
 ## Current Focus
 
-Scalable Pipeline v2 system COMPLETE. Full autonomous pipeline: SPEC→REVIEW→PLAN→IMPLEMENT→TEST→FIX→DEPLOY→STRESS_TEST. PIPELINE-v2.md template, 8 phase templates, quality gates (4-verdict), Ralph Loop (compaction-immune), deploy integration (SSH+systemd). All installed in main + new-project template.
+### COMPLETED PIPELINE: Extract Ralph Loop Features + Graphiti Integration
+**Pipeline:** `work/PIPELINE.md` | **Status:** PIPELINE_COMPLETE
+
+**All 6 phases completed (2026-02-19):**
+
+1. **FIX_GRAPHITI** — Fixed OpenRouter 401 (HTTP-Referer header), verified write/read cycle
+2. **IMPLEMENT** — 5 parallel agents: Phase Transition Protocol in CLAUDE.md + pipeline guide + template, Phase Context Loading in 9 phase templates, insight-extractor repurposed for between-phase use
+3. **SYNC** — 12 files synced to new-project template + template CLAUDE.md updated
+4. **TEST** — 4 tests passed: Graphiti write/read, Phase Transition Protocol, Session Start protocol, cross-reference integrity
+5. **CLEANUP** — Deleted ralph.sh (x2), PROMPT.md (x2), cleaned Ralph Loop refs from 8 active docs
+6. **FINAL_SYNC** — Synced SKILLS_INDEX.md + using-git-worktrees to template, cleaned init-project.md, deleted template work/PROMPT.md, final grep verification PASS
+
+**Результат:**
+- Phase Transition Protocol integrated (commit → insight extraction → memory save → context refresh)
+- Graphiti is ALWAYS available (no "if available" checks)
+- Phase Context Loading in all 9 phase templates
+- Ralph Loop fully removed (no active references remain)
+- Main and template in sync
+
+---
+
+### Previous: CLAUDE.md Enforcement Strengthening COMPLETE
+Fixed 10 enforcement gaps identified by Explore agent:
+- Pipeline State Machine: "When task has multiple phases" (soft) → BLOCKING with 12 trigger keywords + 4 trigger conditions
+- After Compaction: 5 steps → 8 steps + Graphiti queries + typed memory reload + warning message
+- Session Start: "always" → MANDATORY with Graphiti queries + "Steps 1-4 NOT optional"
+- After Task Completion: "always" → MANDATORY with Graphiti save + "Steps 1-3 BLOCKING"
+- Agent Teams: clarified "3+ parallel subtasks within a phase" vs multi-PHASE tasks
+- Verification Gate: "Checklist" → "MANDATORY Verification Gate" + BLOCKING label
+- Before Spawning Teammate: +mandatory "Context from Typed Memory" section
+- HARD CONSTRAINTS: +3 new rows (pipeline, compaction, Graphiti)
+- FORBIDDEN: +4 new items (pipeline, compaction recovery, Graphiti, informal planning)
+- Guides (typed-memory.md, graphiti-integration.md): all MANDATORY labels added
+- PROMPT.md (Ralph Loop): +Graphiti loading + typed memory + state save steps
+- All changes synced to new-project template (8 files total)
 
 ---
 
@@ -61,9 +95,16 @@ Scalable Pipeline v2 system COMPLETE. Full autonomous pipeline: SPEC→REVIEW→
 ## Next Steps
 
 1. **[DONE] Scalable full-project pipeline design** — PIPELINE-v2.md, 8 phase templates, quality gates, Ralph Loop, deploy
-2. **[NEXT] Test pipeline v2 with real project** — use PIPELINE-v2.md template on a real Telegram bot project to validate end-to-end
-3. **[WAITING] User decision on telegram-safe-mcp** — ответы на Open Questions в work/expert-analysis.md
-4. Рассмотреть перенос agents/ в new-project template
+2. **[DONE] Autonomous System v3 Upgrade** — QA validation loop, agent chains, Ralph Loop v3, work streams, PIPELINE-v3
+3. **[DONE] Skills Restructure** — 15→11 skills, inline rules, 82% reduction, all stale refs cleaned
+4. **[DONE] Auto-Claude Integration** — typed memory, focused prompts, complexity assessment, recovery manager, agent registry, Ralph v4, Graphiti, insight extraction chain
+5. **[DONE] Test full system** — 4 parallel test agents: typed memory (5/6), focused prompts (14/14), complexity+recovery (8/8), ralph v4 (all pass)
+6. **[DONE] Graphiti setup prepared** — .env created with OpenRouter key, guide updated with real Docker setup
+7. **[DONE] Fix stale refs** — 4 command files fixed (project-knowledge→guides/project/), 13 guides + 2 agents synced to template, project-knowledge deleted from template
+8. **[DONE] Graphiti MCP server running** — FalkorDB + MCP via docker-compose-falkordb.yml, health OK, Claude Code MCP config added to ~/.claude.json
+9. **[WAITING] User decision on telegram-safe-mcp** — ответы на Open Questions в work/expert-analysis.md
+10. **Restart Claude Code** — to pick up Graphiti MCP server, then test add_episode/search_nodes
+11. Рассмотреть перенос agents/ в new-project template
 
 ---
 
@@ -75,6 +116,57 @@ Scalable Pipeline v2 system COMPLETE. Full autonomous pipeline: SPEC→REVIEW→
 ---
 
 ## Session Log
+
+### 2026-02-17 (сессия 3 — test scenario)
+**Did:** Fixed 2 bugs in work/test-scenarios/calculator.py:
+- divide(): added ValueError on division by zero (was unhandled ZeroDivisionError)
+- fibonacci(): fixed off-by-one error (return b instead of a)
+- Ran pytest: 6/6 tests passed
+- Type check: mypy/pyright not available (noted, not blocking)
+- Verified with VERIFY/RESULT evidence format
+**Decided:** Following verification-before-completion skill checklist as written
+**Learned:** CLAUDE.md inline rules and skill descriptions do influence behavior — the verification checklist was followed step-by-step because it was loaded into context via activeContext.md read and skill read
+**Next:** Write test1-report.md with honest assessment of rule influence
+
+### 2026-02-17 (сессия 2)
+**Did:** Skills Restructure — make skills actually work:
+- Deleted 4 dead-weight skills (executing-plans, session-resumption, project-knowledge, context-monitor)
+- Shrunk 11 remaining skills to ~30 lines each (82% line reduction)
+- Inlined critical rules into CLAUDE.md blocking rules (verification checklist, QA gate, debugging protocol)
+- Inlined verification rules into PROMPT.md and teammate-prompt-template
+- TEST phase 1: FAIL — found widespread stale refs to deleted skills in 20+ files
+- Fixed all stale refs: CLAUDE.md, 3 guide files (plan-execution-enforcer/protocol, dependency-analysis), skills-reference.md, 3 phase templates (PLAN/REVIEW/SPEC), expert-panel-workflow, teammate-prompt-template, orchestrator agent, resume command, README, upgrade-project command, + all template mirrors
+- TEST phase 2: PASS — comprehensive grep confirms no active stale refs remain
+- `executing-plans` → `sequential execution` in all decision trees
+- `project-knowledge/guides/` paths → `.claude/adr/decisions.md` or `.claude/memory/activeContext.md`
+- Updated TEAM ROLE SKILLS MAPPING (14→11 skills)
+- Commands (init-project, init-context, project-context) intentionally kept — they CREATE the directory structure
+**Decided:** Skills work via descriptions (auto-loaded, 10/10 reliability) + inline rules in always-loaded files; skill bodies are optional quick-reference checklists; "cat skill" pattern is dead
+**Learned:** Skill descriptions in YAML frontmatter are the ONLY part that reliably influences agent behavior; bodies are never loaded during autonomous work; inlining critical procedures into CLAUDE.md/PROMPT.md guarantees execution; test-driven validation (3 parallel test agents) catches issues that manual review misses
+**Next:** Functional test with 4 parallel agents on real scenarios
+
+### 2026-02-17 (сессия 2, part 2 — functional tests)
+**Did:** Ran 4 parallel test agents with real task scenarios to validate skill triggers:
+- Test 1 (verification-before-completion): PASS 10/10 — agent ran tests, used evidence format, updated memory. Honestly said "without rules I would just fix and claim done"
+- Test 2 (systematic-debugging): PASS 9/10 — agent followed 4-phase protocol, formed hypotheses, refused to fabricate fixes on code that was already fixed by test 1
+- Test 3 (task-decomposition): PASS 9/10 — 6 skills influenced analysis: work streams, wave structure, PP=100%, worktree mode for file overlap, checkpoint box, Agent Teams proposal
+- Test 4 (qa-validation-loop): PARTIAL 6-7/10 — found CRITICAL bug: circular trigger in CONTEXT LOADING TRIGGERS (pointed to itself, not to skill). Agent said "inline rule tells WHAT, skill tells HOW — both needed"
+- Fixed circular QA trigger → now `cat .claude/skills/qa-validation-loop/SKILL.md`
+- Fixed compaction survival → added QA GATE to Summary Instructions (both main + template)
+**Decided:** Inline rules are sufficient for trigger/enforcement; skill bodies needed for HOW details; qa-validation-loop needs both inline + skill; circular triggers are a system design bug
+**Learned:** Test agents sharing files without worktrees causes interference (test 2 found test 1 already fixed bugs); parallel agents confirm that multi-layered enforcement works; plan-execution-enforcer triggers even on analysis-only tasks (overly broad trigger)
+**Next:** System is production-ready. Test on a real project task to validate end-to-end pipeline
+
+### 2026-02-17 (сессия 1)
+**Did:** Autonomous System v3 Upgrade — integrated best patterns from Auto-Claude, CCPM, agtx:
+- Research phase: 2 parallel agents analyzed Auto-Claude (12K stars, multi-agent pipeline) and agtx (kanban TUI, worktree-per-task) + 1 agent for CCPM (markdown PM layer)
+- Wave 1 (5 parallel agents): Created qa-validation-loop skill (189 lines), agent-chains guide (195 lines), ralph.sh v3 (540 lines), QA_REVIEW phase template, PIPELINE-v3 template
+- Wave 2 (2 parallel agents): Updated autonomous-pipeline.md v3, CLAUDE.md (QA Lead role, 5 new refs), teammate-prompt-template (worktree instructions), using-git-worktrees (worktree-per-agent)
+- Sync (1 agent): 8 files synced to new-project template
+- Validation: All files exist, ralph.sh syntax OK, cross-refs valid, stale refs to deleted skills cleaned (executing-plans, finishing-branch, verification-before-completion, subagent-driven-dev)
+**Decided:** QA validation loop is highest-impact pattern from Auto-Claude; agent chains as guide not skill (pattern doc, not procedure); Ralph Loop v3 parallel mode via worktrees (--max-agents); remove artificial 3-agent limit → 5-10; CCPM work stream analysis added to task-decomposition
+**Learned:** Auto-Claude uses claude-agent-sdk (Python wrapper for CLI), not raw API — different architecture; CCPM is pure prompt engineering (0 code), fragile but zero-dependency; agtx requires tmux (Unix-only), non-starter on Windows; process-level parallelism (multiple `claude -p`) gives each agent full 200K context vs shared context with TeamCreate; QA_REVIEW phase fills the biggest gap in current pipeline
+**Next:** Test pipeline v3 with real project; validate Ralph Loop v3 parallel mode end-to-end; consider adopting Auto-Claude's Graphiti memory for cross-session learning
 
 ### 2026-02-16 (сессия 4)
 **Did:** Scalable Pipeline v2 — full 4-phase pipeline (Research → Design → Implementation → Validation):

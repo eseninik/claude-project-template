@@ -48,10 +48,10 @@ Parallelization calculation:
 Decision rule applied:
   Condition: PP > 0%? [YES/NO]
   IF YES → Decision: tasks/*.md + subagent-driven
-  IF NO → Decision: executing-plans
+  IF NO → Decision: sequential execution
 
-Final decision: [tasks/*.md / executing-plans]
-Skill to load: [subagent-driven-development / executing-plans]
+Final decision: [tasks/*.md / sequential]
+Skill to load: [subagent-driven-development / none]
 
 Self-verification checklist:
   [x] Guide loaded (plan-execution-protocol.md)
@@ -74,7 +74,7 @@ Checkpoint valid: [YES/NO]
 1. `Guide loaded: NO`
 2. Wave structure missing or says "N/A" (for plan.md/implicit formats)
 3. Parallelization calculation missing
-4. Decision contradicts rule (PP > 0% but chose executing-plans)
+4. Decision contradicts rule (PP > 0% but chose sequential execution)
 5. Self-verification checklist has unchecked items
 6. `Checkpoint valid: NO`
 7. Checkpoint appears in DIFFERENT message than plan detection
@@ -97,7 +97,7 @@ Checkpoint valid: [YES/NO]
 ### Level 3: Structured Decision Rule
 - Mechanical, not intuitive
 - Formula-based: PP = (tasks in waves with 2+ tasks) / total × 100%
-- Binary decision: PP > 0% → tasks/*.md, PP = 0% → executing-plans
+- Binary decision: PP > 0% → tasks/*.md, PP = 0% → sequential execution
 
 ### Level 4: Self-Verification Checklist
 - Agent checks own work before proceeding
@@ -118,7 +118,7 @@ Checkpoint valid: [YES/NO]
 │   2. Apply Rule:                                                             │
 │                                                                              │
 │      IF PP > 0%  →  tasks/*.md + subagent-driven-development                │
-│      IF PP = 0%  →  executing-plans                                         │
+│      IF PP = 0%  →  sequential execution                                    │
 │                                                                              │
 │   3. NO EXCEPTIONS. NO INTUITION. JUST MATH.                                │
 │                                                                              │
@@ -143,7 +143,7 @@ Checkpoint valid: [YES/NO]
 
 ```
 ❌ WRONG: "I see some tasks can be parallel, but there's a main chain,
-          so I'll use executing-plans"
+          so I'll use sequential execution"
 
 ✅ RIGHT: "I calculated parallelization potential = X%.
           Since X% > 0%, I MUST use tasks/*.md"
@@ -224,10 +224,10 @@ Parallelization calculation:
 
 Decision rule applied:
   Condition: PP > 0%? NO (0% = 0%)
-  IF NO → Decision: executing-plans
+  IF NO → Decision: sequential execution
 
-Final decision: executing-plans
-Skill to load: executing-plans
+Final decision: sequential execution
+Skill to load: sequential execution
 
 Self-verification checklist:
   [x] Guide loaded (plan-execution-protocol.md)
@@ -260,10 +260,10 @@ Parallelization calculation:
   Skipped - obvious sequential chain          ← INVALID
 
 Decision rule applied:
-  Sequential plan → executing-plans           ← INVALID (no calculation)
+  Sequential plan → sequential execution           ← INVALID (no calculation)
 
-Final decision: executing-plans
-Skill to load: executing-plans
+Final decision: sequential execution
+Skill to load: sequential execution
 
 Self-verification checklist:
   [x] Guide loaded (plan-execution-protocol.md)

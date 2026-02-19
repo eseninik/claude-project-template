@@ -9,6 +9,13 @@
 - Max Attempts: 2
 - Checkpoint: pipeline-checkpoint-DEPLOY
 
+## Phase Context Loading
+Before starting this phase, load:
+- Deploy configuration from `.env` (DEPLOY_SSH_HOST, etc.)
+- `.claude/memory/gotchas.md` — deployment gotchas
+- Previous deploy logs (if retry)
+- Query Graphiti: `search_memory_facts(query="deployment issues and server configuration", max_facts=10)`
+
 ## Inputs
 - Passing test suite (from TEST phase)
 - Server connection config (SSH_SERVER_CONNECTION.md or .env)

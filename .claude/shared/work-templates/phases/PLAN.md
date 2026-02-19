@@ -9,11 +9,17 @@
 - Max Attempts: 1
 - Checkpoint: pipeline-checkpoint-PLAN
 
+## Phase Context Loading
+Before starting this phase, load:
+- `work/expert-analysis.md` — expert panel findings
+- `.claude/memory/codebase-map.json` — project structure for task decomposition
+- `.claude/adr/decisions.md` — architectural constraints
+- Query Graphiti: `search_memory_facts(query="technical architecture and design patterns", max_facts=10)`
+
 ## Inputs
 - `work/{feature}/user-spec.md` (from SPEC phase)
 - `work/expert-analysis.md` (from REVIEW phase)
-- `.claude/skills/project-knowledge/guides/architecture.md`
-- `.claude/adr/decisions.md`
+- `.claude/adr/decisions.md` (existing architectural decisions)
 
 ## Process
 1. Read user spec and expert analysis
@@ -44,7 +50,7 @@ User reviews tech spec and task breakdown.
 Only for complex plans (5+ components requiring separate research):
 - Team size: 2-3
 - Roles: Architect (design), Researcher (codebase analysis)
-- Skills per role: project-knowledge, codebase-mapping
+- Skills per role: codebase-mapping
 - Prompt template: use `.claude/guides/teammate-prompt-template.md`
 
 ## Context Recovery
