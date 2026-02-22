@@ -51,6 +51,16 @@
 - Verify with targeted grep AFTER agents complete, not during
 - Verified: 27 files fixed across 3 parallel agents in this session
 
+### PreCompact Hook for Automatic Memory Save (2026-02-22)
+- When: Need to save session context before Claude Code compaction wipes the context window
+- Pattern: Python script (`.claude/hooks/pre-compact-save.py`) triggered by `PreCompact` hook event
+- Reads JSONL transcript → calls OpenRouter Haiku → saves to daily/ + activeContext.md
+- Stdlib only (json, urllib.request, pathlib) — no pip install needed
+- ALWAYS exit 0 — never block compaction
+- API key in `.claude/hooks/.env` (gitignored), fallback to env var `OPENROUTER_API_KEY`
+- `py -3` as Python command (Windows Python Launcher — reliable in Git Bash)
+- Verified: real transcript extraction + API call + file write tested successfully
+
 ---
 
 ## Gotchas
@@ -76,11 +86,11 @@
 - Workaround: use `gh api` to read files directly from GitHub (base64 decode)
 - Faster and more reliable for analysis tasks
 
-### Hooks Removed by Design (2026-02-13)
-- ALL Claude Code hooks removed (statusLine, UserPromptSubmit, PreCompact, SessionStart)
-- ALL git hooks removed (pre-commit.sh, post-commit.sh)
-- Reason: unreliable on Windows, anti-deadlock bugs, excessive debugging time
-- DO NOT re-add hooks
+### Bash Hooks Unreliable on Windows (2026-02-13, updated 2026-02-22)
+- 5 bash-based hooks were removed (statusLine, UserPromptSubmit, SessionStart, pre-commit, post-commit)
+- Reason: .cmd wrappers cause ENOENT with spawn, anti-deadlock bugs, shell incompatibilities
+- **Exception**: PreCompact hook re-added as single Python script (2026-02-22) — Python works cross-platform
+- Rule: keep hooks SIMPLE (one Python file, stdlib only, always exit 0)
 
 ### Memory Compliance is ~30-40% (2026-02-22)
 - Despite 40 CLAUDE.md rules, agents skip memory writes ~60-70% of the time

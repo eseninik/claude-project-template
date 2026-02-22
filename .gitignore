@@ -51,6 +51,7 @@ htmlcov/
 # Claude Code settings (keep .claude folder, ignore local settings)
 .claude/settings.local.json
 .claude/tmp/
+.claude/hooks/.env
 
 # Claude Code temporary files
 tmpclaude*

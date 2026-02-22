@@ -1,1 +1,16 @@
-{}
+{
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py -3 .claude/hooks/pre-compact-save.py",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}
