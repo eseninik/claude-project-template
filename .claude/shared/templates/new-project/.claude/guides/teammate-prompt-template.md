@@ -48,23 +48,18 @@ Before spawning a teammate, inject relevant context from typed memory:
 ### Step 1: Read Agent Registry
 Look up the agent type in `.claude/agents/registry.md`. Use the Memory column:
 - **none**: Skip memory injection (utility tasks)
-- **patterns**: Include .claude/memory/patterns.md
-- **gotchas**: Include .claude/memory/gotchas.md
-- **patterns + gotchas**: Include both
-- **full**: Include patterns.md + gotchas.md + relevant entries from codebase-map.json
+- **knowledge**: Include .claude/memory/knowledge.md (relevant sections)
+- **full**: Include knowledge.md + any relevant context from activeContext.md
 
 ### Step 2: Build Memory Context Block
 ```
 ## Memory Context
 
 ### Project Patterns
-{content from .claude/memory/patterns.md — relevant sections only}
+{content from .claude/memory/knowledge.md — relevant pattern sections only}
 
 ### Known Gotchas
-{content from .claude/memory/gotchas.md — relevant sections only}
-
-### Relevant Files (from codebase map)
-{entries from .claude/memory/codebase-map.json matching task scope}
+{content from .claude/memory/knowledge.md — relevant gotcha sections only}
 ```
 
 ### Step 3: Inject into Prompt

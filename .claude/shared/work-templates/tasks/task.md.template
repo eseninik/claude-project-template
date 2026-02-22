@@ -21,7 +21,7 @@ Files that code-developer subagent should read:
 
 **Required (always include):**
 - `.claude/guides/project/architecture.md`
-- `.claude/guides/project/patterns.md`
+- `.claude/memory/knowledge.md`
 - `.claude/guides/project/project.md`
 - `.claude/memory/activeContext.md`
 - `work/FEATURE-NAME/user-spec.md`

@@ -171,13 +171,13 @@ Agent 1: Diff Analyzer
 Agent 2: Memory Updater
   Input:  work/session-insights-raw.md + existing .claude/memory/ files
   Role:   Deduplicate and merge new insights into typed memory
-  Output: Updated .claude/memory/ files (patterns.md, gotchas.md, codebase-map.json, session-insights/NNN.json)
+  Output: Updated .claude/memory/ files (knowledge.md, daily/YYYY-MM-DD.md)
 
   Process:
-  1. Read existing patterns.md — check for duplicates before adding
-  2. Read existing gotchas.md — check for duplicates before adding
-  3. Read existing codebase-map.json — merge new file discoveries
-  4. Create session-insights/NNN.json with structured session data
+  1. Read existing knowledge.md — check for duplicates before adding
+  2. Append new patterns to knowledge.md Patterns section (dedup first)
+  3. Append new gotchas to knowledge.md Gotchas section (dedup first)
+  4. Create or append to daily/YYYY-MM-DD.md with session data
   5. Delete work/session-insights-raw.md (temporary)
 ```
 

@@ -77,17 +77,16 @@ The teammate-prompt-template.md remains the STRUCTURAL template (Required Skills
 ### Memory Injection
 
 Before spawning an agent, check:
-- `.claude/memory/activeContext.md` -- extract relevant patterns and gotchas
-- `.claude/memory/patterns.md` -- find patterns matching files in the task
-- `.claude/memory/gotchas.md` -- find gotchas matching files in the task
+- `.claude/memory/activeContext.md` -- extract recent context
+- `.claude/memory/knowledge.md` -- find patterns and gotchas matching files in the task
 
 Prepend relevant entries to the prompt:
 ```
 ## Relevant Patterns
-- Repository pattern: all DB queries through repos/ (from patterns.md)
+- Repository pattern: all DB queries through repos/ (from knowledge.md)
 
 ## Known Gotchas
-- Async sessions must use context manager (from gotchas.md)
+- Async sessions must use context manager (from knowledge.md)
 
 ## Recent Context
 - Auth module refactored yesterday, imports changed (from activeContext.md)

@@ -1,6 +1,7 @@
 # Active Context
 
-> Мост между сессиями. Агент читает в начале, обновляет в конце.
+> Session bridge. Agent reads at start, updates at end. Max ~150 lines.
+> Old sessions → `.claude/memory/archive/`
 
 **Last updated:** [DATE]
 
@@ -8,63 +9,21 @@
 
 ## Current Focus
 
-<!-- Что делаем прямо сейчас (1-2 предложения) -->
+<!-- What we're doing right now (1-2 sentences) -->
 
 ---
 
 ## Recent Decisions
 
-<!-- Решения принятые в последних сессиях с обоснованием -->
-
-| Date | Decision | Rationale | Files Affected |
-|------|----------|-----------|----------------|
-| | | | |
-
----
-
-## Active Questions
-
-<!-- Открытые вопросы, требующие решения -->
-
-- [ ]
-
----
-
-## Learned Patterns
-
-<!-- Паттерны и находки специфичные для этого проекта -->
-
-### What Works
--
-
-### What Doesn't Work
--
-
-### Gotchas
--
-
----
-
-## Next Steps
-
-<!-- Очередь задач на следующую сессию -->
-
-1.
-2.
-3.
-
----
-
-## Auto-Generated Summaries
-
-> Записи добавляются post-commit когда агент не обновил память.
-> При следующей сессии: интегрировать в Session Log и очистить.
+| Date | Decision | Rationale |
+|------|----------|-----------|
+| | | |
 
 ---
 
 ## Session Log
 
-<!-- Агент добавляет запись после каждой сессии -->
+<!-- Agent adds entry after each session. Keep last 3 sessions, archive older ones. -->
 
 ### [DATE]
 **Did:**

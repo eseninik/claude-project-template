@@ -4,14 +4,12 @@
 
 ## What Is Typed Memory
 
-Typed memory splits project knowledge into **four semantic categories**, each stored in a dedicated file under `.claude/memory/`:
+Typed memory splits project knowledge into **semantic categories**, each stored in a dedicated file under `.claude/memory/`:
 
 | Category | File | Purpose |
 |----------|------|---------|
-| Codebase Map | `codebase-map.json` | What files exist, what they do, how they relate |
-| Patterns | `patterns.md` | Recurring coding, architecture, and testing patterns |
-| Gotchas | `gotchas.md` | Known pitfalls, warnings, non-obvious behaviors |
-| Session Insights | `session-insights/*.json` | Per-session structured logs of work done |
+| Knowledge | `knowledge.md` | Patterns, gotchas, pitfalls, and recurring insights |
+| Daily Logs | `daily/*.json` | Per-session structured logs of work done |
 
 ## Why Typed Memory Over a Single File
 
@@ -34,10 +32,8 @@ Both systems coexist:
 MUST read these files for context before beginning work:
 
 ```
-1. .claude/memory/codebase-map.json  — understand project structure
-2. .claude/memory/patterns.md        — learn established patterns
-3. .claude/memory/gotchas.md         — avoid known pitfalls
-4. .claude/memory/activeContext.md   — pick up from last session
+1. .claude/memory/knowledge.md       — learn established patterns and avoid known pitfalls
+2. .claude/memory/activeContext.md   — pick up from last session
 ```
 
 This gives the agent a complete picture without needing to re-explore the codebase.
@@ -46,84 +42,58 @@ This gives the agent a complete picture without needing to re-explore the codeba
 
 As you discover new information:
 
-- **Found a new important file?** Note it mentally; batch-update codebase-map at session end
-- **Discovered a pattern?** Note it; append to patterns.md at session end
-- **Hit a gotcha?** Note it; append to gotchas.md at session end
+- **Discovered a pattern?** Note it; append to knowledge.md at session end
+- **Hit a gotcha?** Note it; append to knowledge.md at session end
 - **Working with teammates?** Include relevant typed memory sections in their prompts
 
 ### At Session END (MANDATORY — BLOCKING before commit)
 
 Before committing or exiting, MUST update typed memory. These steps are BLOCKING — do NOT commit without them:
 
-1. **Codebase Map** — add entries for any newly discovered/created files:
-   ```json
-   "files": {
-     "src/auth/login.py": {
-       "purpose": "Handles user authentication flow",
-       "category": "auth",
-       "key_exports": ["login_user", "verify_token"],
-       "depends_on": ["src/db/users.py", "src/config.py"],
-       "discovered_by": "session-2026-02-18"
-     }
-   }
-   ```
-
-2. **Patterns** — append new bullets under the right section:
+1. **knowledge.md** — append new patterns and gotchas under the right section:
    ```markdown
    ## Coding Patterns
    - All API endpoints use `@validate_input` decorator for request validation
    - Database queries use repository pattern via `src/db/repos/`
-   ```
 
-3. **Gotchas** — append new bullets under the right section:
-   ```markdown
    ## Environment Gotchas
    - Windows: use `node + full JS path` for LSP — bare commands cause ENOENT
    ```
 
-4. **Session Insights** — create a JSON file (optional, for complex sessions):
+2. **Daily log** — update today's log with what happened:
    ```
-   .claude/memory/session-insights/2026-02-18-feature-auth.json
+   .claude/memory/daily/2026-02-18.md
    ```
 
-5. **activeContext.md** — update Did/Decided/Learned/Next as always
+3. **activeContext.md** — update Did/Decided/Learned/Next as always
 
-## Session Insights Format
+## Daily Log Format
 
-For complex sessions, create a structured JSON log:
+For each working day, create or update a daily log:
 
-```json
-{
-  "session_id": "2026-02-18-feature-auth",
-  "model": "claude-opus-4-6",
-  "date": "2026-02-18",
-  "duration_estimate": "~45 min",
-  "subtasks_completed": [
-    "Implemented login endpoint",
-    "Added JWT token generation",
-    "Created integration tests"
-  ],
-  "discoveries": [
-    "Auth module uses bcrypt for password hashing",
-    "Token expiry is configured in src/config.py"
-  ],
-  "patterns_found": [
-    "All endpoints follow request -> validate -> service -> response pattern"
-  ],
-  "gotchas_encountered": [
-    "bcrypt.hashpw requires bytes, not str — must encode first"
-  ],
-  "what_worked": [
-    "Using repository pattern for DB access simplified testing"
-  ],
-  "what_failed": [
-    "Initial attempt to mock JWT directly — had to mock at config level instead"
-  ],
-  "recommendations": [
-    "Consider adding refresh token support in next iteration"
-  ]
-}
+```markdown
+# 2026-02-18
+
+## What Happened
+- Implemented login endpoint
+- Added JWT token generation
+- Created integration tests
+
+## Discoveries
+- Auth module uses bcrypt for password hashing
+- Token expiry is configured in src/config.py
+
+## What Worked
+- Using repository pattern for DB access simplified testing
+
+## What Failed
+- Initial attempt to mock JWT directly — had to mock at config level instead
+
+## Recommendations
+- Consider adding refresh token support in next iteration
 ```
+
+Daily logs are stored in `.claude/memory/daily/{YYYY-MM-DD}.md`. Old logs can be moved to `.claude/memory/archive/` when no longer needed for active context.
 
 ## Deduplication Rules
 
@@ -149,15 +119,11 @@ When spawning teammates, include relevant typed memory sections in their prompt.
 ```markdown
 ## Context from Typed Memory
 
-### Relevant Files (from codebase-map.json)
-- `src/auth/login.py` — handles authentication flow
-- `src/db/users.py` — user database operations
-
-### Relevant Patterns
+### Relevant Patterns (from knowledge.md)
 - All endpoints use @validate_input decorator
 - Database queries use repository pattern
 
-### Known Gotchas
+### Known Gotchas (from knowledge.md)
 - bcrypt.hashpw requires bytes, not str
 ```
 
@@ -191,28 +157,23 @@ This ensures the knowledge base is never lost, even without external services.
 
 ```
 .claude/memory/
-  activeContext.md          — session bridge (existing)
-  codebase-map.json         — file discovery map (new)
-  patterns.md               — coding/arch/test patterns (new)
-  gotchas.md                — known pitfalls (new)
-  session-insights/         — per-session JSON logs (new)
+  activeContext.md          — session bridge
+  knowledge.md              — patterns + gotchas combined
+  daily/                    — per-session JSON logs
     .gitkeep
-    2026-02-18-example.json — example session log
+  archive/                  — archived old sessions
+    .gitkeep
 ```
 
 ## Quick Reference for Agents
 
 ```
 SESSION START:
-  read .claude/memory/codebase-map.json
-  read .claude/memory/patterns.md
-  read .claude/memory/gotchas.md
+  read .claude/memory/knowledge.md
   read .claude/memory/activeContext.md
 
 SESSION END:
-  update codebase-map.json with new file discoveries
-  append new patterns to patterns.md (dedup first)
-  append new gotchas to gotchas.md (dedup first)
-  optionally create session-insights/<date>-<topic>.json
   update activeContext.md with Did/Decided/Learned/Next
+  update daily/{YYYY-MM-DD}.md with what happened
+  update knowledge.md if new patterns/gotchas discovered (dedup first)
 ```

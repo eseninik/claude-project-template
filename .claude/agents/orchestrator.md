@@ -276,7 +276,7 @@ IF user reports bug/error:
   "task": {
     "type": "implement",
     "taskFile": "work/feature/tasks/1.md",
-    "context": ["patterns.md", "architecture.md"],
+    "context": ["knowledge.md", "architecture.md"],
     "expected": {
       "code": true,
       "tests": true,

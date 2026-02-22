@@ -13,9 +13,7 @@
 Before starting this phase, load:
 - `work/{feature}/tech-spec.md` — architecture to implement
 - `work/{feature}/tasks/*.md` — task definitions
-- `.claude/memory/codebase-map.json` — file locations and module structure
-- `.claude/memory/patterns.md` — coding patterns to follow
-- `.claude/memory/gotchas.md` — pitfalls to avoid
+- `.claude/memory/knowledge.md` — patterns, pitfalls, and module structure
 - Query Graphiti: `search_memory_facts(query="implementation patterns and known issues", max_facts=10)`
 
 ## Inputs

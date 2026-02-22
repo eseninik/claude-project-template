@@ -16,7 +16,7 @@ The autonomous pipeline is a **state machine encoded in markdown** that drives m
 5. **QA Validation Loop** -- automated review-fix cycle between implementation and testing
 6. **Agent Chains** -- sequential agent pipelines for deep quality (spec chain, QA chain, debug chain)
 7. **Deploy Integration** -- git workflow, SSH deployment, health checks, stress testing
-8. **Typed Memory** -- structured knowledge persistence (.claude/memory/patterns.md, gotchas.md, codebase-map.json)
+8. **Typed Memory** -- structured knowledge persistence (.claude/memory/knowledge.md, daily/)
 9. **Complexity Assessment** -- risk-proportional QA depth (.claude/guides/complexity-assessment.md)
 10. **Recovery Manager** -- attempt tracking and circular fix detection (work/attempt-history.json)
 11. **Graphiti Integration** -- semantic cross-session memory (.claude/guides/graphiti-integration.md)
@@ -89,9 +89,8 @@ Between completing one phase and starting the next, execute this protocol to pre
    - New patterns discovered?
    - New gotchas to record?
 3. **Update typed memory**:
-   - `.claude/memory/patterns.md` — append new patterns (deduplicate)
-   - `.claude/memory/gotchas.md` — append new gotchas (deduplicate)
-   - `.claude/memory/codebase-map.json` — update if new files discovered
+   - `.claude/memory/knowledge.md` Patterns section — append new patterns (deduplicate)
+   - `.claude/memory/knowledge.md` Gotchas section — append new gotchas (deduplicate)
 4. **Save to Graphiti**: `add_memory(name="phase_{PHASE}_insight", episode_body=<what was learned>)`
 5. **Context refresh**: Re-read `work/PIPELINE.md` + `work/STATE.md` + typed memory files
 6. **Advance**: Move `<- CURRENT` marker to next phase, start execution
@@ -238,10 +237,9 @@ After each phase (MANDATORY -- do NOT skip):
 3. **.claude/memory/activeContext.md**: Did/Decided/Learned/Next
 4. **Graphiti**: `add_memory(name="phase_insight", episode_body=<learnings from this phase>)`
 5. **Typed memory**:
-   - `.claude/memory/patterns.md`: New patterns (deduplicate)
-   - `.claude/memory/gotchas.md`: New gotchas (deduplicate)
-   - `.claude/memory/codebase-map.json`: New file discoveries
-   - `.claude/memory/session-insights/NNN.json`: Structured session data
+   - `.claude/memory/knowledge.md` Patterns section: New patterns (deduplicate)
+   - `.claude/memory/knowledge.md` Gotchas section: New gotchas (deduplicate)
+   - `.claude/memory/daily/YYYY-MM-DD.md`: Daily session log
 6. **work/attempt-history.json**: Record good commit hash
 7. **Git commit**: Checkpoint with meaningful message + tag
 
@@ -273,7 +271,7 @@ MODES:      SOLO (direct) | AGENT_TEAMS (TeamCreate) | AGENT_CHAINS (sequential)
 GATES:      AUTO (commands) | USER_APPROVAL (human) | HYBRID (auto + human)
 VERDICTS:   PASS (advance) | CONCERNS (log + advance) | REWORK (retry) | FAIL (block)
 
-MEMORY:     .claude/memory/ (patterns.md, gotchas.md, codebase-map.json, session-insights/)
+MEMORY:     .claude/memory/ (knowledge.md, daily/)
 REGISTRY:   .claude/agents/registry.md (agent types, tools, skills, thinking levels)
 PROMPTS:    .claude/prompts/ (planner.md, coder.md, qa-reviewer.md, qa-fixer.md, insight-extractor.md)
 COMPLEXITY: .claude/guides/complexity-assessment.md

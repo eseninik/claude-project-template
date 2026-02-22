@@ -12,7 +12,7 @@
 ## Phase Context Loading
 Before starting this phase, load:
 - Acceptance criteria from `work/{feature}/user-spec.md` or `work/{feature}/tech-spec.md`
-- `.claude/memory/gotchas.md` — known pitfalls to check for
+- `.claude/memory/knowledge.md` — known pitfalls to check for
 - `.claude/skills/qa-validation-loop/SKILL.md` — QA procedure
 - Query Graphiti: `search_memory_facts(query="quality issues and common bugs", max_facts=10)`
 

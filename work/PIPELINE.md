@@ -1,123 +1,136 @@
-# Pipeline: Extract Ralph Loop Features + Graphiti Integration
+# Pipeline: OpenClaw Memory System Analysis & Integration
 
-- Status: PIPELINE_COMPLETE
-- Phase: FINAL_SYNC (DONE)
-- Mode: INTERACTIVE
+- Status: IN_PROGRESS
+- Phase: POST_TEST
+- Mode: SOLO
 
-> Extract useful patterns from Ralph Loop into interactive pipeline flow.
-> Integrate Graphiti for automatic context preservation.
-> Test everything, then remove Ralph Loop.
+> Deep analysis of OpenClaw's memory/context persistence system.
+> Compare with our system. Implement improvements if warranted. Stress test.
+> After compaction: find `<- CURRENT`, read that phase, continue.
 
 ---
 
 ## Phases
 
-### Phase: FIX_GRAPHITI  [DONE]
+### Phase: RESEARCH
+- Status: DONE
+- Mode: AGENT_TEAMS
+- Attempts: 0 of 1
+- On PASS: -> COMPARE
+- On FAIL: -> STOP
+- On BLOCKED: -> STOP
+- Gate: All explorer agents returned comprehensive analysis reports
+- Gate Type: AUTO
+- Inputs: OpenClaw repo (/tmp/openclaw), our system (.claude/)
+- Outputs: work/openclaw-analysis/ (5+ analysis reports from agents)
+- Checkpoint: pipeline-checkpoint-RESEARCH
+- Tasks:
+  - R1: OpenClaw memory architecture — how memory is stored, loaded, queried
+  - R2: OpenClaw context persistence — how context survives compaction/sessions
+  - R3: OpenClaw CLAUDE.md / rules — how instructions enforce memory behavior
+  - R4: OpenClaw agent coordination — how agents share memory/state
+  - R5: OpenClaw unique features — anything novel not in our system
+  - R6: Our system audit — current memory architecture for comparison baseline
+
+### Phase: COMPARE
 - Status: DONE
 - Mode: SOLO
-- Attempts: 1 of 3
+- Attempts: 0 of 1
+- On PASS: -> DESIGN
+- On FAIL: -> STOP
+- On BLOCKED: -> STOP
+- Gate: Comprehensive comparison report with clear recommendations
+- Gate Type: USER_APPROVAL
+- Inputs: work/openclaw-analysis/, .claude/memory/, CLAUDE.md
+- Outputs: work/openclaw-analysis/comparison-report.md
+- Checkpoint: pipeline-checkpoint-COMPARE
+
+### Phase: DESIGN
+- Status: SKIPPED (user approved full plan directly)
+- Mode: SOLO
+- Attempts: 0 of 1
+- On PASS: -> BASELINE_TEST
+- On FAIL: -> STOP
+- On REWORK: -> COMPARE
+- On BLOCKED: -> STOP
+- Gate: User approves design + migration plan
+- Gate Type: USER_APPROVAL
+- Inputs: work/openclaw-analysis/comparison-report.md
+- Outputs: work/openclaw-analysis/migration-plan.md
+- Checkpoint: pipeline-checkpoint-DESIGN
+
+### Phase: BASELINE_TEST
+- Status: SKIPPED (baseline captured in our-system-audit.md)
+- Mode: SOLO
+- Attempts: 0 of 1
 - On PASS: -> IMPLEMENT
 - On FAIL: -> STOP
 - On BLOCKED: -> STOP
-- Gate: Graphiti search_memory_facts and add_memory work without errors
+- Gate: Baseline metrics captured for current system
 - Gate Type: AUTO
-- Inputs: Graphiti docker container (running), ~/.claude.json MCP config
-- Outputs: Working Graphiti with valid API key, verified read/write cycle
-- Checkpoint: pipeline-checkpoint-FIX_GRAPHITI
+- Inputs: Current memory system (.claude/memory/, CLAUDE.md)
+- Outputs: work/openclaw-analysis/baseline-metrics.md
+- Checkpoint: pipeline-checkpoint-BASELINE_TEST
 
-### Phase: IMPLEMENT  [DONE]
+### Phase: IMPLEMENT
 - Status: DONE
 - Mode: AGENT_TEAMS
 - Attempts: 0 of 2
-- On PASS: -> SYNC
-- On FAIL: -> STOP
-- On REWORK: -> IMPLEMENT
+- On PASS: -> POST_TEST
+- On FAIL: -> ROLLBACK
+- On REWORK: -> DESIGN
 - On BLOCKED: -> STOP
-- Gate: All target files modified, no syntax errors, cross-references valid
+- Gate: All changes applied, system functional
 - Gate Type: AUTO
-- Inputs: Analysis from discussion (Phase Transition Protocol, Graphiti integration, Insight Extraction)
-- Outputs: Modified CLAUDE.md, autonomous-pipeline.md, PIPELINE-v3.md, phase templates
+- Inputs: work/openclaw-analysis/migration-plan.md
+- Outputs: Modified .claude/ files
 - Checkpoint: pipeline-checkpoint-IMPLEMENT
-- Tasks:
-  - T1: CLAUDE.md — add Phase Transition Protocol, Graphiti in Before Commit, strengthen Session Start/After Compaction
-  - T2: autonomous-pipeline.md — add Phase Transition Protocol section, update Memory Updates, de-emphasize Ralph Loop
-  - T3: PIPELINE-v3.md template — add Phase Transition Protocol to Execution Rules
-  - T4: Phase templates (IMPLEMENT.md, PLAN.md, etc.) — add phase-specific context loading instructions
-  - T5: Repurpose insight-extractor.md for in-session use (not Ralph Loop post-processing)
 
-### Phase: SYNC  [DONE]
-- Status: DONE
-- Mode: AGENT_TEAMS
+### Phase: POST_TEST  <- CURRENT
+- Status: IN_PROGRESS
+- Mode: SOLO
 - Attempts: 0 of 1
-- On PASS: -> TEST
-- On FAIL: -> IMPLEMENT
+- On PASS: -> EVALUATE
+- On FAIL: -> ROLLBACK
 - On BLOCKED: -> STOP
-- Gate: All modified files have matching copies in shared/templates/new-project/
+- Gate: Post-implementation metrics captured
 - Gate Type: AUTO
-- Inputs: All modified files from IMPLEMENT
-- Outputs: Synced new-project template
-- Checkpoint: pipeline-checkpoint-SYNC
+- Inputs: Modified system, same test scenarios as BASELINE_TEST
+- Outputs: work/openclaw-analysis/post-metrics.md
+- Checkpoint: pipeline-checkpoint-POST_TEST
 
-### Phase: TEST  [DONE]
-- Status: DONE
-- Mode: AGENT_TEAMS
-- Attempts: 0 of 2
-- On PASS: -> CLEANUP
-- On FAIL: -> IMPLEMENT
-- On REWORK: -> IMPLEMENT
-- On BLOCKED: -> STOP
-- Gate: All test scenarios pass, context preservation verified
-- Gate Type: AUTO
-- Inputs: Full modified system
-- Outputs: work/context-preservation-test-report.md
-- Checkpoint: pipeline-checkpoint-TEST
-- Tests:
-  - Test1: Graphiti write/read cycle — add_memory then search, verify data returns
-  - Test2: Phase Transition Protocol — simulate phase completion, verify all 5 steps execute
-  - Test3: Session Start protocol — verify Graphiti query happens at session start
-  - Test4: Cross-reference integrity — grep for stale Ralph Loop refs, broken links
-
-### Phase: CLEANUP  [DONE]
-- Status: DONE
-- Mode: AGENT_TEAMS
+### Phase: EVALUATE
+- Status: PENDING
+- Mode: SOLO
 - Attempts: 0 of 1
-- On PASS: -> FINAL_SYNC
-- On FAIL: -> STOP
+- On PASS: -> COMPLETE
+- On FAIL: -> ROLLBACK
 - On BLOCKED: -> STOP
-- Gate: No ralph.sh, no PROMPT.md template, no Ralph Loop references in active docs
-- Gate Type: AUTO
-- Inputs: Verified working system from TEST
-- Outputs: Cleaned codebase without Ralph Loop artifacts
-- Checkpoint: pipeline-checkpoint-CLEANUP
-- Tasks:
-  - C1: Delete scripts/ralph.sh (main + template)
-  - C2: Delete/repurpose .claude/shared/work-templates/PROMPT.md
-  - C3: Clean Ralph Loop references from autonomous-pipeline.md, CLAUDE.md, SKILLS_INDEX.md
-  - C4: Clean Ralph Loop references from new-project template
+- Gate: User approves final decision (keep/rollback/partial)
+- Gate Type: USER_APPROVAL
+- Inputs: baseline-metrics.md, post-metrics.md
+- Outputs: work/openclaw-analysis/final-decision.md
+- Checkpoint: pipeline-checkpoint-EVALUATE
 
-### Phase: FINAL_SYNC  [DONE]
-- Status: DONE
+### Phase: ROLLBACK
+- Status: PENDING
 - Mode: SOLO
 - Attempts: 0 of 1
 - On PASS: -> COMPLETE
 - On FAIL: -> STOP
-- Gate: Template matches main, no stale refs anywhere
+- On BLOCKED: -> STOP
+- Gate: System restored to pre-implementation state
 - Gate Type: AUTO
-- Inputs: Cleaned codebase
-- Outputs: Final synced template
-- Checkpoint: pipeline-checkpoint-FINAL_SYNC
+- Inputs: git checkpoint from IMPLEMENT
+- Outputs: Restored codebase
+- Checkpoint: pipeline-checkpoint-ROLLBACK
 
 ---
 
 ## Decisions
 
-- [ANALYZE] Phase Transition Protocol extracted from Ralph Loop: commit → insight extraction → memory save → context refresh → start next phase
-- [ANALYZE] Graphiti integration: write in Before Commit (blocking rule), read in Session Start + After Compaction
-- [ANALYZE] Insight Extraction repurposed for in-session use between pipeline phases (was Ralph Loop post-processing)
-- [ANALYZE] Ralph Loop to be removed after features extracted (user doesn't use it, interactive flow + Agent Teams is primary)
-- [FIX_GRAPHITI] Root cause: OpenRouter requires HTTP-Referer header, Graphiti AsyncOpenAI client didn't send it
-- [FIX_GRAPHITI] Fix: patched ~/graphiti/mcp_server/src/services/factories.py — added default_headers with HTTP-Referer + X-Title for OpenRouter detection
-- [FIX_GRAPHITI] Container restarted. Claude Code needs restart to re-establish MCP session. Then verify search + add_memory work.
+- [RESEARCH] Decision: Use 6 parallel explorer agents (5 OpenClaw + 1 our system). Reason: Maximize coverage, minimize time.
+- [RESEARCH] Decision: Clone OpenClaw to /tmp/openclaw. Reason: Keep analysis separate from our codebase.
 
 ---
 
@@ -128,5 +141,6 @@
 3. **Gate verdicts:** PASS (advance), CONCERNS (log + advance), REWORK (go to On REWORK, increment Attempts), FAIL (go to On FAIL or STOP).
 4. **Attempts overflow:** When Attempts X >= max Y, set Status: BLOCKED, stop pipeline.
 5. **Agent Teams:** If Mode = AGENT_TEAMS, use TeamCreate. Build prompts with Required Skills section.
-6. **After each phase:** Update this file (move `<- CURRENT`, set Status: DONE). Update work/STATE.md. Update memory. Git commit.
-7. **Pipeline complete:** When last phase passes, set top-level Status: PIPELINE_COMPLETE.
+6. **After each phase:** Update this file (move `<- CURRENT`, set Status: DONE). Update work/STATE.md. Update memory. Git commit with checkpoint tag.
+7. **Phase Transition Protocol:** Between phases: (1) git commit, (2) insight extraction, (3) update typed memory, (4) save to Graphiti, (5) re-read state, (6) advance <- CURRENT.
+8. **Pipeline complete:** When last phase passes, set top-level Status: PIPELINE_COMPLETE.

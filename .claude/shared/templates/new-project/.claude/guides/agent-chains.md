@@ -171,14 +171,13 @@ Agent 1: Diff Analyzer
 Agent 2: Memory Updater
   Input:  work/session-insights-raw.md + existing .claude/memory/ files
   Role:   Deduplicate and merge new insights into typed memory
-  Output: Updated .claude/memory/ files (patterns.md, gotchas.md, codebase-map.json, session-insights/NNN.json)
+  Output: Updated .claude/memory/ files (knowledge.md, daily/{YYYY-MM-DD}.md)
 
   Process:
-  1. Read existing patterns.md — check for duplicates before adding
-  2. Read existing gotchas.md — check for duplicates before adding
-  3. Read existing codebase-map.json — merge new file discoveries
-  4. Create session-insights/NNN.json with structured session data
-  5. Delete work/session-insights-raw.md (temporary)
+  1. Read existing knowledge.md — check for duplicates before adding
+  2. Append new patterns and gotchas to knowledge.md (deduplicate)
+  3. Update daily/{YYYY-MM-DD}.md with session data
+  4. Delete work/session-insights-raw.md (temporary)
 ```
 
 **When to use:** After EVERY implementation phase — triggered by Phase Transition Protocol between pipeline phases. Can also be run manually after significant coding sessions. The chain ensures no learnings are lost between phases.

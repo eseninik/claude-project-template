@@ -89,46 +89,49 @@ Determine:
 
 ## Step 4: Output Results
 
-Write structured JSON to `.claude/memory/session-insights/{PHASE}-{date}.json`:
+Write daily log to `.claude/memory/daily/{YYYY-MM-DD}.md`:
 
-```json
-{
-  "phase": "IMPLEMENT",
-  "phase_date": "2026-02-19",
-  "task_summary": "Implemented authentication service with JWT",
-  "complexity": "medium",
-  "file_insights": [...],
-  "patterns_discovered": [...],
-  "gotchas_discovered": [...],
-  "what_worked": ["Repository pattern kept DB logic isolated"],
-  "what_failed": ["Initial approach to token refresh was too complex"],
-  "approach_outcome": "success",
-  "recommendations_for_next_phase": ["Add integration tests for token refresh flow"]
-}
+```markdown
+# {YYYY-MM-DD} — Phase: {PHASE}
+
+## Summary
+{task_summary}
+
+## Complexity
+{level}
+
+## File Insights
+- `src/auth/service.py` — Authentication service with JWT token handling
+
+## Patterns Discovered
+- Repository with caching: All DB queries go through repository layer with optional Redis cache
+
+## Gotchas Discovered
+- SQLAlchemy async sessions must be closed explicitly in background tasks (symptom: connection pool exhaustion)
+
+## What Worked
+- Repository pattern kept DB logic isolated
+
+## What Failed
+- Initial approach to token refresh was too complex
+
+## Approach Outcome
+success
+
+## Recommendations for Next Phase
+- Add integration tests for token refresh flow
 ```
 
 ---
 
 ## Step 5: Update Knowledge Files
 
-### patterns.md
-If new patterns were discovered:
-1. Read existing `.claude/memory/patterns.md` (create if missing)
-2. Check for duplicates (same pattern already recorded)
-3. Append only genuinely new patterns
+### knowledge.md
+If new patterns or gotchas were discovered:
+1. Read existing `.claude/memory/knowledge.md` (create if missing)
+2. Check for duplicates (same pattern or gotcha already recorded)
+3. Append only genuinely new patterns and gotchas
 4. Keep format consistent with existing entries
-
-### gotchas.md
-If new gotchas were discovered:
-1. Read existing `.claude/memory/gotchas.md` (create if missing)
-2. Check for duplicates
-3. Append only new gotchas with symptom + fix format
-
-### codebase-map
-If new files/modules were discovered:
-1. Read existing `codebase-map.md` or `codebase-map.json`
-2. Add newly created files with their roles
-3. Update module connections if new dependencies were introduced
 
 ---
 
@@ -158,5 +161,5 @@ search_memory_facts(query=<task description>, max_facts=10)
 - Deduplicate aggressively. One pattern recorded twice is worse than not recorded.
 - Only record insights with enough specificity to be useful later (file paths, line numbers, concrete examples).
 - Do NOT invent insights. If the phase was trivial, the output should be minimal.
-- Prefer JSON output for machine-readability. Human notes go in patterns.md / gotchas.md.
-- Create the `session-insights/` directory if it does not exist.
+- Prefer markdown output for readability. Human notes go in knowledge.md.
+- Create the `daily/` directory if it does not exist.

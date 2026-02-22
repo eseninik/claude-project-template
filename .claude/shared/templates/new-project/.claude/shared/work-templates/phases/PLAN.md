@@ -12,7 +12,7 @@
 ## Phase Context Loading
 Before starting this phase, load:
 - `work/expert-analysis.md` — expert panel findings
-- `.claude/memory/codebase-map.json` — project structure for task decomposition
+- `.claude/memory/knowledge.md` — project patterns and known pitfalls for task decomposition
 - `.claude/adr/decisions.md` — architectural constraints
 - Query Graphiti: `search_memory_facts(query="technical architecture and design patterns", max_facts=10)`
 

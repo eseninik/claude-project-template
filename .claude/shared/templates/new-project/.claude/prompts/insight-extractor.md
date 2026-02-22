@@ -89,7 +89,7 @@ Determine:
 
 ## Step 4: Output Results
 
-Write structured JSON to `.claude/memory/session-insights/{PHASE}-{date}.json`:
+Write structured JSON to `.claude/memory/daily/{PHASE}-{date}.json`:
 
 ```json
 {
@@ -111,24 +111,13 @@ Write structured JSON to `.claude/memory/session-insights/{PHASE}-{date}.json`:
 
 ## Step 5: Update Knowledge Files
 
-### patterns.md
-If new patterns were discovered:
-1. Read existing `.claude/memory/patterns.md` (create if missing)
-2. Check for duplicates (same pattern already recorded)
-3. Append only genuinely new patterns
-4. Keep format consistent with existing entries
-
-### gotchas.md
-If new gotchas were discovered:
-1. Read existing `.claude/memory/gotchas.md` (create if missing)
-2. Check for duplicates
-3. Append only new gotchas with symptom + fix format
-
-### codebase-map
-If new files/modules were discovered:
-1. Read existing `codebase-map.md` or `codebase-map.json`
-2. Add newly created files with their roles
-3. Update module connections if new dependencies were introduced
+### knowledge.md
+If new patterns or gotchas were discovered:
+1. Read existing `.claude/memory/knowledge.md` (create if missing)
+2. Check for duplicates (same pattern/gotcha already recorded)
+3. Append only genuinely new patterns under the patterns section
+4. Append only new gotchas with symptom + fix format under the gotchas section
+5. Keep format consistent with existing entries
 
 ---
 
@@ -158,5 +147,5 @@ search_memory_facts(query=<task description>, max_facts=10)
 - Deduplicate aggressively. One pattern recorded twice is worse than not recorded.
 - Only record insights with enough specificity to be useful later (file paths, line numbers, concrete examples).
 - Do NOT invent insights. If the phase was trivial, the output should be minimal.
-- Prefer JSON output for machine-readability. Human notes go in patterns.md / gotchas.md.
-- Create the `session-insights/` directory if it does not exist.
+- Prefer JSON output for machine-readability. Human notes go in knowledge.md.
+- Create the `daily/` directory if it does not exist.

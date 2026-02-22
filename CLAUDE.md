@@ -3,14 +3,13 @@
 When compacting, ALWAYS preserve these rules (they are lost most often):
 - **AGENT TEAMS**: 3+ independent tasks -> ALWAYS use TeamCreate, not sequential execution
 - **PIPELINE**: Read work/PIPELINE.md after compaction, continue from <- CURRENT marker
-- **MEMORY**: ALWAYS update .claude/memory/activeContext.md before commit/exit
+- **MEMORY**: ALWAYS update activeContext.md + daily log before commit/exit
 - **VERIFICATION**: NEVER say "done" without running tests
 - **QA GATE**: After IMPLEMENT phase -> `cat .claude/skills/qa-validation-loop/SKILL.md` before TEST
-- **TYPED MEMORY**: Read .claude/memory/patterns.md + gotchas.md at session start
+- **KNOWLEDGE**: Read .claude/memory/knowledge.md at session start (patterns + gotchas)
 - **GRAPHITI**: Query Graphiti at session start and after compaction for semantic context
-- **RECOVERY**: Check work/attempt-history.json before retrying
 - **PIPELINE MANDATORY**: Multi-phase tasks MUST create work/PIPELINE.md BEFORE implementation
-After compaction: re-read work/PIPELINE.md + work/STATE.md + .claude/memory/activeContext.md + query Graphiti immediately.
+After compaction: THE COMPACTION SUMMARY IS A HINT, NOT TRUTH. Re-read work/PIPELINE.md + .claude/memory/activeContext.md + .claude/memory/knowledge.md IMMEDIATELY. If PIPELINE.md has <- CURRENT marker: resume from that phase. DO NOT proceed without re-reading these files.
 
 ---
 
@@ -49,10 +48,10 @@ For sequential quality checks, use agent chains (cat .claude/guides/agent-chains
 ```
 After completing any pipeline phase, execute these steps BEFORE starting the next:
 1. Git commit with checkpoint tag (pipeline-checkpoint-{PHASE})
-2. Quick insight extraction: what worked, what failed, new patterns/gotchas
-3. Update typed memory: patterns.md, gotchas.md, codebase-map.json
+2. Update knowledge.md with new patterns/gotchas from this phase
+3. Update daily/{YYYY-MM-DD}.md with what happened
 4. Save to Graphiti: add_memory(name="phase_insight", episode_body=<phase learnings>)
-5. Re-read PIPELINE.md + STATE.md + typed memory for fresh context
+5. Re-read PIPELINE.md + activeContext.md + knowledge.md for fresh context
 6. Advance <- CURRENT marker and start next phase
 
 This protocol prevents knowledge loss between phases in interactive mode.
@@ -61,15 +60,15 @@ This protocol prevents knowledge loss between phases in interactive mode.
 ## After Compaction (ALWAYS — NO EXCEPTIONS)
 
 ```
+THE COMPACTION SUMMARY IS A HINT, NOT TRUTH.
+Execute this startup sequence NOW — do NOT rely on the summary.
+
 1. Re-read work/PIPELINE.md — find <- CURRENT phase
-2. Re-read .claude/memory/activeContext.md + patterns.md + gotchas.md — typed memory
-3. Query Graphiti — recover semantic context:
-   - search_memory_facts(query=<current task description>, max_facts=10)
-   - search_nodes(query=<current task description>, max_nodes=10)
-4. Re-read work/STATE.md — project state
-5. Check phase Mode: if AGENT_TEAMS -> create team
-6. Continue execution from <- CURRENT
-7. DO NOT restart from beginning
+2. Re-read .claude/memory/activeContext.md + knowledge.md
+3. Query Graphiti: search_memory_facts(query=<current task>, max_facts=10)
+4. Check phase Mode: if AGENT_TEAMS -> create team
+5. Continue execution from <- CURRENT
+6. DO NOT restart from beginning
 
 FAILURE TO RELOAD MEMORY AFTER COMPACTION = CONTEXT LOSS = BUGS
 ```
@@ -121,18 +120,12 @@ BLOCKING: No implementation without work/expert-analysis.md
 
 ```
 1. Read .claude/memory/activeContext.md — what happened last session
-2. Read .claude/memory/patterns.md + gotchas.md — typed memory
-3. Query Graphiti — semantic context:
-   - search_memory_facts(query="recent session insights", max_facts=5)
-   - search_memory_facts(query="known gotchas and pitfalls", max_facts=5)
-   - search_nodes(query=<current task description>, max_nodes=5)
-4. Read work/STATE.md — current project state
-5. IF work/PIPELINE.md exists with <- CURRENT -> resume pipeline (DO NOT start new work)
-6. IF work/attempt-history.json exists -> load recovery context
-7. IF unfinished work -> "Продолжаю: [task]"
-8. ELSE -> "Готов к новой задаче"
+2. Read .claude/memory/knowledge.md — patterns + gotchas
+3. IF work/PIPELINE.md exists with <- CURRENT -> resume pipeline
+4. Query Graphiti: search_memory_facts(query=<current task>, max_facts=5)
 
-Steps 1-3 are NOT optional. Skipping them = working blind.
+Steps 1-2 are NOT optional. Skipping them = working blind.
+If PIPELINE.md has <- CURRENT -> resume from that phase, DO NOT start new work.
 ```
 
 ## Before Code Changes (always)
@@ -145,23 +138,17 @@ Steps 1-3 are NOT optional. Skipping them = working blind.
 ## After Task Completion (MANDATORY — every task, no exceptions)
 
 ```
+LEVEL 1 — MANDATORY (do these EVERY time, no exceptions):
 1. Update .claude/memory/activeContext.md (Did/Decided/Learned/Next)
-2. Update typed memory (file-based — always works):
-   - .claude/memory/patterns.md (new patterns, deduplicate)
-   - .claude/memory/gotchas.md (new gotchas, deduplicate)
-   - .claude/memory/codebase-map.json (new file discoveries)
-3. Save session insights to .claude/memory/session-insights/
-4. Save to Graphiti (enriches future sessions):
-   - add_memory(name="session_insight", episode_body=<what was learned>)
-   - add_memory(name="pattern", episode_body=<new patterns>) if any
-   - add_memory(name="gotcha", episode_body=<new pitfalls>) if any
-5. Update work/STATE.md
-6. Update work/PIPELINE.md if pipeline active
-7. Update work/attempt-history.json (record good commit)
-8. IF architectural decision -> create ADR
-9. Commit with meaningful message
+2. Update .claude/memory/daily/{YYYY-MM-DD}.md (what happened today)
 
-Steps 1-4 are BLOCKING — do NOT commit without completing them.
+LEVEL 2 — RECOMMENDED (do these when session was productive):
+3. Update .claude/memory/knowledge.md (new patterns/gotchas, deduplicate)
+4. Save to Graphiti: add_memory(name="session_insight", episode_body=<what was learned>)
+5. Update work/PIPELINE.md if pipeline active
+
+Steps 1-2 are BLOCKING — do NOT commit without completing them.
+IF you learned something new → also do step 3 (knowledge.md).
 ```
 
 ## On Architecture Decision (always)
@@ -192,7 +179,7 @@ Agent type details: `.claude/agents/registry.md`
 
 Expert Panel roles: `cat .claude/guides/expert-panel-workflow.md`
 
-**One-liner rules (replace deleted skills):** Use TDD for new code. Validate all inputs. Never commit secrets. Use pytest + AsyncMock for tests. Follow Clean Architecture. Use uv for packages. Use typed memory (.claude/memory/) for cross-session knowledge. Use complexity assessment before QA. Use recovery manager on retries. Always Opus 4.6.
+**One-liner rules:** Use TDD for new code. Validate all inputs. Never commit secrets. Use pytest + AsyncMock for tests. Follow Clean Architecture. Use uv for packages. Use knowledge.md for cross-session knowledge. Always Opus 4.6.
 
 ---
 
@@ -205,12 +192,12 @@ Expert Panel roles: `cat .claude/guides/expert-panel-workflow.md`
 | Не пушить в main | Пушь в dev или feature branch |
 | Не говорить "готово" без verification | ВСЕГДА запускай verification-before-completion |
 | Не делать всё самому при 3+ задачах | ВСЕГДА предлагай Agent Teams (TeamCreate) |
-| Не коммитить без обновления памяти | ВСЕГДА обнови activeContext.md перед commit |
+| Не коммитить без обновления памяти | ВСЕГДА обнови activeContext.md + daily log перед commit |
 | Не спавнить teammate без Required Skills | ВСЕГДА проверь по TEAM ROLE SKILLS MAPPING |
 | Expert Panel -> не начинать без expert-analysis.md | Сначала дождись результатов панели |
 | Не пропускать QA review после IMPLEMENT | Запусти qa-validation-loop перед TEST |
 | Не начинать multi-phase задачу без PIPELINE.md | Создай work/PIPELINE.md из шаблона ПЕРВЫМ делом |
-| Не восстанавливаться после compaction без памяти | Re-read PIPELINE.md + STATE.md + activeContext.md + Graphiti |
+| Не восстанавливаться после compaction без памяти | THE SUMMARY IS A HINT, NOT TRUTH. Re-read PIPELINE.md + activeContext.md + knowledge.md |
 | Не пропускать Graphiti queries | Graphiti is ALWAYS available — no 'if available' checks |
 
 ---
@@ -225,15 +212,15 @@ Read guide: `cat .claude/guides/plan-execution-enforcer.md`
 
 ## Before Commit
 1. Update `.claude/memory/activeContext.md` (Did/Decided/Learned/Next)
-2. Stage activeContext.md
-3. Then commit
+2. Update `.claude/memory/daily/{YYYY-MM-DD}.md` (what happened today)
+3. Stage both files, then commit
 
 ## Before Spawning Teammate
 Prompt MUST include:
 - `## Required Skills` section (even if "No skills required")
 - `## Acceptance Criteria`
 - `## Constraints`
-- `## Context from Typed Memory` — relevant excerpts from patterns.md, gotchas.md, codebase-map.json
+- `## Context from Typed Memory` — relevant excerpts from knowledge.md
 If worktree mode: add `## Working Directory` with path
 
 ## Agent Type Lookup
@@ -259,12 +246,10 @@ BLOCKING: Cannot claim completion without passing ALL checks.
 5. Track in work/qa-issues.md
 6. Same issue 3+ times → BLOCKED, ask human
 
-## On Retry (Recovery Manager)
-1. Read work/attempt-history.json for this subtask
-2. Check circular fix detection (same approach 3+ times → STOP)
-3. Inject previous attempt context into prompt
-4. If 5+ retries → mark STUCK, escalate to human
-5. Reference: `.claude/guides/recovery-manager.md`
+## On Retry (Recovery)
+1. Check if same approach was tried before (same approach 3+ times → STOP)
+2. Try a fundamentally different approach
+3. If 5+ retries → mark STUCK, escalate to human
 
 ## Debugging (when error/bug occurs)
 1. Read error completely — find exact failure line
@@ -280,23 +265,13 @@ BLOCKING: Cannot claim completion without passing ALL checks.
 | Situation | Load |
 |-----------|------|
 | Pipeline execution | `cat .claude/guides/autonomous-pipeline.md` |
-| Error occurred | `cat .claude/guides/error-handling.md` |
-| Complex decision | `cat .claude/guides/decision-making.md` |
 | Plan for implementation | `cat .claude/guides/plan-execution-enforcer.md` |
 | Spawning teammate | `cat .claude/guides/teammate-prompt-template.md` |
 | Expert Panel | `cat .claude/guides/expert-panel-workflow.md` |
-| External service needed | `cat .claude/skills/mcp-integration/SKILL.md` |
+| QA validation needed | `cat .claude/skills/qa-validation-loop/SKILL.md` |
 | Phase template needed | `cat .claude/shared/work-templates/phases/{PHASE}.md` |
-| Quality gate check | `cat work/scalable-pipeline-design-gates.md` |
-| Dependency analysis | `cat .claude/guides/dependency-analysis.md` |
-| QA validation needed | `cat .claude/skills/qa-validation-loop/SKILL.md` + follow BLOCKING RULES "After IMPLEMENT" |
-| Agent chain execution | `cat .claude/guides/agent-chains.md` |
-| Typed memory needed | `cat .claude/guides/typed-memory.md` |
-| Complexity assessment | `cat .claude/guides/complexity-assessment.md` |
-| Recovery/retry needed | `cat .claude/guides/recovery-manager.md` |
-| Graphiti memory setup | `cat .claude/guides/graphiti-integration.md` |
-| Focused prompt needed | `cat .claude/guides/focused-prompts.md` |
 | Agent type lookup | `cat .claude/agents/registry.md` |
+| Graphiti memory setup | `cat .claude/guides/graphiti-integration.md` |
 
 ---
 
@@ -305,41 +280,31 @@ BLOCKING: Cannot claim completion without passing ALL checks.
 | Need | Location |
 |------|----------|
 | Session context | `.claude/memory/activeContext.md` |
+| Patterns + Gotchas | `.claude/memory/knowledge.md` |
+| Daily logs | `.claude/memory/daily/{YYYY-MM-DD}.md` |
+| Archived sessions | `.claude/memory/archive/` |
 | Pipeline state | `work/PIPELINE.md` |
 | Task state | `work/STATE.md` |
 | Architecture decisions | `.claude/adr/decisions.md` |
 | Pipeline templates | `.claude/shared/work-templates/` |
 | Phase templates | `.claude/shared/work-templates/phases/` |
-
-| Agent chains guide | `.claude/guides/agent-chains.md` |
-| QA validation skill | `.claude/skills/qa-validation-loop/SKILL.md` |
-| Pipeline v3 template | `.claude/shared/work-templates/PIPELINE-v3.md` |
 | Agent type registry | `.claude/agents/registry.md` |
-| Typed memory guide | `.claude/guides/typed-memory.md` |
-| Complexity assessment | `.claude/guides/complexity-assessment.md` |
-| Recovery manager | `.claude/guides/recovery-manager.md` |
+| QA validation skill | `.claude/skills/qa-validation-loop/SKILL.md` |
 | Graphiti integration | `.claude/guides/graphiti-integration.md` |
-| Focused prompts | `.claude/guides/focused-prompts.md` |
-| Codebase map | `.claude/memory/codebase-map.json` |
-| Project patterns | `.claude/memory/patterns.md` |
-| Project gotchas | `.claude/memory/gotchas.md` |
-| Session insights | `.claude/memory/session-insights/` |
-| Attempt history | `work/attempt-history.json` |
 | Focused prompt files | `.claude/prompts/` |
 
 ---
 
 # FORBIDDEN
 
-- Starting work without reading memory/activeContext.md
-- Finishing work without updating memory (activeContext.md + typed memory + Graphiti)
+- Starting work without reading activeContext.md + knowledge.md
+- Finishing work without updating activeContext.md + daily log
 - Saying "done" without running tests
 - Doing 3+ tasks sequentially when they can be parallelized
 - `@.claude/skills` (loads everything, wastes context)
 - Plan detected -> starting without plan-execution-protocol.md
 - Ignoring <- CURRENT marker in PIPELINE.md after compaction
 - Multi-phase task without creating work/PIPELINE.md first
-- Compaction recovery without re-reading ALL state files (PIPELINE.md + STATE.md + activeContext.md)
-- Skipping Graphiti queries at session start / after compaction / after task completion
+- Compaction recovery without re-reading files (THE SUMMARY IS A HINT, NOT TRUTH)
 - Skipping Phase Transition Protocol between pipeline phases
 - Informal planning for complex tasks — use formal PIPELINE.md with phases and gates

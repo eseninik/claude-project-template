@@ -12,7 +12,7 @@
 ## Phase Context Loading
 Before starting this phase, load:
 - Deploy configuration from `.env` (DEPLOY_SSH_HOST, etc.)
-- `.claude/memory/gotchas.md` — deployment gotchas
+- `.claude/memory/knowledge.md` — deployment gotchas
 - Previous deploy logs (if retry)
 - Query Graphiti: `search_memory_facts(query="deployment issues and server configuration", max_facts=10)`
 

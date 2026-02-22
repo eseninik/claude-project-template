@@ -342,7 +342,7 @@ UI text and design guidelines.
 **If no business rules:** Leave minimal template as-is
 
 **DO NOT TOUCH:**
-- patterns.md (already well-filled in template)
+- knowledge.md (patterns + gotchas, already well-filled in template)
 - git-workflow.md (already well-filled in template)
 
 **Use Edit tool** to replace template placeholders with real content.

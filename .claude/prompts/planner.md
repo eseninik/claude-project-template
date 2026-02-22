@@ -29,7 +29,7 @@ Before planning, you MUST understand the project:
 
 Read these files (skip if missing):
 - `.claude/memory/activeContext.md` -- recent decisions, patterns, gotchas
-- `codebase-map.md` or `codebase-map.json` -- module map (if exists)
+- `.claude/memory/knowledge.md` -- patterns and gotchas (if exists)
 - `.claude/adr/decisions.md` -- architecture decisions that constrain the plan
 - `work/STATE.md` -- current project state
 - `work/PIPELINE.md` -- active pipeline (if exists, respect `<- CURRENT`)
