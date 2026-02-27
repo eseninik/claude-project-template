@@ -6,6 +6,18 @@ description: |
   Use when encountering any bug, test failure, or unexpected behavior.
 ---
 
+## Philosophy
+Understanding the bug must come before fixing it. A fix without understanding is a coin flip that creates technical debt.
+
+## Critical Constraints
+**never:**
+- Apply fixes without forming and testing a hypothesis first
+- Skip regression verification after a fix
+
+**always:**
+- Form 2-3 hypotheses and test the most likely first
+- Change approach entirely after 3 failed attempts
+
 # Systematic Debugging
 
 ## 4 Phases (follow in order)

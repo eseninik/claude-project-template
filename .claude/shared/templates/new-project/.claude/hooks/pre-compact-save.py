@@ -13,6 +13,7 @@ IMPORTANT: This script must NEVER block compaction. All errors -> exit 0.
 
 import json
 import os
+import re
 import sys
 import urllib.request
 import urllib.error
@@ -26,6 +27,11 @@ MAX_TRANSCRIPT_MESSAGES = 50
 MAX_TRANSCRIPT_CHARS = 8000
 API_TIMEOUT_SECONDS = 30
 MAX_TOKENS = 600
+
+# --- Curation ---
+ACTIVE_CONTEXT_MAX_LINES = 150
+DEDUP_WINDOW_MINUTES = 5
+MAX_PRECOMPACT_NOTES = 3
 
 EXTRACTION_PROMPT = """You are a memory extraction agent for a development session.
 From this conversation transcript, extract the most important information.
@@ -223,7 +229,7 @@ def call_openrouter(transcript_text: str, api_key: str) -> str | None:
 
 
 def save_to_daily(cwd: Path, extracted: str) -> None:
-    """Append extracted memory to daily log file."""
+    """Append extracted memory to daily log file. Deduplicates rapid-fire entries."""
     now = datetime.now()
     date_str = now.strftime("%Y-%m-%d")
     time_str = now.strftime("%H:%M")
@@ -237,12 +243,38 @@ def save_to_daily(cwd: Path, extracted: str) -> None:
 
     if daily_file.exists():
         content = daily_file.read_text(encoding="utf-8")
-        # Append to existing file
-        content += section
+        content = _dedup_or_append_daily(content, section, now)
     else:
         content = f"# {date_str}\n{section}"
 
     daily_file.write_text(content, encoding="utf-8")
+
+
+def _dedup_or_append_daily(content: str, new_section: str, now: datetime) -> str:
+    """Replace last Pre-Compaction Save if written <N minutes ago, otherwise append."""
+    matches = list(re.finditer(
+        r'\n## Pre-Compaction Save \((\d{2}:\d{2})\)\n', content
+    ))
+
+    if not matches:
+        return content + new_section
+
+    last_match = matches[-1]
+    try:
+        last_h, last_m = map(int, last_match.group(1).split(":"))
+        diff = (now.hour * 60 + now.minute) - (last_h * 60 + last_m)
+
+        if 0 <= diff < DEDUP_WINDOW_MINUTES:
+            # Replace the last section instead of appending
+            section_start = last_match.start()
+            # Find next "## " header or end of file
+            next_header = re.search(r'\n## ', content[last_match.end():])
+            section_end = (last_match.end() + next_header.start()) if next_header else len(content)
+            return content[:section_start] + new_section + content[section_end:]
+    except (ValueError, IndexError):
+        pass
+
+    return content + new_section
 
 
 def update_active_context(cwd: Path, extracted: str) -> None:
@@ -293,6 +325,85 @@ def _extract_did(extracted: str) -> str:
     return extracted.split("\n")[0][:100] if extracted else "session context saved"
 
 
+def curate_active_context(cwd: Path) -> None:
+    """Trim activeContext.md if over line limit.
+
+    Strategy:
+    1. If total lines <= limit, do nothing
+    2. Remove old date sections from Session Log (keep only current date)
+    3. Limit pre-compaction notes to last N within current date
+    4. Old data is NOT lost — it lives in daily/ logs
+    """
+    ac_path = cwd / ".claude" / "memory" / "activeContext.md"
+    if not ac_path.exists():
+        return
+
+    content = ac_path.read_text(encoding="utf-8")
+    lines = content.split("\n")
+
+    if len(lines) <= ACTIVE_CONTEXT_MAX_LINES:
+        return  # Under limit, nothing to do
+
+    # --- Phase 1: Remove old date sections from Session Log ---
+    session_log_idx = None
+    for i, line in enumerate(lines):
+        if line.strip().startswith("## Session Log"):
+            session_log_idx = i
+            break
+
+    if session_log_idx is None:
+        return  # No session log, can't trim structurally
+
+    # Find ### date headers within Session Log
+    date_headers = []
+    for i in range(session_log_idx + 1, len(lines)):
+        stripped = lines[i].strip()
+        if stripped.startswith("### "):
+            date_headers.append(i)
+        elif stripped.startswith("## ") and not stripped.startswith("### "):
+            break  # Hit next top-level section
+
+    if len(date_headers) > 1:
+        # Keep only the first (most recent) date section
+        second_date_idx = date_headers[1]
+        trimmed_count = len(date_headers) - 1
+
+        # Everything before old dates + trimmed note
+        new_lines = lines[:second_date_idx]
+        new_lines.append(f"")
+        new_lines.append(f"> [{trimmed_count} older session(s) archived — see daily/ logs]")
+
+        # Anything after the session log section (unlikely, but safe)
+        after_session = []
+        for i in range(date_headers[-1], len(lines)):
+            stripped = lines[i].strip()
+            if stripped.startswith("## ") and not stripped.startswith("### "):
+                after_session = lines[i:]
+                break
+
+        new_lines.extend(after_session)
+        lines = new_lines
+
+    # --- Phase 2: Trim pre-compaction notes in current date ---
+    if len(lines) > ACTIVE_CONTEXT_MAX_LINES:
+        note_indices = [
+            i for i, line in enumerate(lines)
+            if "**[Pre-compaction save" in line
+        ]
+        if len(note_indices) > MAX_PRECOMPACT_NOTES:
+            # Remove oldest notes (keep last N)
+            to_remove = set(note_indices[:-MAX_PRECOMPACT_NOTES])
+            # Also remove adjacent blank lines
+            expanded_remove = set()
+            for idx in to_remove:
+                expanded_remove.add(idx)
+                if idx > 0 and lines[idx - 1].strip() == "":
+                    expanded_remove.add(idx - 1)
+            lines = [line for i, line in enumerate(lines) if i not in expanded_remove]
+
+    ac_path.write_text("\n".join(lines), encoding="utf-8")
+
+
 def main():
     try:
         # Read hook input from stdin
@@ -302,6 +413,10 @@ def main():
 
         hook_input = json.loads(raw)
         cwd = Path(hook_input.get("cwd", ".")).resolve()
+
+        # Vaultguard: only run in project directories with CLAUDE.md
+        if not (cwd / "CLAUDE.md").exists():
+            sys.exit(0)
 
         # Find API key
         api_key = find_api_key(cwd)
@@ -327,13 +442,16 @@ def main():
             print("[pre-compact-save] LLM extraction failed, skipping", file=sys.stderr)
             return
 
-        # Save to daily log
+        # Save to daily log (with dedup)
         save_to_daily(cwd, extracted)
 
         # Update activeContext.md
         update_active_context(cwd, extracted)
 
-        print(f"[pre-compact-save] Saved to daily/ and activeContext.md", file=sys.stderr)
+        # Curate activeContext.md (trim if over limit)
+        curate_active_context(cwd)
+
+        print(f"[pre-compact-save] Saved + curated memory files", file=sys.stderr)
 
     except Exception as e:
         # NEVER block compaction — log and exit cleanly

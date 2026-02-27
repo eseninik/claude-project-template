@@ -7,6 +7,18 @@ description: |
   Does NOT apply to exploratory work or user-guided tasks.
 ---
 
+## Philosophy
+Work should continue until all pending tasks are complete. Stopping mid-flow when more work remains wastes the context already built up.
+
+## Critical Constraints
+**never:**
+- Stop when pending tasks remain in the task list without explicit user instruction
+- Mark tasks complete without verification
+
+**always:**
+- Check TaskList after completing each task for newly unblocked work
+- Prefer tasks in ID order
+
 # Self-Completion
 
 ## Rules

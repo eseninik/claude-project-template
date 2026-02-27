@@ -1,0 +1,17 @@
+{
+  "tiers": {
+    "active": 14,
+    "warm": 30,
+    "cold": 90
+  },
+  "decay_rate": 0.01,
+  "relevance_floor": 0.1,
+  "skip_patterns": ["_index.md", "MOC-*", ".gitkeep"],
+  "type_inference": {
+    "daily/": "daily",
+    "observations/": "observation",
+    "archive/": "archive"
+  },
+  "use_git_dates": true,
+  "knowledge_path": "knowledge.md"
+}

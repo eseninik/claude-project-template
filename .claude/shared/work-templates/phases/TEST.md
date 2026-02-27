@@ -51,3 +51,6 @@ uv run pytest --tb=short -q && uv run ruff check .
 After compaction, re-read:
 - `work/PIPELINE.md` (find current phase)
 - `work/{feature}/test-results.md` (see current test state)
+
+## Phase Output
+Agent MUST produce a structured handoff block (see teammate-prompt-template.md).

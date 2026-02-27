@@ -1,136 +1,88 @@
-# Pipeline: OpenClaw Memory System Analysis & Integration
+# Pipeline: Memory Decay Integration (agent-memory-skill)
 
 - Status: PIPELINE_COMPLETE
-- Phase: EVALUATE (DONE)
-- Mode: SOLO
+- Phase: ALL DONE
+- Mode: AGENT_TEAMS
 
-> Deep analysis of OpenClaw's memory/context persistence system.
-> Compare with our system. Implement improvements if warranted. Stress test.
+> Integrate Ebbinghaus forgetting curve + tiered search + creative mode from agent-memory-skill into our template.
+> Source repo: /tmp/agent-memory-skill/memory-engine.py (645 lines, zero deps)
 > After compaction: find `<- CURRENT`, read that phase, continue.
 
 ---
 
 ## Phases
 
-### Phase: RESEARCH
-- Status: DONE
-- Mode: AGENT_TEAMS
-- Attempts: 0 of 1
-- On PASS: -> COMPARE
-- On FAIL: -> STOP
-- On BLOCKED: -> STOP
-- Gate: All explorer agents returned comprehensive analysis reports
-- Gate Type: AUTO
-- Inputs: OpenClaw repo (/tmp/openclaw), our system (.claude/)
-- Outputs: work/openclaw-analysis/ (5+ analysis reports from agents)
-- Checkpoint: pipeline-checkpoint-RESEARCH
-- Tasks:
-  - R1: OpenClaw memory architecture — how memory is stored, loaded, queried
-  - R2: OpenClaw context persistence — how context survives compaction/sessions
-  - R3: OpenClaw CLAUDE.md / rules — how instructions enforce memory behavior
-  - R4: OpenClaw agent coordination — how agents share memory/state
-  - R5: OpenClaw unique features — anything novel not in our system
-  - R6: Our system audit — current memory architecture for comparison baseline
-
-### Phase: COMPARE
-- Status: DONE
-- Mode: SOLO
-- Attempts: 0 of 1
-- On PASS: -> DESIGN
-- On FAIL: -> STOP
-- On BLOCKED: -> STOP
-- Gate: Comprehensive comparison report with clear recommendations
-- Gate Type: USER_APPROVAL
-- Inputs: work/openclaw-analysis/, .claude/memory/, CLAUDE.md
-- Outputs: work/openclaw-analysis/comparison-report.md
-- Checkpoint: pipeline-checkpoint-COMPARE
-
-### Phase: DESIGN
-- Status: SKIPPED (user approved full plan directly)
-- Mode: SOLO
-- Attempts: 0 of 1
-- On PASS: -> BASELINE_TEST
-- On FAIL: -> STOP
-- On REWORK: -> COMPARE
-- On BLOCKED: -> STOP
-- Gate: User approves design + migration plan
-- Gate Type: USER_APPROVAL
-- Inputs: work/openclaw-analysis/comparison-report.md
-- Outputs: work/openclaw-analysis/migration-plan.md
-- Checkpoint: pipeline-checkpoint-DESIGN
-
-### Phase: BASELINE_TEST
-- Status: SKIPPED (baseline captured in our-system-audit.md)
-- Mode: SOLO
-- Attempts: 0 of 1
-- On PASS: -> IMPLEMENT
-- On FAIL: -> STOP
-- On BLOCKED: -> STOP
-- Gate: Baseline metrics captured for current system
-- Gate Type: AUTO
-- Inputs: Current memory system (.claude/memory/, CLAUDE.md)
-- Outputs: work/openclaw-analysis/baseline-metrics.md
-- Checkpoint: pipeline-checkpoint-BASELINE_TEST
-
 ### Phase: IMPLEMENT
 - Status: DONE
-- Mode: AGENT_TEAMS
+- Mode: AGENT_TEAMS(4)
 - Attempts: 0 of 2
-- On PASS: -> POST_TEST
-- On FAIL: -> ROLLBACK
-- On REWORK: -> DESIGN
+- On PASS: -> INTEGRATE
+- On FAIL: -> STOP
+- On REWORK: -> IMPLEMENT
 - On BLOCKED: -> STOP
-- Gate: All changes applied, system functional
+- Gate: memory-engine.py works, knowledge.md has decay metadata, session-orient shows tiers, config.yaml has memory section
 - Gate Type: AUTO
-- Inputs: work/openclaw-analysis/migration-plan.md
-- Outputs: Modified .claude/ files
+- Inputs: /tmp/agent-memory-skill/memory-engine.py, .claude/memory/knowledge.md, .claude/hooks/session-orient.py, .claude/ops/config.yaml
+- Outputs: .claude/scripts/memory-engine.py (adapted), updated knowledge.md, updated session-orient.py, updated config.yaml
 - Checkpoint: pipeline-checkpoint-IMPLEMENT
 
-### Phase: POST_TEST
+  **Tasks:**
+  1. Port memory-engine.py → .claude/scripts/memory-engine.py (adapt for our structure, add knowledge.md-aware commands)
+  2. Add decay metadata (last_verified dates) to all 29 entries in knowledge.md
+  3. Update session-orient.py to calculate tiers and show tier distribution
+  4. Extend ops/config.yaml with memory: section (decay_rate, tier thresholds, etc.)
+
+### Phase: INTEGRATE
+- Status: DONE
+- Mode: SOLO
+- Attempts: 0 of 2
+- On PASS: -> VERIFY
+- On FAIL: -> IMPLEMENT
+- On REWORK: -> IMPLEMENT
+- On BLOCKED: -> STOP
+- Gate: All commands work (scan, decay, touch, creative, stats), session-orient shows tiers, CLAUDE.md has search protocol
+- Gate Type: AUTO
+- Inputs: All outputs from IMPLEMENT
+- Outputs: Updated CLAUDE.md (search protocol section), tested commands
+- Checkpoint: pipeline-checkpoint-INTEGRATE
+
+### Phase: VERIFY
 - Status: DONE
 - Mode: SOLO
 - Attempts: 0 of 1
-- On PASS: -> EVALUATE
-- On FAIL: -> ROLLBACK
+- On PASS: -> SYNC
+- On FAIL: -> INTEGRATE
 - On BLOCKED: -> STOP
-- Gate: Post-implementation metrics captured
+- Gate: memory-engine.py scan/decay/stats pass, session-orient outputs tier info, config.yaml valid YAML
 - Gate Type: AUTO
-- Inputs: Modified system, same test scenarios as BASELINE_TEST
-- Outputs: work/openclaw-analysis/post-metrics.md
-- Checkpoint: pipeline-checkpoint-POST_TEST
+- Inputs: All integrated code
+- Outputs: work/verify-results.md
+- Checkpoint: pipeline-checkpoint-VERIFY
 
-### Phase: EVALUATE
-- Status: DONE (user approved KEEP)
-- Mode: SOLO
-- Attempts: 0 of 1
-- On PASS: -> COMPLETE
-- On FAIL: -> ROLLBACK
-- On BLOCKED: -> STOP
-- Gate: User approves final decision (keep/rollback/partial)
-- Gate Type: USER_APPROVAL
-- Inputs: baseline-metrics.md, post-metrics.md
-- Outputs: work/openclaw-analysis/final-decision.md
-- Checkpoint: pipeline-checkpoint-EVALUATE
-
-### Phase: ROLLBACK
-- Status: PENDING
-- Mode: SOLO
+### Phase: SYNC
+- Status: DONE
+- Mode: AGENT_TEAMS(2)
 - Attempts: 0 of 1
 - On PASS: -> COMPLETE
 - On FAIL: -> STOP
 - On BLOCKED: -> STOP
-- Gate: System restored to pre-implementation state
-- Gate Type: AUTO
-- Inputs: git checkpoint from IMPLEMENT
-- Outputs: Restored codebase
-- Checkpoint: pipeline-checkpoint-ROLLBACK
+- Gate: Template files match main project files
+- Gate Type: USER_APPROVAL
+- Inputs: All verified code
+- Outputs: Synced template files
+- Checkpoint: pipeline-checkpoint-SYNC
+
+  **Tasks:**
+  1. Sync .claude/scripts/, .claude/hooks/, .claude/ops/ to .claude/shared/templates/new-project/
+  2. Update MEMORY.md auto-memory with new learnings
 
 ---
 
 ## Decisions
 
-- [RESEARCH] Decision: Use 6 parallel explorer agents (5 OpenClaw + 1 our system). Reason: Maximize coverage, minimize time.
-- [RESEARCH] Decision: Clone OpenClaw to /tmp/openclaw. Reason: Keep analysis separate from our codebase.
+- [IMPLEMENT] Decision: Port memory-engine.py as-is with minimal adaptations. Reason: Zero deps, clean code, well-structured. Our adaptations: add knowledge.md-specific parsing, keep all original commands.
+- [IMPLEMENT] Decision: Add last_verified date to knowledge.md entry headers, NOT full YAML frontmatter per entry. Reason: Keep human readability. Dates in headers are enough for decay calculation.
+- [IMPLEMENT] Decision: Decay formula same as original: relevance = max(0.1, 1.0 - days × 0.015). Reason: Proven, tunable, simple.
 
 ---
 
@@ -141,6 +93,4 @@
 3. **Gate verdicts:** PASS (advance), CONCERNS (log + advance), REWORK (go to On REWORK, increment Attempts), FAIL (go to On FAIL or STOP).
 4. **Attempts overflow:** When Attempts X >= max Y, set Status: BLOCKED, stop pipeline.
 5. **Agent Teams:** If Mode = AGENT_TEAMS, use TeamCreate. Build prompts with Required Skills section.
-6. **After each phase:** Update this file (move `<- CURRENT`, set Status: DONE). Update work/STATE.md. Update memory. Git commit with checkpoint tag.
-7. **Phase Transition Protocol:** Between phases: (1) git commit, (2) insight extraction, (3) update typed memory, (4) save to Graphiti, (5) re-read state, (6) advance <- CURRENT.
-8. **Pipeline complete:** When last phase passes, set top-level Status: PIPELINE_COMPLETE.
+6. **After each phase:** Update this file (move `<- CURRENT`, set Status: DONE). Update memory. Git commit with checkpoint tag.

@@ -63,3 +63,6 @@ After compaction, re-read:
 - `work/{feature}/tasks/waves.md` (which wave is current)
 - `work/{feature}/tasks/*.md` (find uncompleted tasks)
 - `work/{feature}/test-results.md` (if exists — see what passed/failed)
+
+## Phase Output
+Agent MUST produce a structured handoff block (see teammate-prompt-template.md).

@@ -7,6 +7,18 @@ description: |
   Does NOT apply to simple tasks (1-2 files) or trivial bugs.
 ---
 
+## Philosophy
+Complex decisions benefit from multiple perspectives. No single viewpoint can identify all risks, trade-offs, and opportunities.
+
+## Critical Constraints
+**never:**
+- Begin implementation without expert-analysis.md produced
+- Use fewer than 3 experts
+
+**always:**
+- Select experts from different domains relevant to the task
+- Produce consensus recommendations with explicit dissent
+
 # Expert Panel
 
 ## Quick Reference

@@ -6,6 +6,18 @@ description: |
   Use when a tool call fails or returns unexpected errors.
 ---
 
+## Philosophy
+Insanity is doing the same thing twice and expecting different results. After failures, change the approach, not just the parameters.
+
+## Critical Constraints
+**never:**
+- Retry the exact same approach more than 3 times
+- Ignore the error message when retrying
+
+**always:**
+- Diagnose the root cause before retrying
+- Escalate to human after 5 total retries
+
 # Error Recovery
 
 ## Quick Reference

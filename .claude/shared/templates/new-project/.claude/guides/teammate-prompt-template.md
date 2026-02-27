@@ -29,6 +29,25 @@ You are a teammate on team "{team-name}". Your name is "{name}".
 - If any check fails → fix first, do NOT claim done
 - Update work/attempt-history.json if retry
 
+## Handoff Output (MANDATORY when your task is done)
+
+When completing your task, output this structured block:
+
+=== PHASE HANDOFF: {your_task_name} ===
+Status: PASS | REWORK | BLOCKED
+Files Modified:
+- [path/to/file1.ext]
+- [path/to/file2.ext]
+Tests: [passed/failed/skipped counts or N/A]
+Decisions Made:
+- [key decision with brief rationale]
+Learnings:
+- Friction: [what was hard or slow] | NONE
+- Surprise: [what was unexpected] | NONE
+- Pattern: [reusable insight for knowledge.md] | NONE
+Next Phase Input: [what the next agent/phase needs to know]
+=== END HANDOFF ===
+
 ## Your Task
 {detailed task description}
 
@@ -48,18 +67,20 @@ Before spawning a teammate, inject relevant context from typed memory:
 ### Step 1: Read Agent Registry
 Look up the agent type in `.claude/agents/registry.md`. Use the Memory column:
 - **none**: Skip memory injection (utility tasks)
-- **knowledge**: Include .claude/memory/knowledge.md (relevant sections)
-- **full**: Include knowledge.md + any relevant context from activeContext.md
+- **patterns**: Include `.claude/memory/knowledge.md` (Patterns section)
+- **gotchas**: Include `.claude/memory/knowledge.md` (Gotchas section)
+- **patterns + gotchas**: Include `.claude/memory/knowledge.md` (both sections)
+- **full**: Include full `.claude/memory/knowledge.md`
 
 ### Step 2: Build Memory Context Block
 ```
 ## Memory Context
 
 ### Project Patterns
-{content from .claude/memory/knowledge.md — relevant pattern sections only}
+{content from .claude/memory/knowledge.md Patterns section — relevant sections only}
 
 ### Known Gotchas
-{content from .claude/memory/knowledge.md — relevant gotcha sections only}
+{content from .claude/memory/knowledge.md Gotchas section — relevant sections only}
 ```
 
 ### Step 3: Inject into Prompt

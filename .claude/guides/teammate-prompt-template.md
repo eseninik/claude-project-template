@@ -29,6 +29,25 @@ You are a teammate on team "{team-name}". Your name is "{name}".
 - If any check fails → fix first, do NOT claim done
 - Update work/attempt-history.json if retry
 
+## Handoff Output (MANDATORY when your task is done)
+
+When completing your task, output this structured block:
+
+=== PHASE HANDOFF: {your_task_name} ===
+Status: PASS | REWORK | BLOCKED
+Files Modified:
+- [path/to/file1.ext]
+- [path/to/file2.ext]
+Tests: [passed/failed/skipped counts or N/A]
+Decisions Made:
+- [key decision with brief rationale]
+Learnings:
+- Friction: [what was hard or slow] | NONE
+- Surprise: [what was unexpected] | NONE
+- Pattern: [reusable insight for knowledge.md] | NONE
+Next Phase Input: [what the next agent/phase needs to know]
+=== END HANDOFF ===
+
 ## Your Task
 {detailed task description}
 

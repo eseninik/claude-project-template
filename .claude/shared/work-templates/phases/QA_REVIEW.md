@@ -60,3 +60,6 @@ After compaction, re-read:
 - `work/PIPELINE.md` (find current phase)
 - `work/qa-issues.md` (see current iteration and outstanding issues)
 - `work/qa-review-report.md` (if exists -- see prior review results)
+
+## Phase Output
+Agent MUST produce a structured handoff block (see teammate-prompt-template.md).

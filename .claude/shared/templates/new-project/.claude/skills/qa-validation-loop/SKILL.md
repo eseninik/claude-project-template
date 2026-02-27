@@ -8,6 +8,24 @@ description: |
   Does NOT replace expert panel or test execution (TEST phase).
 ---
 
+## Philosophy
+QA depth should match task risk — trivial tasks need minimal checks, critical tasks need full review. A fresh pair of eyes catches what the author misses.
+
+## Critical Constraints
+**never:**
+- Skip QA on high or critical risk tasks
+- Reuse the same agent for re-review after fixes
+
+**always:**
+- Use a fresh agent for re-review
+- Escalate to human after 3 cycles of the same issue
+
+## Runtime Configuration (Step 0)
+Before executing, check `.claude/ops/config.yaml`:
+- `qa_depth` → if set to non-proportional value, use that depth instead of complexity-based
+- `processing_depth` → affects reviewer thoroughness (quick=surface, standard=normal, deep=exhaustive)
+- `max_retry_attempts` → maximum reviewer-fixer cycles before escalation
+
 # QA Validation Loop
 
 ## Risk-Proportional QA Depth

@@ -7,6 +7,18 @@ description: |
   Does NOT apply to new projects built from scratch.
 ---
 
+## Philosophy
+You must understand the territory before making changes. Mapping first prevents accidental breakage of unknown dependencies.
+
+## Critical Constraints
+**never:**
+- Propose changes to code you haven't mapped
+- Skip mapping for unfamiliar projects
+
+**always:**
+- Produce codebase-map.md with entry points, modules, and dependencies
+- Identify tech stack and patterns before implementation
+
 # Codebase Mapping
 
 ## Steps

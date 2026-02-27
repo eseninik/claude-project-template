@@ -105,6 +105,15 @@ Between completing one phase and starting the next, execute this protocol to pre
 - Never fully skip. At minimum do steps 1 and 6 (commit + advance).
 - Steps 2-5 can be abbreviated for trivial phases (e.g., a SOLO phase that only reads files).
 
+### Structured Handoff Format
+
+Agents completing a phase MUST output a structured handoff block. This enables:
+- Automatic extraction of learnings for knowledge.md
+- Clear file change tracking between phases
+- Decision audit trail
+
+See teammate-prompt-template.md for the full handoff format.
+
 ---
 
 ## 6. Quality Gates

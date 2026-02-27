@@ -64,3 +64,6 @@ After compaction, re-read:
 - `work/PIPELINE.md` (find current phase + attempt count)
 - `work/{feature}/test-results.md` (which tests are failing)
 - Git diff of recent changes (see what was already attempted)
+
+## Phase Output
+Agent MUST produce a structured handoff block (see teammate-prompt-template.md).

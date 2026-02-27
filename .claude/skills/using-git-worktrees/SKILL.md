@@ -6,6 +6,18 @@ description: |
   Does NOT manage branch strategy — use finishing-a-development-branch for that.
 ---
 
+## Philosophy
+Isolation prevents conflicts. When multiple agents work on the same codebase, worktrees ensure they can't corrupt each other's work.
+
+## Critical Constraints
+**never:**
+- Have multiple agents modify the same files without worktree isolation
+- Leave orphaned worktrees after completion
+
+**always:**
+- Clean up worktrees after merging
+- Use worktrees when 5+ concurrent agents or file overlap detected
+
 # Using Git Worktrees
 
 ## Create

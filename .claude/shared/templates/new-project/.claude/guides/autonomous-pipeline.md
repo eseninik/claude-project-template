@@ -89,7 +89,8 @@ Between completing one phase and starting the next, execute this protocol to pre
    - New patterns discovered?
    - New gotchas to record?
 3. **Update typed memory**:
-   - `.claude/memory/knowledge.md` — append new patterns and gotchas (deduplicate)
+   - `.claude/memory/knowledge.md` Patterns section — append new patterns (deduplicate)
+   - `.claude/memory/knowledge.md` Gotchas section — append new gotchas (deduplicate)
 4. **Save to Graphiti**: `add_memory(name="phase_{PHASE}_insight", episode_body=<what was learned>)`
 5. **Context refresh**: Re-read `work/PIPELINE.md` + `work/STATE.md` + typed memory files
 6. **Advance**: Move `<- CURRENT` marker to next phase, start execution
@@ -103,6 +104,15 @@ Between completing one phase and starting the next, execute this protocol to pre
 ### When to Skip
 - Never fully skip. At minimum do steps 1 and 6 (commit + advance).
 - Steps 2-5 can be abbreviated for trivial phases (e.g., a SOLO phase that only reads files).
+
+### Structured Handoff Format
+
+Agents completing a phase MUST output a structured handoff block. This enables:
+- Automatic extraction of learnings for knowledge.md
+- Clear file change tracking between phases
+- Decision audit trail
+
+See teammate-prompt-template.md for the full handoff format.
 
 ---
 
@@ -236,8 +246,9 @@ After each phase (MANDATORY -- do NOT skip):
 3. **.claude/memory/activeContext.md**: Did/Decided/Learned/Next
 4. **Graphiti**: `add_memory(name="phase_insight", episode_body=<learnings from this phase>)`
 5. **Typed memory**:
-   - `.claude/memory/knowledge.md`: New patterns and gotchas (deduplicate)
-   - `.claude/memory/daily/{YYYY-MM-DD}.md`: Daily session log
+   - `.claude/memory/knowledge.md` Patterns section: New patterns (deduplicate)
+   - `.claude/memory/knowledge.md` Gotchas section: New gotchas (deduplicate)
+   - `.claude/memory/daily/YYYY-MM-DD.md`: Daily session log
 6. **work/attempt-history.json**: Record good commit hash
 7. **Git commit**: Checkpoint with meaningful message + tag
 

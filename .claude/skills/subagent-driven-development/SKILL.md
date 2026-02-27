@@ -8,6 +8,24 @@ description: |
   Does NOT apply when plan needs revision or tasks are strictly sequential.
 ---
 
+## Philosophy
+Independent tasks should run in parallel with review gates between waves. Fresh context per agent preserves reasoning quality.
+
+## Critical Constraints
+**never:**
+- Skip wave review between execution batches
+- Launch agents without verification-before-completion skill
+
+**always:**
+- Review all agent outputs before starting next wave
+- Use worktree isolation when agents modify overlapping files
+
+## Runtime Configuration (Step 0)
+Before executing, check `.claude/ops/config.yaml`:
+- `pipeline_mode` → if set to `solo`, disable parallelization
+- `processing_depth` → affects wave size (quick=larger waves, deep=smaller waves with more review)
+- `max_retry_attempts` → maximum wave retries before escalation
+
 # Subagent-Driven Development
 
 ## Wave Execution

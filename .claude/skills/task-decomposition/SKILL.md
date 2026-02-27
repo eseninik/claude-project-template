@@ -7,6 +7,23 @@ description: |
   Does NOT apply when tasks/*.md already exist (use subagent-driven-development).
 ---
 
+## Philosophy
+Good decomposition maximizes parallelism by identifying truly independent work streams. Dependencies between tasks are the enemy of speed.
+
+## Critical Constraints
+**never:**
+- Mark dependent tasks as parallel
+- Create tasks without checking for shared file dependencies
+
+**always:**
+- Detect work streams (DB/API/UI/Tests/Config)
+- Calculate parallelization potential as percentage
+
+## Runtime Configuration (Step 0)
+Before executing, check `.claude/ops/config.yaml`:
+- `pipeline_mode` → if `solo`, skip parallelization analysis
+- `processing_depth` → affects decomposition granularity (quick=coarse, deep=fine-grained)
+
 # Task Decomposition
 
 ## Algorithm

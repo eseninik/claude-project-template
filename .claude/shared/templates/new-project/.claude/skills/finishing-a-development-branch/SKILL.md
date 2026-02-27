@@ -7,6 +7,18 @@ description: |
   Does NOT cover ongoing development -- use qa-validation-loop first.
 ---
 
+## Philosophy
+A branch is only done when tests pass, memory is updated, and the work is properly handed off. Incomplete completion is worse than no completion.
+
+## Critical Constraints
+**never:**
+- Merge without all tests passing
+- Create a PR without updating memory files
+
+**always:**
+- Run full test suite before merge
+- Update activeContext.md and daily log before PR creation
+
 # Finishing a Development Branch
 
 ## Checklist
