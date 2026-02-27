@@ -1,0 +1,196 @@
+# Pipeline: {PIPELINE_NAME}
+
+- Status: NOT_STARTED
+- Phase: SPEC
+- Mode: INTERACTIVE
+
+> v3: Added QA_REVIEW phase (reviewer+fixer agent chain) between IMPLEMENT and TEST.
+> Supports agent chains (sequential multi-agent loops) and higher parallelism (5-10 agents).
+> Delete unused phases. Reorder by editing `On PASS/FAIL/REWORK` transitions.
+> After compaction: find `<- CURRENT`, read that phase, continue.
+> Phase Transition Protocol between phases preserves knowledge via typed memory + Graphiti.
+
+---
+
+## Phases
+
+### Phase: SPEC  <- CURRENT
+- Status: PENDING
+- Mode: SOLO
+- Attempts: 0 of 1
+- On PASS: -> REVIEW
+- On FAIL: -> STOP
+- On BLOCKED: -> STOP
+- Gate: user-spec.md exists with acceptance criteria
+- Gate Type: USER_APPROVAL
+- Inputs: user request (conversation)
+- Outputs: work/{feature}/user-spec.md
+- Checkpoint: pipeline-checkpoint-SPEC
+
+### Phase: REVIEW
+- Status: PENDING
+- Mode: AGENT_TEAMS
+- Attempts: 0 of 1
+- On PASS: -> PLAN
+- On FAIL: -> SPEC
+- On REWORK: -> SPEC
+- On BLOCKED: -> STOP
+- Gate: expert-analysis.md has no unresolved open questions
+- Gate Type: HYBRID
+- Inputs: work/{feature}/user-spec.md
+- Outputs: work/expert-analysis.md
+- Checkpoint: pipeline-checkpoint-REVIEW
+
+### Phase: PLAN
+- Status: PENDING
+- Mode: SOLO
+- Attempts: 0 of 1
+- On PASS: -> IMPLEMENT
+- On FAIL: -> STOP
+- On REWORK: -> REVIEW
+- On BLOCKED: -> STOP
+- Gate: tech-spec.md + tasks/*.md exist, wave analysis done
+- Gate Type: USER_APPROVAL
+- Inputs: work/expert-analysis.md, work/{feature}/user-spec.md
+- Outputs: work/{feature}/tech-spec.md, tasks/*.md, tasks/waves.md
+- Checkpoint: pipeline-checkpoint-PLAN
+
+### Phase: IMPLEMENT
+- Status: PENDING
+- Mode: AGENT_TEAMS
+- Attempts: 0 of 2
+- On PASS: -> QA_REVIEW
+- On FAIL: -> FIX
+- On REWORK: -> PLAN
+- On BLOCKED: -> STOP
+- Gate: all task acceptance criteria met, code compiles, lint clean
+- Gate Type: AUTO
+- Inputs: tasks/*.md, work/{feature}/tech-spec.md
+- Outputs: source code, test files
+- Checkpoint: pipeline-checkpoint-IMPLEMENT
+
+### Phase: QA_REVIEW
+- Status: PENDING
+- Mode: AGENT_TEAMS
+- Attempts: 0 of 3
+- On PASS: -> TEST
+- On FAIL: -> STOP
+- On REWORK: -> FIX
+- On BLOCKED: -> STOP
+- Gate: no CRITICAL or IMPORTANT issues remaining in qa-review-report.md
+- Gate Type: AUTO
+- Inputs: source code from IMPLEMENT, acceptance criteria, .claude/skills/qa-validation-loop/SKILL.md
+- Outputs: work/qa-issues.md, work/qa-review-report.md
+- Checkpoint: pipeline-checkpoint-QA_REVIEW
+
+### Phase: TEST
+- Status: PENDING
+- Mode: SOLO
+- Attempts: 0 of 1
+- On PASS: -> DEPLOY
+- On FAIL: -> FIX
+- On BLOCKED: -> STOP
+- Gate: all tests pass (`uv run pytest`), no type errors
+- Gate Type: AUTO
+- Inputs: source code, test files
+- Outputs: work/test-results.md
+- Checkpoint: pipeline-checkpoint-TEST
+
+### Phase: FIX
+- Status: PENDING
+- Mode: AGENT_TEAMS
+- Attempts: 0 of 3
+- On PASS: -> TEST
+- On BLOCKED: -> STOP
+- Gate: previously failing tests now pass
+- Gate Type: AUTO
+- Inputs: work/test-results.md, failing test output
+- Outputs: fixed source code
+- Checkpoint: pipeline-checkpoint-FIX
+
+### Phase: DEPLOY
+- Status: PENDING
+- Mode: SOLO
+- Attempts: 0 of 2
+- On PASS: -> STRESS_TEST
+- On FAIL: -> FIX
+- On BLOCKED: -> STOP
+- Gate: service running, health check returns 200
+- Gate Type: AUTO
+- Inputs: source code, deploy config
+- Outputs: deployment log
+- Checkpoint: pipeline-checkpoint-DEPLOY
+
+### Phase: STRESS_TEST
+- Status: PENDING
+- Mode: SOLO
+- Attempts: 0 of 1
+- On PASS: -> COMPLETE
+- On FAIL: -> FIX
+- On BLOCKED: -> STOP
+- Gate: p95 < 500ms, error rate < 1%
+- Gate Type: AUTO
+- Inputs: deployed service URL
+- Outputs: work/performance-report.md
+- Checkpoint: pipeline-checkpoint-STRESS_TEST
+
+> To use a sub-pipeline, set Mode and add Pipeline field:
+> ```
+> ### Phase: DEVELOPMENT
+> - Mode: SUB_PIPELINE
+> - Pipeline: work/development/PIPELINE.md
+> - On PASS: -> TEST
+> - On BLOCKED: -> STOP
+> ```
+
+> To use AO fleet mode (multi-project parallel execution via Agent Orchestrator):
+> ```
+> ### Phase: FLEET_SYNC
+> - Mode: AO_FLEET
+> - Projects: call-rate-bot, clients-legal-bot, conference-bot, ...
+> - On PASS: -> VERIFY
+> - On BLOCKED: -> STOP
+> - Gate: all sessions completed, no errors
+> - Gate Type: AUTO
+> ```
+> AO_FLEET spawns separate Claude Code sessions per project via `ao spawn`.
+> Use for fleet-wide operations across multiple repos (sync, deploy, migrate).
+> Skill: `cat .claude/skills/ao-fleet-spawn/SKILL.md`
+
+> To use AO Hybrid mode (single-project, full-context parallel agents):
+> ```
+> ### Phase: IMPLEMENT
+> - Mode: AO_HYBRID
+> - On PASS: -> QA_REVIEW
+> - On BLOCKED: -> STOP
+> - Gate: all agents completed, handoffs report PASS
+> - Gate Type: AUTO
+> ```
+> AO_HYBRID spawns full Claude Code sessions via `ao spawn` within the same project.
+> Each agent gets its own worktree, CLAUDE.md, skills, and memory.
+> Use for single-project parallelism that needs full agent context.
+> Skill: `cat .claude/skills/ao-hybrid-spawn/SKILL.md`
+
+---
+
+## Decisions
+
+<!-- Append-only. Record what was decided and why. -->
+<!-- Format: - [PHASE] Decision: {what}. Reason: {why}. -->
+
+---
+
+## Execution Rules
+
+1. **Start of session / after compaction:** Re-read this file. Find `<- CURRENT`. Resume from that phase.
+2. **Phase execution:** Read phase Inputs. Execute. Produce Outputs. Run Gate check.
+3. **Gate verdicts:** PASS (advance), CONCERNS (log + advance), REWORK (go to On REWORK, increment Attempts), FAIL (go to On FAIL or STOP).
+4. **Attempts overflow:** When Attempts X >= max Y, set Status: BLOCKED, stop pipeline.
+5. **Agent Teams:** If Mode = AGENT_TEAMS, use TeamCreate. Build prompts with Required Skills section. Scale to 5-10 agents for large wave groups.
+6. **Agent Chains:** For sequential multi-agent workflows (e.g., QA_REVIEW: reviewer -> fixer -> re-reviewer), run agents in sequence within the phase, looping up to the Max Attempts limit.
+7. **Sub-pipeline:** If Mode = SUB_PIPELINE, execute referenced Pipeline file to completion, then return.
+8. **AO Fleet:** If Mode = AO_FLEET, use `ao spawn` per project listed in Projects field. Monitor via `ao session ls`. Collect results from each project's work/ directory. Kill sessions after completion. Skill: `cat .claude/skills/ao-fleet-spawn/SKILL.md`.
+8b. **AO Hybrid:** If Mode = AO_HYBRID, use `ao spawn --prompt-file` per task. Each spawned session is a full Claude Code process with own context. Monitor via `ao-hybrid.sh wait`. Collect results from worktree paths. Merge worktree branches sequentially. Skill: `cat .claude/skills/ao-hybrid-spawn/SKILL.md`.
+9. **After each phase:** Update this file (move `<- CURRENT`, set Status: DONE). Update work/STATE.md. Update memory. Git commit with checkpoint tag.
+9. **Phase Transition Protocol:** Between phases, execute: (1) git commit + checkpoint tag, (2) quick insight extraction — what worked/failed/learned, (3) update typed memory (knowledge.md), (4) save to Graphiti (add_memory), (5) re-read PIPELINE.md + STATE.md + typed memory, (6) advance <- CURRENT.
+10. **Pipeline complete:** When last phase passes, set top-level Status: PIPELINE_COMPLETE.

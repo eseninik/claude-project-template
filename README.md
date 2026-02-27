@@ -136,11 +136,11 @@ dev branch  ──[push]──>  main branch  ──[GitHub Action]──>  Serv
 | Skill | When to Use |
 |-------|-------------|
 | `systematic-debugging` | Any bug or error |
-| `test-driven-development` | Writing any new code |
 | `verification-before-completion` | Before claiming "done" |
-| `condition-based-waiting` | Flaky tests / race conditions |
-| `root-cause-tracing` | Deep error investigation |
-| `executing-plans` | Following implementation plans |
+| `qa-validation-loop` | After IMPLEMENT phase |
+| `subagent-driven-development` | Following implementation plans |
+| `task-decomposition` | Complex task analysis |
+| `error-recovery` | Tool failures |
 
 See `.claude/skills/SKILLS_INDEX.md` for full list.
 

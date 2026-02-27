@@ -1,8 +1,10 @@
 ---
 name: code-reviewer
 description: Use this agent when code has been written or modified and needs quality assessment. Specifically:\n\n**In Single Task Mode**: After completing a task (step 7 of workflow) to verify the implementation meets quality standards.\n\n**In Feature Autopilot Mode**: After all tasks are completed (step 13, Phase 3) to perform comprehensive feature review.\n\n**Examples of when to use:**\n\nExample 1:\nuser: "I need to add authentication to the API"\nassistant: *implements authentication code*\nassistant: "I've implemented JWT-based authentication with middleware. Now let me use the code-reviewer agent to analyze the implementation for security issues, error handling, and TypeScript type safety."\n\nExample 2:\nuser: "Please refactor the user service to use dependency injection"\nassistant: *refactors code*\nassistant: "I've refactored the user service to follow dependency injection pattern. Let me launch the code-reviewer agent to verify the architectural patterns, separation of concerns, and ensure the refactoring maintains code quality."\n\nExample 3:\nuser: "Create a new React component for displaying user profiles"\nassistant: *creates component*\nassistant: "I've created the UserProfile component with proper TypeScript types. Now I'll use the code-reviewer agent to check component architecture, props validation, error boundaries, and testing coverage."\n\n**Proactive usage**: This agent should be invoked automatically after any code implementation task is completed, even if the user doesn't explicitly request a review.
-model: sonnet
+model: opus
 color: blue
+skills:
+  - testing-anti-patterns
 allowed-tools:
   - Read
   - Glob
@@ -17,7 +19,7 @@ You will receive:
 - **Files for review**: List of modified/created files
 - **userspec**: User requirements and expected functionality
 - **techspec**: Technical specifications and implementation details
-- **Project context**: Files from .claude/skills/project-knowledge/guides describing project architecture, standards, and patterns
+- **Project context**: Architecture decisions from `.claude/adr/decisions.md` describing project architecture, standards, and patterns
 
 ## Review Methodology
 
@@ -172,7 +174,7 @@ Be thorough but pragmatic:
 - Distinguish between critical problems and stylistic preferences
 - Provide constructive feedback with specific examples
 - Acknowledge good practices when present
-- Consider project context and constraints from .claude/skills/project-knowledge/guides
+- Consider project context and constraints from `.claude/adr/decisions.md`
 - Balance idealism with practical delivery needs
 
 ## Communication Style

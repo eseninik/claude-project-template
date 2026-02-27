@@ -1,0 +1,7 @@
+{
+  "_schema": "Recovery Manager: Attempt History",
+  "_version": "1.0",
+  "_docs": "Tracks subtask attempts, circular fix detection, and good commits. See .claude/guides/recovery-manager.md",
+  "good_commits": [],
+  "subtasks": {}
+}

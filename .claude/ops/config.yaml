@@ -1,0 +1,78 @@
+# Runtime Configuration
+# Skills read this at Step 0 before executing.
+# Change values here to influence ALL skill behavior without editing skill files.
+#
+# Processing depth affects thoroughness of all operations:
+#   quick    — minimal checks, fast execution
+#   standard — balanced thoroughness (default)
+#   deep     — maximum depth, all checks enabled
+
+processing_depth: standard
+
+# QA depth overrides complexity-based assessment:
+#   skip       — no QA (trivial tasks only)
+#   minimal    — syntax + basic checks
+#   standard   — reviewer + fixer cycle (up to 3 iterations)
+#   full       — standard + security scan
+#   full+human — full + human review gate
+#   proportional — auto-detect from complexity (default)
+qa_depth: proportional
+
+# Model preference for spawned agents
+model_preference: opus
+
+# Pipeline execution mode
+#   solo         — single agent, sequential
+#   agent_teams  — parallel agents via TeamCreate (default)
+#   agent_chains — sequential multi-agent pipelines
+pipeline_mode: agent_teams
+
+# Execution engine for AGENT_TEAMS phases
+#   teamcreate  — subagents within current session (default, current behavior)
+#   ao_hybrid   — full Claude Code sessions via AO spawn (each gets CLAUDE.md + skills + memory)
+execution_engine: teamcreate
+
+# Observation threshold — session-orient hook alerts when pending count exceeds
+observation_threshold: 10
+
+# Max retry attempts before escalating to human
+max_retry_attempts: 5
+
+# Memory decay configuration (Ebbinghaus forgetting curve)
+# Used by memory-engine.py and session-orient.py
+# Domain presets:
+#   sales:    active=3, warm=10, cold=30, rate=0.025 (fast-moving)
+#   default:  active=14, warm=30, cold=90, rate=0.01 (balanced)
+#   research: active=21, warm=60, cold=120, rate=0.008 (slow)
+memory:
+  # Tier thresholds (days since last verified date)
+  tiers:
+    active: 14       # 0-14 days: recently verified, top priority
+    warm: 30         # 15-30 days: still relevant, slightly lower priority
+    cold: 90         # 31-90 days: may be outdated, needs re-verification
+    # beyond cold = archive (>90 days)
+
+  # Decay rate: relevance loss per day (linear)
+  # relevance = max(floor, 1.0 - days × rate)
+  decay_rate: 0.01
+
+  # Minimum relevance (never reaches 0)
+  relevance_floor: 0.1
+
+  # Search modes token budgets (advisory)
+  search:
+    heartbeat: 2000    # quick check: active tier only
+    normal: 5000       # standard: active + warm tiers
+    deep: 15000        # exhaustive: all tiers + Graphiti
+    creative: 3000     # random from cold/archive for serendipity
+
+  # Creative mode: number of random cards to surface
+  creative_sample_size: 5
+
+  # Auto-decay: run decay calculation in session-orient hook
+  auto_decay_in_hook: true
+
+  # Knowledge.md skip patterns
+  skip_patterns:
+    - "_index.md"
+    - ".gitkeep"

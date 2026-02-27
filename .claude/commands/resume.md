@@ -125,5 +125,5 @@ Agent: Загружаю контекст...
 ## Related
 
 - `work/STATE.md` - Session state file
-- `session-resumption` skill - Full skill documentation
+- CLAUDE.md "Session Start" section - Auto-resume behavior
 - CLAUDE.md "State Management" section - Rules for STATE.md

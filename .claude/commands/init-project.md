@@ -1,275 +1,447 @@
 ---
-name: Init Project
-description: Полная автоматическая настройка нового проекта (без вопросов)
-category: Setup
-tags: [init, setup, deploy, cicd]
+description: Initialize project with template, git, and GitHub
+allowed-tools:
+  - Bash(*)
+  - Read
+  - Edit
+  - TodoWrite
+  - AskUserQuestion
 ---
 
-# Init Project - Полностью автоматическая настройка
+# Instructions
 
-**Цель**: Настроить CI/CD за одну команду. Без вопросов, без конфигов.
+## 0. Create Task Tracking
 
----
+**Use TodoWrite to create plan:**
 
-## Автоматическое определение параметров
-
-```bash
-# 1. Название проекта = название текущей папки
-PROJECT_NAME=$(basename "$(pwd)")
-
-# 2. Читаем глобальный конфиг
-CONFIG_FILE="$HOME/.claude/deploy.json"
-
-# Если конфига нет — создать с дефолтами и попросить заполнить
-if [ ! -f "$CONFIG_FILE" ]; then
-  echo "ERROR: Нет конфига $CONFIG_FILE"
-  echo "Создай файл с содержимым:"
-  echo '{"github_owner":"YOUR_USERNAME","server_host":"YOUR_IP","server_user":"ubuntu","base_path":"/home/ubuntu","ssh_key":"PATH_TO_KEY","ssh_config":"PATH_TO_CONFIG"}'
-  exit 1
-fi
-
-# Парсим JSON (работает в bash без jq)
-GITHUB_OWNER=$(grep -o '"github_owner"[^,}]*' "$CONFIG_FILE" | cut -d'"' -f4)
-SERVER_HOST=$(grep -o '"server_host"[^,}]*' "$CONFIG_FILE" | cut -d'"' -f4)
-SERVER_USER=$(grep -o '"server_user"[^,}]*' "$CONFIG_FILE" | cut -d'"' -f4)
-BASE_PATH=$(grep -o '"base_path"[^,}]*' "$CONFIG_FILE" | cut -d'"' -f4)
-SSH_KEY=$(grep -o '"ssh_key"[^,}]*' "$CONFIG_FILE" | cut -d'"' -f4)
-SSH_CONFIG=$(grep -o '"ssh_config"[^,}]*' "$CONFIG_FILE" | cut -d'"' -f4)
-
-# 3. Путь на сервере = base_path/project_name
-PROJECT_PATH="$BASE_PATH/$PROJECT_NAME"
-
-# 4. SSH команда с правильными путями (для Windows с кириллицей)
-SSH_CMD="ssh -F \"$SSH_CONFIG\""
-
-echo "=== Параметры ==="
-echo "Project: $PROJECT_NAME"
-echo "GitHub: $GITHUB_OWNER/$PROJECT_NAME"
-echo "Server: $SERVER_USER@$SERVER_HOST:$PROJECT_PATH"
+```json
+[
+  {"content": "Проверка окружения", "status": "pending", "activeForm": "Проверка окружения"},
+  {"content": "Определение типа проекта", "status": "pending", "activeForm": "Определение типа проекта"},
+  {"content": "Подготовка к перемещению (для old проектов)", "status": "pending", "activeForm": "Подготовка к перемещению"},
+  {"content": "Перемещение и копирование шаблона", "status": "pending", "activeForm": "Копирование шаблона"},
+  {"content": "Объединение .gitignore (для old проектов)", "status": "pending", "activeForm": "Объединение .gitignore"},
+  {"content": "Регистрация проекта", "status": "pending", "activeForm": "Регистрация проекта"},
+  {"content": "Инициализация git и GitHub", "status": "pending", "activeForm": "Инициализация git и GitHub"},
+  {"content": "Итоговый отчёт", "status": "pending", "activeForm": "Формирование отчёта"}
+]
 ```
 
----
+Mark each step as `in_progress` when starting, `completed` when done.
 
-## Шаг 1: Проверить prerequisites
+## 1. Check Environment
 
-```bash
-# GitHub CLI
-gh --version || echo "STOP: Установи GitHub CLI: winget install GitHub.cli"
-
-# Авторизация
-gh auth status || echo "STOP: Авторизуйся: gh auth login"
-
-# SSH к серверу (используем SSH_CMD из конфига)
-$SSH_CMD $SERVER_USER@$SERVER_HOST "echo 'SSH OK'" || echo "STOP: Настрой SSH доступ к серверу"
-```
-
----
-
-## Шаг 2: Создать GitHub репозиторий с двумя ветками
+**EXECUTE git check if .git exists:**
 
 ```bash
-# Проверить существует ли репо
-if ! gh repo view $GITHUB_OWNER/$PROJECT_NAME 2>/dev/null; then
-  # Создаём репо и пушим в dev (рабочая ветка)
-  git checkout -b dev 2>/dev/null || git branch -M dev
-  gh repo create $GITHUB_OWNER/$PROJECT_NAME --private --source=. --remote=origin --push
-
-  # Создаём main ветку (продакшн) и пушим
-  git checkout -b main
-  git push -u origin main
-
-  # Возвращаемся в dev для работы
-  git checkout dev
-
-  # Устанавливаем main как default branch в GitHub
-  gh repo edit $GITHUB_OWNER/$PROJECT_NAME --default-branch main
+if [ -d .git ]; then
+  git status --porcelain
 fi
 ```
 
----
+**Handle uncommitted changes:**
+- If output not empty: Ask user (Russian):
+  ```
+  ⚠️ Незакоммиченные изменения:
 
-## Шаг 3: Настроить GitHub Secrets
+  [список изменений]
+
+  Что делать?
+  1. Закоммитить и продолжить
+  2. Продолжить без коммита
+  3. Остановить
+  ```
+  Wait for user choice. If [1] - help commit first. If [3] - STOP.
+
+- If empty or no .git: Continue.
+
+## 2. Determine Project Type
+
+**EXECUTE directory check:**
 
 ```bash
-# Читаем локальный SSH ключ (для подключения к серверу)
-SSH_KEY_CONTENT=$(cat "$SSH_KEY" 2>/dev/null)
+ls -A
+```
 
-if [ -z "$SSH_KEY_CONTENT" ]; then
-  echo "STOP: Нет SSH ключа по пути $SSH_KEY"
-  exit 1
+**Analyze output:**
+- Empty directory (only .git or completely empty) → **NEW PROJECT** (skip to step 4)
+- Has files → **ASK USER** (Russian):
+  ```
+  Вижу код в папке. Что делать?
+
+  1. Переместить в old/ (миграция старого проекта)
+  2. Оставить как есть (рискованно, может перезаписать одноимённые файлы)
+  3. Остановить
+  ```
+
+**Store user choice** for next steps:
+- [1] → `PROJECT_TYPE=OLD`
+- [2] → `PROJECT_TYPE=NEW`
+- [3] → STOP
+
+## 3. Prepare for Migration (OLD projects only)
+
+**Skip this step if PROJECT_TYPE=NEW.**
+
+If PROJECT_TYPE=OLD and git is initialized:
+
+**Ask user about commit (Russian):**
+```
+Рекомендую закоммитить перед перемещением в old/
+(это сохранит историю старого кода в git).
+
+Закоммитить сейчас?
+1. Да
+2. Нет (история не сохранится)
+```
+
+**If [1] - create commit:**
+
+```bash
+git add .
+git commit -m "Save old code before migration
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+```
+
+**If [2] - warn user:**
+```
+⚠️ История старого кода не будет сохранена в git.
+Продолжаем...
+```
+
+## 4. Move to old/ and Copy Template
+
+**If PROJECT_TYPE=OLD, move files to old/:**
+
+```bash
+mkdir old
+
+# Move everything except .git and old/
+find . -maxdepth 1 ! -name '.' ! -name '..' ! -name '.git' ! -name 'old' -exec mv {} old/ \;
+```
+
+**For all project types, copy template:**
+
+```bash
+cp -r ~/.claude/shared/templates/new-project/. .
+```
+
+**Verify basic structure:**
+
+```bash
+test -d .claude/skills/project-knowledge
+```
+
+If check fails, tell user:
+```
+❌ Ошибка копирования шаблона.
+Попробуй вручную: cp -r ~/.claude/shared/templates/new-project/. .
+```
+
+## 4.5. Create Python Virtual Environment
+
+**Check if this is a Python project:**
+
+```bash
+# Check for Python project indicators
+if [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ] || ls *.py 2>/dev/null | head -1 > /dev/null; then
+  echo "PYTHON_PROJECT=true"
+else
+  echo "PYTHON_PROJECT=false"
+fi
+```
+
+**If PYTHON_PROJECT=true and no .venv exists:**
+
+```bash
+if [ ! -d .venv ]; then
+  uv venv .venv 2>/dev/null || python -m venv .venv
+  echo "✅ .venv создан"
+fi
+```
+
+**If pyproject.toml or requirements.txt exists, install deps:**
+
+```bash
+if [ -f pyproject.toml ]; then
+  uv pip install -e ".[dev]" 2>/dev/null || uv pip install -e "." 2>/dev/null || echo "⚠️ Не удалось установить зависимости из pyproject.toml"
+elif [ -f requirements.txt ]; then
+  uv pip install -r requirements.txt 2>/dev/null || .venv/Scripts/pip install -r requirements.txt 2>/dev/null || echo "⚠️ Не удалось установить зависимости из requirements.txt"
+fi
+```
+
+**Purpose:** LSP (Pyright) uses `.venv` to resolve imports and provide hover/goToDefinition. Without `.venv`, type information shows as `Unknown`.
+
+## 5. Merge .gitignore (OLD projects only)
+
+**Skip this step if PROJECT_TYPE=NEW.**
+
+**Read both .gitignore files:**
+- Read `old/.gitignore` (old project rules)
+- Current `.gitignore` is already from template
+
+**Analyze old .gitignore:**
+
+Parse old .gitignore and identify:
+1. **Common rules** (already in new .gitignore):
+   - Secrets: `.env`, `*.key`, `credentials.json`, `secrets/`
+   - Dependencies: `node_modules/`, `venv/`, `__pycache__/`
+   - Build outputs: `dist/`, `build/`, `.next/`, `out/`
+   - IDE: `.vscode/`, `.idea/`
+   - OS: `.DS_Store`
+   - Logs: `*.log`, `logs/`
+
+2. **Project-specific rules** (need to add with `old/` prefix):
+   - Custom paths like `/public/uploads/`, `/storage/`
+   - Config files like `config/database.php`
+   - Any other unique patterns
+
+**Create section for old-specific rules:**
+
+Based on analysis, prepare section like:
+```gitignore
+# Old project specific rules
+old/public/uploads/
+old/storage/logs/
+old/config/database.php
+old/cache/
+```
+
+**Edit .gitignore:**
+
+Add the old-specific rules section to the end of current `.gitignore`.
+
+Save old .gitignore as backup:
+```bash
+cp old/.gitignore old/.gitignore.backup
+```
+
+**Security check:**
+
+```bash
+git status --porcelain
+```
+
+Check output for sensitive files that shouldn't be tracked:
+- `old/.env*`
+- `old/*.key`
+- `old/*.pem`
+- `old/credentials.json`
+- `old/secrets/`
+
+**If found sensitive files:**
+- STOP immediately
+- Show user the files
+- Ask: "В .gitignore не все правила. Добавить эти файлы в .gitignore?"
+- If yes - add rules and re-check
+- If no - STOP
+
+**If git status is clean or only expected files:**
+- Continue to next step
+
+## 6. Register Project
+
+**Determine platform and path:**
+
+```bash
+if [[ "$HOME" == "/Users/"* ]]; then
+  echo "mac"
+elif [[ "$HOME" == "/home/"* ]] || [[ "$HOME" == "/root" ]]; then
+  echo "vps"
+else
+  echo "unknown"
 fi
 
-# Устанавливаем секреты (только 3 - PROJECT_PATH не нужен, см. ниже)
-gh secret set SERVER_HOST --body "$SERVER_HOST"
-gh secret set SERVER_USER --body "$SERVER_USER"
-gh secret set SERVER_SSH_KEY --body "$SSH_KEY_CONTENT"
-
-echo "Секреты установлены"
+pwd
 ```
 
----
+Store PLATFORM and PROJECT_PATH from output.
 
-## Шаг 3.1: Обновить deploy.yml с реальным путём
+**Read registry:**
+
+Read `~/.claude/projects-registry.json` using Read tool.
+
+**Check if path exists:**
+
+Search for PROJECT_PATH in any `paths.mac` or `paths.vps` fields.
+
+**If path found:**
+- Show matching project entry
+- Ask (Russian): "Этот проект уже зарегистрирован. Всё верно?"
+- Wait for confirmation
+
+**If path NOT found:**
+- Ask (Russian): "Перечисли названия проекта через запятую (например: MyProject, Мой Проект, my-project):"
+- Get user input
+- Edit `~/.claude/projects-registry.json`:
+  - Add new object to `projects` array
+  - Set `names` to array from user input (split by comma)
+  - Set `paths.mac` or `paths.vps` (based on PLATFORM) to PROJECT_PATH
+  - Set other platform path to empty string
+  - Set `github` to empty string
+- Tell user (Russian): "Проект зарегистрирован! Проверь файл: [projects-registry.json](~/.claude/projects-registry.json)"
+
+## 7. Initialize Git and GitHub
+
+### 7.1. Initialize Git (if needed)
 
 ```bash
-# Заменить PROJECT_NAME на реальное имя проекта в workflow
-sed -i "s|/home/ubuntu/PROJECT_NAME|$PROJECT_PATH|g" .github/workflows/deploy.yml
-git add .github/workflows/deploy.yml
-git commit -m "chore: set project path in deploy workflow"
-git push origin dev
+if [ ! -d .git ]; then
+  git init
+fi
 
-# Синхронизируем main с dev для деплоя
-git checkout main
-git merge dev -m "chore: sync main with dev"
-git push origin main
-git checkout dev
+git branch --show-current
 ```
 
----
+Store current branch name.
 
-## Шаг 4: Настроить сервер
-
-**ВАЖНО:** Каждый репозиторий требует УНИКАЛЬНЫЙ deploy key!
+### 7.2. Check gh CLI
 
 ```bash
-$SSH_CMD $SERVER_USER@$SERVER_HOST << REMOTE
-  set -e
-
-  # Создать директорию
-  mkdir -p $PROJECT_PATH
-
-  # Создать УНИКАЛЬНЫЙ SSH ключ для этого проекта
-  KEY_FILE=~/.ssh/deploy_$PROJECT_NAME
-  if [ ! -f "\$KEY_FILE" ]; then
-    ssh-keygen -t ed25519 -C "deploy-$PROJECT_NAME" -f "\$KEY_FILE" -N ""
-  fi
-
-  # GitHub в known_hosts
-  grep -q "github.com" ~/.ssh/known_hosts 2>/dev/null || \
-    ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
-
-  # Настроить SSH config с алиасом для этого репозитория
-  if ! grep -q "Host github-$PROJECT_NAME" ~/.ssh/config 2>/dev/null; then
-    cat >> ~/.ssh/config << EOF
-
-Host github-$PROJECT_NAME
-  HostName github.com
-  User git
-  IdentityFile ~/.ssh/deploy_$PROJECT_NAME
-  IdentitiesOnly yes
-EOF
-  fi
-
-  # Клонировать репозиторий (ветка main) используя алиас
-  cd $PROJECT_PATH
-  if [ ! -d ".git" ]; then
-    git clone -b main git@github-$PROJECT_NAME:$GITHUB_OWNER/$PROJECT_NAME.git . || true
-  fi
-
-  # Настроить remote на алиас
-  git remote set-url origin git@github-$PROJECT_NAME:$GITHUB_OWNER/$PROJECT_NAME.git 2>/dev/null || true
-
-  # Вывести публичный ключ
-  echo "=== SERVER DEPLOY KEY ==="
-  cat "\${KEY_FILE}.pub"
-  echo "========================="
-REMOTE
+command -v gh
+gh auth status
 ```
 
----
+**Handle results:**
+- If gh not installed: STOP with message: "❌ gh CLI не установлен. Установи: `brew install gh` (macOS) или `sudo apt install gh` (Linux), затем: `gh auth login`"
+- If not authenticated: STOP with message: "❌ gh не аутентифицирован. Запусти: `gh auth login`"
+- If both OK: Continue
 
-## Шаг 5: Добавить Deploy Key в GitHub
+### 7.3. Ask for Repository Name
+
+Ask user (Russian):
+```
+Введи название GitHub репозитория (например: my-project):
+```
+
+Store repository name.
+
+### 7.4. Create GitHub Repository
 
 ```bash
-# Получить УНИКАЛЬНЫЙ ключ с сервера
-SERVER_KEY=$($SSH_CMD $SERVER_USER@$SERVER_HOST "cat ~/.ssh/deploy_$PROJECT_NAME.pub")
-
-# Сохранить и добавить
-echo "$SERVER_KEY" > /tmp/deploy_key_$PROJECT_NAME.pub
-gh repo deploy-key add /tmp/deploy_key_$PROJECT_NAME.pub \
-  --title "Server Deploy Key" \
-  --allow-write
-rm -f /tmp/deploy_key_$PROJECT_NAME.pub
+gh repo create {repository-name} --private --source=. --remote=origin
 ```
 
----
+If command fails, tell user:
+```
+❌ Ошибка создания GitHub репозитория.
+Проверь название (возможно, уже существует).
+```
 
-## Шаг 6: Проверить SSH с сервера к GitHub
+### 7.5. Initial Commit and Push
 
 ```bash
-$SSH_CMD $SERVER_USER@$SERVER_HOST "ssh -T git@github-$PROJECT_NAME 2>&1" | head -1
-# Ожидаем: "Hi ...! You've successfully authenticated"
+git add .
+
+git commit -m "Initial commit with AI-First template
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+
+git push -u origin $(git branch --show-current)
 ```
 
----
+If push fails:
+```
+❌ Ошибка push в GitHub.
+Проверь статус: git status
+```
 
-## Шаг 7: Тестовый деплой
+### 7.6. Create Dev Branch
 
 ```bash
-# Пустой коммит в dev
-git commit --allow-empty -m "test: verify CI/CD pipeline" 2>/dev/null || true
-git push origin dev
-
-# Мержим в main для деплоя
-git checkout main
-git merge dev
-git push origin main
-git checkout dev
-
-# Проверить workflow
-sleep 3
-gh run list --limit 1
+git checkout -b dev
+git push -u origin dev
 ```
 
----
+### 7.7. Create Migration Branch (OLD projects only)
 
-## Шаг 8: Проверить на сервере
+**Skip if PROJECT_TYPE=NEW.**
 
 ```bash
-$SSH_CMD $SERVER_USER@$SERVER_HOST "cd $PROJECT_PATH && git log -1 --oneline"
+git checkout -b feature/migration-ai-first dev
+git push -u origin feature/migration-ai-first
 ```
 
----
+## 8. Pipeline Setup
 
-## Финальный вывод
+**Copy pipeline templates to work directory:**
 
-```
-✅ Проект $PROJECT_NAME настроен!
-
-GitHub:  https://github.com/$GITHUB_OWNER/$PROJECT_NAME
-Server:  $SERVER_USER@$SERVER_HOST:$PROJECT_PATH
-
-Ветки:
-  dev  — рабочая ветка (все изменения коммитятся сюда)
-  main — продакшн ветка (автодеплой на сервер)
-
-Workflow:
-  1. Работа: git add . && git commit -m "feat: description" && git push origin dev
-  2. Деплой: git checkout main && git merge dev && git push origin main && git checkout dev
-
-Или попросить Claude: "мержи и деплой"
-```
-
----
-
-## Troubleshooting
-
-### "Нет конфига ~/.claude/deploy.json"
 ```bash
-mkdir -p ~/.claude
-cat > ~/.claude/deploy.json << 'EOF'
-{
-  "github_owner": "YOUR_GITHUB_USERNAME",
-  "server_host": "YOUR_SERVER_IP",
-  "server_user": "ubuntu",
-  "base_path": "/home/ubuntu"
-}
-EOF
+# Ensure work/ templates are in place (copied from template, verify they exist)
+test -f work/PIPELINE.md && echo "PIPELINE template OK" || echo "PIPELINE template MISSING"
 ```
 
-### "Permission denied" при SSH
-- Проверь что ключ добавлен на сервер в `~/.ssh/authorized_keys`
+**If any files missing, copy from shared templates:**
 
-### Deploy Key уже существует
-- Это нормально если используешь один ключ для всех проектов
-- Можно игнорировать это сообщение
+```bash
+if [ ! -f work/PIPELINE.md ]; then
+  cp .claude/shared/work-templates/PIPELINE-v3.md work/PIPELINE.md
+fi
+```
+
+**Purpose:** Pipeline infrastructure enables autonomous multi-phase task execution with compaction resilience. See `.claude/guides/autonomous-pipeline.md` for full guide.
+
+## 9. Final Report
+
+**Get repository URL:**
+
+```bash
+gh repo view --json url -q .url
+```
+
+**For NEW projects, report (Russian):**
+
+```
+✅ Проект инициализирован!
+
+GitHub: {url}
+Ветки: main, dev (текущая)
+
+Что создано:
+  .claude/          - контекст и настройки проекта
+  guides/           - документация
+  work/             - папка для фич и задач
+  work/STATE.md     - сохранение состояния между сессиями
+  work/PIPELINE.md  - шаблон автономного pipeline
+  .gitignore        - правила игнорирования
+  CLAUDE.md         - настройки для Claude Code
+
+Следующий шаг:
+- Запусти project-planning skill для планирования проекта
+- Для автономных задач: cat .claude/guides/autonomous-pipeline.md
+```
+
+**For OLD projects, report (Russian):**
+
+```
+✅ Проект инициализирован с миграцией!
+
+GitHub: {url}
+Ветки: main, dev, feature/migration-ai-first (текущая)
+Old код: ./old/
+State: work/STATE.md (сохранение состояния между сессиями)
+
+.gitignore:
+- Базовые правила (секреты, зависимости, build outputs)
+- Специфичные правила из старого проекта (с префиксом old/)
+
+Проверь git status - всё ОК с .gitignore?
+
+Следующий шаг:
+- Запусти /old-folder-audit для анализа legacy кода
+- Затем /fill-context-from-audit для заполнения контекста
+```
+
+# Important Notes
+
+- This command handles both NEW and OLD projects in one workflow
+- For OLD projects: preserves history with optional commit, merges .gitignore rules
+- Simplified checks: LLM understands context without excessive validation
+- Git and GitHub initialization in one flow
+- All user communication in Russian
+- Technical content (code, docs) in English

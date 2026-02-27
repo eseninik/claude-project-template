@@ -1,0 +1,55 @@
+---
+# Статус: planned | done
+status: planned
+---
+
+# [Название задачи]
+
+## Описание
+[1-2 предложения: что и зачем]
+
+## Что нужно сделать
+[Конкретные шаги - ЧТО реализовать, не КАК. Без псевдокода и алгоритмов - это для code-developer во время реализации.]
+
+## Критерии приемки
+- [ ] [Критерий 1]
+- [ ] [Критерий 2]
+
+## Контекстные файлы
+
+Файлы которые нужно прочитать перед реализацией:
+
+**Обязательные:**
+- `.claude/skills/project-knowledge/guides/architecture.md`
+- `.claude/skills/project-knowledge/guides/patterns.md`
+- `.claude/skills/project-knowledge/guides/project.md`
+- `work/FEATURE-NAME/user-spec.md`
+- `work/FEATURE-NAME/tech-spec.md`
+
+**Дополнительные (добавь если релевантны):**
+
+Контекст:
+- `.claude/skills/project-knowledge/guides/database.md` - для задач с БД/схемами
+- `.claude/skills/project-knowledge/guides/deployment.md` - для задач с деплоем/инфрой
+- `.claude/skills/project-knowledge/guides/git-workflow.md` - для задач с git/CI/CD
+- `.claude/skills/project-knowledge/guides/ux-guidelines.md` - для задач с UI/текстами
+
+Другое:
+- Файлы упомянутые в tech-spec или user-spec
+- Существующая документация релевантная для задачи
+
+## Технические детали
+
+**Файлы:**
+- `path/to/file.py` - [что сделать с этим файлом]
+
+**Зависимости:**
+- [зависимости от других задач]
+- [пакеты которые использовать]
+
+**Edge cases:**
+- [edge case 1]
+- [edge case 2]
+
+**Подсказки к реализации:**
+- [полезная информация - НЕ псевдокод, просто подсказки про библиотеки, паттерны или gotchas]
