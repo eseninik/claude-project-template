@@ -9,24 +9,28 @@
 
 ## Current Focus
 
-### Memory Decay Integration — PIPELINE_COMPLETE
-**Task:** Integrate Ebbinghaus forgetting curve from agent-memory-skill into our template.
-**Source:** github.com/smixs/agent-memory-skill (1650 lines, 8 files)
+### Bot Fleet Sync — COMPLETE
+**Task:** Commit template changes + sync all updates to 8 bots via Agent Teams (8 parallel agents).
 
 **What was done:**
-- 3 research agents analyzed: external repo, our memory system, comparative analysis
-- Also analyzed Claude Code's built-in AutoMemory — determined it complements but doesn't replace our system
-- 4 implementation agents in parallel: memory-engine.py, knowledge.md metadata, session-orient tiers, config.yaml
-- Integration: CLAUDE.md updated with MEMORY DECAY section + search modes
-- Sync: 3 files synced to new-project template
-- All 8 verification checks PASS
+- Committed 76 files (+10,721 lines) to template project
+- Discovered 8 bots with `.claude/` dirs, 2 without (skipped)
+- Spawned 8 parallel agents (one per bot) via TeamCreate
+- Each agent: copied generic files, merged CLAUDE.md, cleaned old hooks, verified, git committed
+- Fixed template CLAUDE.md (was missing MEMORY DECAY section, HOOKS AUTO-INJECT, etc.)
+- Final verification: ALL 8 bots pass — 0 file diffs, all skills match, MEMORY DECAY present, no old .sh hooks
 
-**New components:**
-- `.claude/scripts/memory-engine.py` (537 lines) — Ebbinghaus decay engine (10 commands)
-- `knowledge.md` entries now have `verified:` dates driving tier assignment
-- `session-orient.py` shows `[active]`/`[warm]`/`[cold]` tier labels per entry
-- `ops/config.yaml` memory: section with decay_rate, tiers, search budgets
-- CLAUDE.md search modes: heartbeat(2K) / normal(5K) / deep(15K) / creative(3K)
+**Bots synced:**
+| Bot | Commit | Status |
+|-----|--------|--------|
+| Call Rate bot | 729423f | OK |
+| ClientsLegal Bot | 437c7fb | OK |
+| Conference Bot | 8c4b108 | OK |
+| DocCheck Bot | 63217b3 | OK |
+| LeadQualifier Bot | 794babf | OK |
+| Legal Bot | 63d878c | OK (fixed project name) |
+| Quality Control Bot | 11e0439 | OK |
+| Sales Check Bot | 4a7c099 | OK |
 
 ---
 
@@ -47,14 +51,16 @@
 
 ## Session Log
 
-### 2026-02-27
-**Did:** (1) Deep analysis of agent-memory-skill repo (3 parallel research agents). (2) Analyzed Claude Code AutoMemory docs — complements but doesn't replace our hooks. (3) Ported memory-engine.py (537 lines, 10 commands). (4) Added verified: dates to all 22 knowledge.md entries. (5) Updated session-orient.py with tier labels. (6) Extended config.yaml with memory decay params. (7) Added MEMORY DECAY section to CLAUDE.md with search modes. (8) Synced to template. All 8 verification checks PASS.
-**Decided:** AutoMemory = organic notes (Layer 5), hooks = compliance (Layer 1-2), decay = forgetting (new). Three systems complement each other. Decay rate 0.01 (research preset, not CRM 0.025). Tiers: active(14d)/warm(30d)/cold(90d)/archive.
-**Learned:** Ebbinghaus forgetting curve prevents knowledge.md junk drawer problem. Graduated touch (promote one tier, not reset to top) implements natural spaced repetition. Creative mode (random cold/archive) enables serendipity. memory-engine.py target arg can be file OR directory — need to handle both.
-**Next:** 7 bots need memory-engine.py + updated hooks synced. Consider adding decay to PreCompact hook (auto-run after save).
+### 2026-02-27 (session 2 — bot fleet sync)
+**Did:** (1) Committed 76 template files (10,721 lines). (2) Discovered 8 bots + 2 non-bots. (3) Agent Teams: 8 parallel agents synced all bots. (4) Fixed template CLAUDE.md (missing MEMORY DECAY + HOOKS AUTO-INJECT). (5) Final verification: ALL 8 bots pass — 0 diffs, all skills match, no old hooks.
+**Decided:** Use main project CLAUDE.md as source of truth (not template) for bot sync. Each agent extracts project section and merges.
+**Learned:** Agent Teams scale to 8 concurrent bots without issues. Legal Bot had wrong project name from copy-paste — agents can detect and fix. Template CLAUDE.md can drift behind main — always verify sync.
+**Next:** Consider adding decay to PreCompact hook. Monitor bot sessions for decay tier changes in 2-3 weeks.
 
-
-**[Pre-compaction save 12:44]** Analyzed external memory architecture (agent-memory-skill, AutoMemory) and implemented a complete multi-layer memory system with decay mechanics. Built and tested a full pipeline using Agent Teams with 4 parallel agents, achieving 24/25 test passes. Integrated tiered search protocol, knowledge decay (Ebbinghaus), and session persistence into the project.
+### 2026-02-27 (session 1 — memory decay integration)
+**Did:** Ported memory-engine.py (537 lines), added verified: dates to knowledge.md, updated session-orient.py with tier labels, extended config.yaml. All 8 verification checks PASS.
+**Learned:** Ebbinghaus decay prevents junk drawer. Graduated touch = natural spaced repetition. memory-engine.py target can be file OR directory.
+**Next:** Sync to all bots (done in session 2).
 
 ### 2026-02-23
 **Did:** Deep analysis of Athena-Public repo using Agent Teams (10 parallel agents).
