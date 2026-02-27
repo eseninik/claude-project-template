@@ -125,6 +125,9 @@
 
 **[Pre-compaction save 20:39]** Completed IMPLEMENT and TEST phases of skill auto-discovery system. Built `generate-prompt.py` (280-line stdlib script) that auto-discovers skills via `roles:` YAML field, validated it across 3 test agents (coder, qa-reviewer, pipeline-lead), and synced the generator + 13 updated skills to all 8 production bots (56/56 checks pass).
 
+
+**[Pre-compaction save 21:03]** Built and tested a complete autonomous agent spawning pipeline (`spawn-agent.py`) with auto-detection of agent types based on task keywords. Implemented 7 critical fixes (word boundary matching, null checks, Russian language support, role mappings, BOM handling, dry-run guards) after parallel testing revealed edge cases and false positives.
+
 ### 2026-02-27 (session 8 — E2E Infrastructure Validation COMPLETE)
 **Did:** (1) Completed Phase 2 TEST_AGENT_TEAMS — all 3 agents PASS (verifier 13/13, mapper 7-step map, error-handler 2 recoveries). (2) Fixed conflict marker false positives in template copy of subagent-driven-development. (3) Synced conflict marker fix to 8 bots. (4) Completed Phase 3 TEST_AO_HYBRID — 2 AO agents spawned, both produced outputs and git commits. (5) Wrote Phase 4 VERIFY summary. (6) Pipeline COMPLETE.
 **Decided:** AO Hybrid spawns work but have 3 concerns: stale branch reuse, no skill invocation audit trail, global/project skill confusion. Future prompts should include "Report which skills you invoked."
@@ -139,6 +142,12 @@
 **Did:** (1) Built `generate-prompt.py` (280 lines, stdlib only) — auto-discovers skills via `roles:` YAML field. (2) Added `roles:` to all 13 skill YAML front matters. (3) Updated CLAUDE.md with generator rule. (4) TEST phase: 3 agents (coder, qa-reviewer, pipeline-lead) each correctly received their skills and followed protocols. (5) Fixed BOM handling for Windows. (6) Synced to template + 8 bots (56/56 checks pass).
 **Decided:** Auto-discovery via YAML `roles:` field — adding a new skill requires only creating SKILL.md with `roles:`, no other files to edit. Generator reduces teammate prompt creation from 5 steps to 1.
 **Learned:** (1) Prompt generator eliminates the multi-step compliance problem — 1 command produces a complete prompt with correct skills, memory, and handoff template. (2) qa-reviewer agent correctly identified BOM handling and registry parsing fragility. (3) pipeline-lead agent created a realistic 3-agent plan showing the generator integrates naturally into workflows.
-**Next:** System stable. Monitor skill compliance with generator in production use.
+**Next:** Build spawn-agent.py — one-command spawning with auto-type detection.
+
+### 2026-02-27 (session 11 — spawn-agent.py + Full Flow Automation COMPLETE)
+**Did:** (1) Built `spawn-agent.py` (406 lines) — auto-detects agent type from task keywords, imports generate-prompt.py. (2) TYPE_RULES: 16 agent types with EN+RU keywords, confidence scoring, word-boundary matching. (3) TEST phase: 3 parallel agents (skill verifier, code reviewer, edge tester) — found 6 issues. (4) ITERATE: fixed all 6 (word boundaries, null checks, Russian "баг", qa-reviewer roles, BOM strip, dry-run guard). (5) EVALUATE: "does everything work automatically?" → YES. (6) SYNC: 8 parallel agents synced spawn-agent.py + generate-prompt.py + verification SKILL.md + CLAUDE.md to all 8 bots — 32/32 checks pass.
+**Decided:** spawn-agent.py as MANDATORY (not PREFERRED) in CLAUDE.md Before Spawning Teammate. Word boundary regex (`\b`) prevents substring false positives. Fallback to `coder` when score ≤ 0.
+**Learned:** (1) Substring matching causes false positives ("fix" in "fixture", "add" in "address"). (2) Generic keywords like "code" and "change" cause cross-type detection collisions. (3) qa-reviewer was missing from verification-before-completion roles — a gap that affects skill routing.
+**Next:** System fully automatic. Pipeline COMPLETE.
 
 > [7 older session(s) archived — see daily/ logs]

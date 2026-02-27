@@ -4,7 +4,7 @@ When compacting, ALWAYS preserve these rules (they are lost most often):
 - **AGENT TEAMS**: 3+ independent tasks -> ALWAYS use TeamCreate, not sequential execution
 - **PIPELINE**: Read work/PIPELINE.md after compaction, continue from <- CURRENT marker
 - **MEMORY**: ALWAYS update activeContext.md + daily log before commit/exit
-- **SKILLS**: Before executing task matching a skill trigger -> invoke Skill tool. Before spawning teammate -> run `python .claude/scripts/generate-prompt.py` to get prompt with auto-embedded skills.
+- **SKILLS**: Before executing task matching a skill trigger -> invoke Skill tool. Before spawning teammate -> run `python .claude/scripts/spawn-agent.py --task "..." --team X --name Y` — auto-detects type, embeds skills, generates complete prompt.
 - **VERIFICATION**: NEVER say "done" without running tests
 - **QA GATE**: After IMPLEMENT phase -> `cat .claude/skills/qa-validation-loop/SKILL.md` before TEST
 - **KNOWLEDGE**: Read .claude/memory/knowledge.md at session start (patterns + gotchas)
@@ -270,26 +270,27 @@ Read guide: `cat .claude/guides/plan-execution-enforcer.md`
 3. Stage both files, then commit
 
 ## Before Spawning Teammate
-PREFERRED: Run `python .claude/scripts/generate-prompt.py --type <agent-type> --task "<description>" --team <team> --name <name>` to generate complete prompt with auto-embedded skills and memory context.
+MANDATORY: Run spawn-agent.py to generate complete prompt. It auto-detects agent type, embeds skills, and injects memory — one command replaces all manual steps.
 
-If generating manually, prompt MUST include:
-- `## Required Skills` section (even if "No skills required")
-- `## Acceptance Criteria`
-- `## Constraints`
-- `## Context from Typed Memory` — relevant excerpts from knowledge.md
-If worktree mode: add `## Working Directory` with path
-- For AO agents: include "Report which skills you invoked" in handoff requirements
+```
+python .claude/scripts/spawn-agent.py --task "<description>" --team <team> --name <name>
+```
+
+The script automatically: detects agent type -> finds matching skills -> reads registry properties -> loads memory -> builds complete prompt with handoff template.
+
+Override auto-detection when needed:
+```
+python .claude/scripts/spawn-agent.py --task "..." --type coder-complex --team X --name Y
+```
 
 Useful commands:
+- `python .claude/scripts/spawn-agent.py --task "..." --detect-only` — show detected type without generating
+- `python .claude/scripts/spawn-agent.py --task "..." --dry-run` — show type + skills plan, no output
+- `python .claude/scripts/spawn-agent.py --task "..." -o work/prompt.md` — save to file
 - `python .claude/scripts/generate-prompt.py --list-types` — show all agent types
 - `python .claude/scripts/generate-prompt.py --list-skills --type coder` — show skills for type
-- `python .claude/scripts/generate-prompt.py --dry-run --type coder --task "X"` — preview without generating
 
-## Agent Type Lookup
-Before spawning, look up agent type in `.claude/agents/registry.md`:
-- Use correct tools restriction (read-only vs full)
-- Inject typed memory per registry Memory column
-- Use focused prompt from `.claude/prompts/{type}.md` if available
+FALLBACK (only if spawn-agent.py unavailable): manually build prompt per `.claude/guides/teammate-prompt-template.md`.
 
 ## Before "done" (MANDATORY Verification Gate)
 BLOCKING: Cannot claim completion without passing ALL checks.
@@ -437,6 +438,7 @@ py -3 .claude/scripts/memory-engine.py decay .claude/memory/                  # 
 | AO config | `~/.agent-orchestrator.yaml` |
 | Memory config | `.claude/memory/.memory-config.json` |
 | Prompt generator | `.claude/scripts/generate-prompt.py` |
+| Agent spawner | `.claude/scripts/spawn-agent.py` |
 
 ---
 

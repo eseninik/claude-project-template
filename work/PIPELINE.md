@@ -1,10 +1,10 @@
-# Pipeline: Prompt Generator + Auto-Discovery
+# Pipeline: spawn-agent.py + Full Flow Automation
 
 - Status: PIPELINE_COMPLETE
 - Phase: SYNC
 - Mode: INTERACTIVE
 
-> Build generate-prompt.py with skill auto-discovery via YAML roles field.
+> Build spawn-agent.py with auto-type detection. Iterate until full flow is automatic.
 
 ---
 
@@ -16,23 +16,47 @@
 - Attempts: 0 of 1
 - On PASS: -> TEST
 - On FAIL: -> STOP
-- Gate: Script works, all 13 skills have roles, CLAUDE.md updated
+- Gate: spawn-agent.py works, CLAUDE.md updated, template synced
 - Gate Type: AUTO
-- Inputs: .claude/skills/*/SKILL.md, agents/registry.md, teammate-prompt-template.md
-- Outputs: generate-prompt.py, updated YAML front matters, CLAUDE.md rule
+- Inputs: generate-prompt.py, registry.md, teammate-prompt-template.md
+- Outputs: spawn-agent.py, updated CLAUDE.md, updated template
 - Checkpoint: pipeline-checkpoint-IMPLEMENT
 
 ### Phase: TEST
 - Status: PASS
 - Mode: AGENT_TEAMS
-- Attempts: 0 of 1
-- On PASS: -> SYNC
+- Attempts: 0 of 2
+- On PASS: -> EVALUATE
 - On FAIL: -> IMPLEMENT (fix issues)
-- Gate: 4 test scenarios pass with correct skill embedding
+- Gate: 4+ test scenarios pass with correct type detection and skill embedding
 - Gate Type: AUTO
-- Inputs: generate-prompt.py, skill files
-- Outputs: work/e2e-results/prompt-generator-tests.md
+- Inputs: spawn-agent.py, skill files
+- Outputs: work/test-results/spawn-agent-tests.md
 - Checkpoint: pipeline-checkpoint-TEST
+
+### Phase: EVALUATE
+- Status: PASS
+- Mode: SOLO
+- Attempts: 0 of 3
+- On PASS: -> SYNC
+- On FAIL: -> ITERATE
+- Gate: Answer to "does everything work automatically?" is YES
+- Gate Type: AUTO
+- Inputs: Test results, full flow analysis
+- Outputs: work/automation-evaluation.md
+- Checkpoint: pipeline-checkpoint-EVALUATE
+
+### Phase: ITERATE
+- Status: PENDING
+- Mode: AGENT_TEAMS
+- Attempts: 0 of 3
+- On PASS: -> EVALUATE
+- On FAIL: -> STOP
+- Gate: All identified gaps fixed
+- Gate Type: AUTO
+- Inputs: work/automation-evaluation.md
+- Outputs: Fixed scripts/docs
+- Checkpoint: pipeline-checkpoint-ITERATE
 
 ### Phase: SYNC
 - Status: PASS
@@ -50,10 +74,11 @@
 
 ## Decisions
 
-- [DESIGN] Auto-discovery via `roles:` YAML field — no CLAUDE.md edits when adding skills
-- [DESIGN] Python stdlib only (like memory-engine.py) — zero dependencies
-- [DESIGN] 3 parallel agents in IMPLEMENT (script, YAML roles, CLAUDE.md)
-- [DESIGN] 4 test scenarios in TEST: coder, qa-reviewer, planner, edge cases
+- [DESIGN] spawn-agent.py imports generate-prompt.py as module — no code duplication
+- [DESIGN] Keyword-based type detection with confidence scoring (0-100%)
+- [DESIGN] Supports both English and Russian keywords
+- [DESIGN] --type override available when auto-detection is insufficient
+- [DESIGN] EVALUATE phase uses checklist: "is everything automatic?" — loops back to ITERATE if NO
 
 ---
 

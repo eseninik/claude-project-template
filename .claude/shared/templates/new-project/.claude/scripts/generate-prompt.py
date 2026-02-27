@@ -115,6 +115,7 @@ def parse_yaml_front_matter(content):
 
 def strip_front_matter(content):
     """Remove YAML front matter from skill content, return body only."""
+    content = content.lstrip('\ufeff')  # Strip BOM (Windows UTF-8)
     m = re.match(r'^---\s*\n.*?\n---\s*\n?', content, re.DOTALL)
     return content[m.end():] if m else content
 
@@ -488,8 +489,11 @@ Examples:
 
     if not args.type:
         parser.error("--type is required (use --list-types to see options)")
-    if not args.task and not args.dry_run:
-        parser.error("--task is required")
+    if not args.task:
+        if args.dry_run:
+            args.task = "(dry-run — no task specified)"
+        else:
+            parser.error("--task is required")
 
     cmd_generate(args, root)
 
