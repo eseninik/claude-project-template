@@ -9,6 +9,8 @@ When compacting, ALWAYS preserve these rules (they are lost most often):
 - **KNOWLEDGE**: Read .claude/memory/knowledge.md at session start (patterns + gotchas)
 - **GRAPHITI**: Query Graphiti at session start and after compaction for semantic context
 - **PIPELINE MANDATORY**: Multi-phase tasks MUST create work/PIPELINE.md BEFORE implementation
+- **HOOKS AUTO-INJECT**: SessionStart hook auto-loads context with tier labels. Write-validate warns on schema issues.
+- **MEMORY DECAY**: knowledge.md entries have verified: dates. Old entries auto-decay. Use `knowledge-touch` to refresh used patterns.
 After compaction: THE COMPACTION SUMMARY IS A HINT, NOT TRUTH. Re-read work/PIPELINE.md + .claude/memory/activeContext.md + .claude/memory/knowledge.md IMMEDIATELY. If PIPELINE.md has <- CURRENT marker: resume from that phase. DO NOT proceed without re-reading these files.
 
 ---
@@ -52,7 +54,8 @@ After completing any pipeline phase, execute these steps BEFORE starting the nex
 3. Update daily/{YYYY-MM-DD}.md with what happened
 4. Save to Graphiti: add_memory(name="phase_insight", episode_body=<phase learnings>)
 5. Re-read PIPELINE.md + activeContext.md + knowledge.md for fresh context
-6. Advance <- CURRENT marker and start next phase
+6. Agents output structured handoff: === PHASE HANDOFF === block (see teammate-prompt-template.md)
+7. Advance <- CURRENT marker and start next phase
 
 This protocol prevents knowledge loss between phases in interactive mode.
 ```
@@ -119,13 +122,12 @@ BLOCKING: No implementation without work/expert-analysis.md
 ## Session Start (MANDATORY — every session, no exceptions)
 
 ```
-1. Read .claude/memory/activeContext.md — what happened last session
-2. Read .claude/memory/knowledge.md — patterns + gotchas
-3. IF work/PIPELINE.md exists with <- CURRENT -> resume pipeline
-4. Query Graphiti: search_memory_facts(query=<current task>, max_facts=5)
+SessionStart hook auto-injects: activeContext.md + knowledge.md summary + pipeline status + observations count.
+You still MUST manually:
+1. IF work/PIPELINE.md exists with <- CURRENT -> resume pipeline
+2. Query Graphiti: search_memory_facts(query=<current task>, max_facts=5)
 
-Steps 1-2 are NOT optional. Skipping them = working blind.
-If PIPELINE.md has <- CURRENT -> resume from that phase, DO NOT start new work.
+The hook handles steps 1-2 of old protocol automatically. Steps above are what remains.
 ```
 
 ## Before Code Changes (always)
@@ -145,7 +147,8 @@ LEVEL 1 — MANDATORY (do these EVERY time, no exceptions):
 LEVEL 2 — RECOMMENDED (do these when session was productive):
 3. Update .claude/memory/knowledge.md (new patterns/gotchas, deduplicate)
 4. Save to Graphiti: add_memory(name="session_insight", episode_body=<what was learned>)
-5. Update work/PIPELINE.md if pipeline active
+5. Capture observations in .claude/memory/observations/ (friction/surprise/gap/insight)
+6. Update work/PIPELINE.md if pipeline active
 
 Steps 1-2 are BLOCKING — do NOT commit without completing them.
 IF you learned something new -> also do step 3 (knowledge.md).
@@ -260,6 +263,60 @@ BLOCKING: Cannot claim completion without passing ALL checks.
 
 ---
 
+# MEMORY DECAY (Ebbinghaus Forgetting Curve)
+
+> Patterns/gotchas in knowledge.md have temporal relevance. Old entries auto-decay, fresh ones rise.
+
+## Tiers
+
+| Tier | Days since verified | When to use |
+|------|-------------------|-------------|
+| **active** | 0-14 | Top priority, always shown at session start |
+| **warm** | 15-30 | Still relevant, may need re-verification |
+| **cold** | 31-90 | Possibly outdated, needs refresh |
+| **archive** | 90+ | Likely stale, surface only in deep/creative search |
+
+## Search Modes
+
+```
+WHEN choosing how much memory to load:
+
+heartbeat (~2K tokens) — Quick check: active patterns only
+  Use for: simple bug fixes, single-file tasks
+
+normal (~5K tokens) — Default: active + warm patterns
+  Use for: most tasks, feature implementation
+
+deep (~15K tokens) — Full: all tiers + Graphiti + daily logs
+  Use for: architecture decisions, "find everything about X"
+
+creative (~3K tokens) — Random from cold/archive for serendipity
+  Use for: brainstorming, design phases, "what am I forgetting?"
+  Command: py -3 .claude/scripts/memory-engine.py creative 5 .claude/memory/
+```
+
+## When You USE a Pattern
+
+```
+If you used a knowledge.md pattern during work -> refresh it:
+  py -3 .claude/scripts/memory-engine.py knowledge-touch "Pattern Name" .claude/memory/
+
+This promotes it one tier up (graduated recall, not straight to top).
+Skip if already verified within 7 days.
+```
+
+## Memory Engine Commands
+
+```
+py -3 .claude/scripts/memory-engine.py knowledge .claude/memory/ --verbose  # tier analysis
+py -3 .claude/scripts/memory-engine.py knowledge-touch "name" .claude/memory/ # refresh pattern
+py -3 .claude/scripts/memory-engine.py creative 5 .claude/memory/            # serendipity
+py -3 .claude/scripts/memory-engine.py stats .claude/memory/                  # health check
+py -3 .claude/scripts/memory-engine.py decay .claude/memory/                  # recalculate all
+```
+
+---
+
 # CONTEXT LOADING TRIGGERS
 
 | Situation | Load |
@@ -292,6 +349,11 @@ BLOCKING: Cannot claim completion without passing ALL checks.
 | QA validation skill | `.claude/skills/qa-validation-loop/SKILL.md` |
 | Graphiti integration | `.claude/guides/graphiti-integration.md` |
 | Focused prompt files | `.claude/prompts/` |
+| Observations | `.claude/memory/observations/` |
+| Runtime config | `.claude/ops/config.yaml` |
+| Observation guide | `.claude/guides/observation-capture.md` |
+| Memory engine | `.claude/scripts/memory-engine.py` |
+| Memory config | `.claude/memory/.memory-config.json` |
 
 ---
 
