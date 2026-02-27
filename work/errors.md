@@ -390,3 +390,7 @@ console.log('Sp`
 **Context:** `C:\Bots\Migrator bots\call-rate-bot\CLAUDE.md`
 **Error:** File does not exist. Note: your current working directory is C:\Bots\Migrator bots\claude-project-template-update.
 
+### 2026-02-27 20:30:21 — Read
+**Context:** `C:\Users\Lenovo\.claude\projects\C--Bots-Migrator-bots-claude-project-template-update\c1486c79-3cdd-41a0-bd52-52d0a77cefb2\tool-results\toolu_01PU5o1vbR8QM232W6CeaBgF.txt`
+**Error:** File content (28679 tokens) exceeds maximum allowed tokens (25000). Please use offset and limit parameters to read specific portions of the file, or use the GrepTool to search for specific content.
+

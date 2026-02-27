@@ -6,6 +6,7 @@ description: |
   Detects work streams (DB/API/UI/Tests) for smarter parallelization.
   Use when complex task has no clear structure or checking parallelization.
   Does NOT apply when tasks/*.md already exist (use subagent-driven-development).
+roles: [planner, complexity-assessor, wave-coordinator]
 ---
 
 # Task Decomposition Skill

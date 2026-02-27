@@ -6,6 +6,7 @@ description: |
   Wraps: ao spawn, ao batch-spawn, ao session ls, ao session kill, ao session cleanup.
   Does NOT apply for single-project parallelism (use AGENT_TEAMS/TeamCreate instead).
   Does NOT apply for sequential single-project tasks (use SOLO mode).
+roles: [fleet-orchestrator]
 ---
 
 ## Philosophy

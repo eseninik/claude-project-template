@@ -2,6 +2,7 @@
 name: systematic-debugging
 version: 1.0.0
 description: Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes - four-phase framework (root cause investigation, pattern analysis, hypothesis testing, implementation) that ensures understanding before attempting solutions
+roles: [reproducer, analyzer, fixer]
 ---
 
 # Systematic Debugging

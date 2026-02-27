@@ -10,6 +10,7 @@ description: |
   - Autowork pipeline running
 
   Do NOT use for: exploratory work, user-guided tasks
+roles: [pipeline-lead, wave-coordinator]
 ---
 
 # Self-Completion Skill

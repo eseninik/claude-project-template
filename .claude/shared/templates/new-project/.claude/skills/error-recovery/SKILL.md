@@ -11,6 +11,7 @@ description: |
   - Unexpected exception
 
   Do NOT use for: successful operations, user-initiated cancellations
+roles: [coder, coder-complex, fixer, qa-fixer, reproducer]
 ---
 
 # Error Recovery Skill

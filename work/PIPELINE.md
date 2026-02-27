@@ -1,10 +1,10 @@
-# Pipeline: Post-E2E Infrastructure Improvements
+# Pipeline: Prompt Generator + Auto-Discovery
 
 - Status: PIPELINE_COMPLETE
-- Phase: VERIFY
+- Phase: SYNC
 - Mode: INTERACTIVE
 
-> Fix all issues found during E2E testing + clean up global skills.
+> Build generate-prompt.py with skill auto-discovery via YAML roles field.
 
 ---
 
@@ -14,45 +14,46 @@
 - Status: PASS
 - Mode: AGENT_TEAMS
 - Attempts: 0 of 1
-- On PASS: -> SYNC
+- On PASS: -> TEST
 - On FAIL: -> STOP
-- Gate: All 5 tasks complete with verification
+- Gate: Script works, all 13 skills have roles, CLAUDE.md updated
 - Gate Type: AUTO
-- Inputs: E2E test results, ~/.claude/skills/, ao-hybrid.sh, SKILLS_INDEX.md
-- Outputs: Modified files, deleted global skills
+- Inputs: .claude/skills/*/SKILL.md, agents/registry.md, teammate-prompt-template.md
+- Outputs: generate-prompt.py, updated YAML front matters, CLAUDE.md rule
 - Checkpoint: pipeline-checkpoint-IMPLEMENT
+
+### Phase: TEST
+- Status: PASS
+- Mode: AGENT_TEAMS
+- Attempts: 0 of 1
+- On PASS: -> SYNC
+- On FAIL: -> IMPLEMENT (fix issues)
+- Gate: 4 test scenarios pass with correct skill embedding
+- Gate Type: AUTO
+- Inputs: generate-prompt.py, skill files
+- Outputs: work/e2e-results/prompt-generator-tests.md
+- Checkpoint: pipeline-checkpoint-TEST
 
 ### Phase: SYNC
 - Status: PASS
 - Mode: AGENT_TEAMS
 - Attempts: 0 of 1
-- On PASS: -> VERIFY
-- On FAIL: -> STOP
-- Gate: Template + 8 bots synced with changes
-- Gate Type: AUTO
-- Inputs: Modified files from IMPLEMENT
-- Outputs: Synced bot projects
-- Checkpoint: pipeline-checkpoint-SYNC
-
-### Phase: VERIFY
-- Status: PASS
-- Mode: SOLO
-- Attempts: 0 of 1
 - On PASS: -> COMPLETE
 - On FAIL: -> STOP
-- Gate: All changes verified across all targets
+- Gate: Template + 8 bots synced
 - Gate Type: AUTO
 - Inputs: All modified files
-- Outputs: work/e2e-results/improvements-summary.md
-- Checkpoint: pipeline-checkpoint-VERIFY
+- Outputs: Synced projects
+- Checkpoint: pipeline-checkpoint-SYNC
 
 ---
 
 ## Decisions
 
-- [DESIGN] 5 tasks in IMPLEMENT are independent (different files/systems) → parallelize
-- [DESIGN] Global skills: remove pure development skills, keep project workflow/meta skills
-- [DESIGN] SYNC uses proven 8-agent parallel pattern
+- [DESIGN] Auto-discovery via `roles:` YAML field — no CLAUDE.md edits when adding skills
+- [DESIGN] Python stdlib only (like memory-engine.py) — zero dependencies
+- [DESIGN] 3 parallel agents in IMPLEMENT (script, YAML roles, CLAUDE.md)
+- [DESIGN] 4 test scenarios in TEST: coder, qa-reviewer, planner, edge cases
 
 ---
 

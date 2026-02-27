@@ -122,6 +122,9 @@
 
 **[Pre-compaction save 19:15]** Executed a complete 5-agent parallel implementation phase (IMPLEMENT) to fix AO Hybrid E2E issues, then synced all changes to template + 8 bots (SYNC phase), and began E2E integration testing (VERIFY phase) to validate the fixes.
 
+
+**[Pre-compaction save 20:39]** Completed IMPLEMENT and TEST phases of skill auto-discovery system. Built `generate-prompt.py` (280-line stdlib script) that auto-discovers skills via `roles:` YAML field, validated it across 3 test agents (coder, qa-reviewer, pipeline-lead), and synced the generator + 13 updated skills to all 8 production bots (56/56 checks pass).
+
 ### 2026-02-27 (session 8 — E2E Infrastructure Validation COMPLETE)
 **Did:** (1) Completed Phase 2 TEST_AGENT_TEAMS — all 3 agents PASS (verifier 13/13, mapper 7-step map, error-handler 2 recoveries). (2) Fixed conflict marker false positives in template copy of subagent-driven-development. (3) Synced conflict marker fix to 8 bots. (4) Completed Phase 3 TEST_AO_HYBRID — 2 AO agents spawned, both produced outputs and git commits. (5) Wrote Phase 4 VERIFY summary. (6) Pipeline COMPLETE.
 **Decided:** AO Hybrid spawns work but have 3 concerns: stale branch reuse, no skill invocation audit trail, global/project skill confusion. Future prompts should include "Report which skills you invoked."
@@ -129,9 +132,13 @@
 **Next:** All E2E issues addressed and verified. System is stable. Consider future: AO Hybrid production use, skill compliance monitoring.
 
 ### 2026-02-27 (session 9 — E2E v2 Verification COMPLETE)
-**Did:** (1) Resumed VERIFY phase of Post-E2E Improvements pipeline. (2) Spawned 3 parallel agents: index-verifier (SKILLS_INDEX accuracy), ao-verifier (ao-hybrid.sh fixes), skills-verifier (global cleanup). (3) All 3 PASS — every criterion verified with evidence. (4) Wrote improvements-summary.md. (5) Pipeline PIPELINE_COMPLETE.
-**Decided:** All 5 E2E v1 issues are resolved. Infrastructure is clean and verified.
-**Learned:** Agent Teams with embedded verification-before-completion + "Skills Invoked:" handoff format produces reliable structured evidence. The 3-phase improvement pipeline (IMPLEMENT→SYNC→VERIFY) is a proven pattern for infrastructure fixes.
-**Next:** System stable. Future work: AO Hybrid in production pipelines, skill compliance monitoring over time.
+**Did:** (1) Resumed VERIFY phase of Post-E2E Improvements pipeline. (2) Spawned 3 parallel agents: index-verifier, ao-verifier, skills-verifier. (3) All 3 PASS.
+**Next:** Build prompt generator for skill auto-discovery.
 
-> [6 older session(s) archived — see daily/ logs]
+### 2026-02-27 (session 10 — Prompt Generator COMPLETE)
+**Did:** (1) Built `generate-prompt.py` (280 lines, stdlib only) — auto-discovers skills via `roles:` YAML field. (2) Added `roles:` to all 13 skill YAML front matters. (3) Updated CLAUDE.md with generator rule. (4) TEST phase: 3 agents (coder, qa-reviewer, pipeline-lead) each correctly received their skills and followed protocols. (5) Fixed BOM handling for Windows. (6) Synced to template + 8 bots (56/56 checks pass).
+**Decided:** Auto-discovery via YAML `roles:` field — adding a new skill requires only creating SKILL.md with `roles:`, no other files to edit. Generator reduces teammate prompt creation from 5 steps to 1.
+**Learned:** (1) Prompt generator eliminates the multi-step compliance problem — 1 command produces a complete prompt with correct skills, memory, and handoff template. (2) qa-reviewer agent correctly identified BOM handling and registry parsing fragility. (3) pipeline-lead agent created a realistic 3-agent plan showing the generator integrates naturally into workflows.
+**Next:** System stable. Monitor skill compliance with generator in production use.
+
+> [7 older session(s) archived — see daily/ logs]

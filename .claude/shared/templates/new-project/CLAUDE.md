@@ -4,7 +4,7 @@ When compacting, ALWAYS preserve these rules (they are lost most often):
 - **AGENT TEAMS**: 3+ independent tasks -> ALWAYS use TeamCreate, not sequential execution
 - **PIPELINE**: Read work/PIPELINE.md after compaction, continue from <- CURRENT marker
 - **MEMORY**: ALWAYS update activeContext.md + daily log before commit/exit
-- **SKILLS**: Before executing task matching a skill trigger -> invoke Skill tool. Before spawning teammate -> embed full skill content in prompt (subagents can't load skills).
+- **SKILLS**: Before executing task matching a skill trigger -> invoke Skill tool. Before spawning teammate -> run `python .claude/scripts/generate-prompt.py` to get prompt with auto-embedded skills.
 - **VERIFICATION**: NEVER say "done" without running tests
 - **QA GATE**: After IMPLEMENT phase -> `cat .claude/skills/qa-validation-loop/SKILL.md` before TEST
 - **KNOWLEDGE**: Read .claude/memory/knowledge.md at session start (patterns + gotchas)
@@ -270,13 +270,20 @@ Read guide: `cat .claude/guides/plan-execution-enforcer.md`
 3. Stage both files, then commit
 
 ## Before Spawning Teammate
-Prompt MUST include:
+PREFERRED: Run `python .claude/scripts/generate-prompt.py --type <agent-type> --task "<description>" --team <team> --name <name>` to generate complete prompt with auto-embedded skills and memory context.
+
+If generating manually, prompt MUST include:
 - `## Required Skills` section (even if "No skills required")
 - `## Acceptance Criteria`
 - `## Constraints`
 - `## Context from Typed Memory` — relevant excerpts from knowledge.md
 If worktree mode: add `## Working Directory` with path
 - For AO agents: include "Report which skills you invoked" in handoff requirements
+
+Useful commands:
+- `python .claude/scripts/generate-prompt.py --list-types` — show all agent types
+- `python .claude/scripts/generate-prompt.py --list-skills --type coder` — show skills for type
+- `python .claude/scripts/generate-prompt.py --dry-run --type coder --task "X"` — preview without generating
 
 ## Agent Type Lookup
 Before spawning, look up agent type in `.claude/agents/registry.md`:
@@ -429,6 +436,7 @@ py -3 .claude/scripts/memory-engine.py decay .claude/memory/                  # 
 | AO Hybrid helper | `.claude/scripts/ao-hybrid.sh` |
 | AO config | `~/.agent-orchestrator.yaml` |
 | Memory config | `.claude/memory/.memory-config.json` |
+| Prompt generator | `.claude/scripts/generate-prompt.py` |
 
 ---
 

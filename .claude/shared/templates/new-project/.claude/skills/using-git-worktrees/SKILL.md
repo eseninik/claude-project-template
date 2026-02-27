@@ -27,6 +27,7 @@ changelog:
       - Added Conflict Classification (5 types)
       - Added Batch Cleanup
       - Added Platform Detection
+roles: [pipeline-lead, wave-coordinator, ao-hybrid-coordinator]
 ---
 
 # Using Git Worktrees

@@ -8,6 +8,7 @@ description: |
   Wraps: ao spawn --prompt-file, ao session ls, ao session cleanup.
   Does NOT apply for cross-project fleet ops (use ao-fleet-spawn).
   Does NOT apply for simple subagent tasks without context needs (use TeamCreate).
+roles: [ao-hybrid-coordinator]
 ---
 
 # AO Hybrid Spawn

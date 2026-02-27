@@ -5,6 +5,7 @@ description: |
   Discovers tech stack, entry points, modules, dependencies.
   Use when starting work on an existing/unfamiliar project.
   Does NOT apply to new projects built from scratch.
+roles: [spec-researcher, business-analyst, system-architect]
 ---
 
 ## Philosophy

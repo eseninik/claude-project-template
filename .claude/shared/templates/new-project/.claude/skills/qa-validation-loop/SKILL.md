@@ -6,6 +6,7 @@ description: |
   Reads complexity from work/complexity-assessment.md to determine QA depth.
   Use after IMPLEMENT phase, after code waves, or when user says "run QA".
   Does NOT replace expert panel or test execution (TEST phase).
+roles: [qa-reviewer]
 ---
 
 ## Philosophy

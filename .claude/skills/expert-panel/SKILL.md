@@ -5,6 +5,7 @@ description: |
   Spawns 3-5 specialized experts from pool of 10, selected by domain.
   Use when user says "Agent Teams Mode", "expert panel", or complex task needs multi-perspective analysis.
   Does NOT apply to simple tasks (1-2 files) or trivial bugs.
+roles: []
 ---
 
 ## Philosophy

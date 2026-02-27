@@ -26,6 +26,7 @@ changelog:
       - Added platform detection (Windows/Cyrillic fallback)
       - Added conflict classification for merge resolution
       - Breaking: Requires git 2.17+
+roles: [pipeline-lead, wave-coordinator, ao-hybrid-coordinator]
 ---
 
 # Subagent-Driven Development

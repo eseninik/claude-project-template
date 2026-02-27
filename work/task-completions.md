@@ -113,3 +113,13 @@
 | 2026-02-27 19:19 | 2 | Verify ao-hybrid.sh unique branch naming works | ao-verifier | PASSED |
 | 2026-02-27 19:19 | 3 | Verify global skills cleanup вЂ” exactly 14 remain | main | PASSED |
 | 2026-02-27 19:19 | 6 | skills-verifier | main | PASSED |
+| 2026-02-27 20:27 | 2 | Update CLAUDE.md with generate-prompt.py rule | claude-md-updater | PASSED |
+| 2026-02-27 20:27 | 5 | claude-md-updater | claude-md-updater | PASSED |
+| 2026-02-27 20:27 | 1 | Add roles field to all 13 skill YAML front matters | roles-adder | PASSED |
+| 2026-02-27 20:27 | 4 | roles-adder | roles-adder | PASSED |
+| 2026-02-27 20:29 | 3 | Verify generate-prompt.py works correctly | main | PASSED |
+| 2026-02-27 20:31 | 7 | Test: qa-reviewer agent with embedded skills revie | test-reviewer | PASSED |
+| 2026-02-27 20:31 | 6 | Test: coder agent with embedded skills does verifi | test-coder | PASSED |
+| 2026-02-27 20:33 | 11 | test-planner | test-planner | PASSED |
+| 2026-02-27 20:33 | 8 | Test: pipeline-lead agent with embedded skills pla | main | PASSED |
+| 2026-02-27 20:38 | 12 | bot-syncer | bot-syncer | PASSED |
