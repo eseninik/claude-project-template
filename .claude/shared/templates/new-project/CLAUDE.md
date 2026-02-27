@@ -4,6 +4,7 @@ When compacting, ALWAYS preserve these rules (they are lost most often):
 - **AGENT TEAMS**: 3+ independent tasks -> ALWAYS use TeamCreate, not sequential execution
 - **PIPELINE**: Read work/PIPELINE.md after compaction, continue from <- CURRENT marker
 - **MEMORY**: ALWAYS update activeContext.md + daily log before commit/exit
+- **SKILLS**: Before executing task matching a skill trigger -> invoke Skill tool. Before spawning teammate -> embed full skill content in prompt (subagents can't load skills).
 - **VERIFICATION**: NEVER say "done" without running tests
 - **QA GATE**: After IMPLEMENT phase -> `cat .claude/skills/qa-validation-loop/SKILL.md` before TEST
 - **KNOWLEDGE**: Read .claude/memory/knowledge.md at session start (patterns + gotchas)
@@ -55,6 +56,8 @@ ACTION:
   1. Pre-flight: `ao status` (verify config loads)
   2. Build prompts using .claude/guides/teammate-prompt-template.md + AO additions
   3. Write prompts to work/ao-prompts/task-{N}.md
+  3b. Use unique task IDs with timestamp (e.g., task-1-20260227) to prevent stale branch reuse
+  3c. Use absolute project path in prompts to avoid global/project skill confusion
   4. Spawn: `bash .claude/scripts/ao-hybrid.sh spawn <task-id> <prompt-file>`
   5. Monitor: `bash .claude/scripts/ao-hybrid.sh wait --timeout 3600`
   6. Collect results from worktree handoff files
@@ -63,6 +66,7 @@ ACTION:
 
 WHY: TeamCreate agents see CLAUDE.md but DON'T load skills, memory, or hooks.
      AO-spawned sessions are full Claude Code instances that follow all protocols.
+GOTCHA: Reusing session names causes stale worktrees. Always use unique names with timestamps.
 
 SKILL: cat .claude/skills/ao-hybrid-spawn/SKILL.md
 ```
@@ -272,6 +276,7 @@ Prompt MUST include:
 - `## Constraints`
 - `## Context from Typed Memory` — relevant excerpts from knowledge.md
 If worktree mode: add `## Working Directory` with path
+- For AO agents: include "Report which skills you invoked" in handoff requirements
 
 ## Agent Type Lookup
 Before spawning, look up agent type in `.claude/agents/registry.md`:
@@ -366,18 +371,35 @@ py -3 .claude/scripts/memory-engine.py decay .claude/memory/                  # 
 
 # CONTEXT LOADING TRIGGERS
 
+## Guides (load via `cat`)
+
 | Situation | Load |
 |-----------|------|
 | Pipeline execution | `cat .claude/guides/autonomous-pipeline.md` |
 | Plan for implementation | `cat .claude/guides/plan-execution-enforcer.md` |
 | Spawning teammate | `cat .claude/guides/teammate-prompt-template.md` |
 | Expert Panel | `cat .claude/guides/expert-panel-workflow.md` |
-| QA validation needed | `cat .claude/skills/qa-validation-loop/SKILL.md` |
 | Phase template needed | `cat .claude/shared/work-templates/phases/{PHASE}.md` |
 | Agent type lookup | `cat .claude/agents/registry.md` |
 | Graphiti memory setup | `cat .claude/guides/graphiti-integration.md` |
-| AO Fleet spawn | `cat .claude/skills/ao-fleet-spawn/SKILL.md` |
-| AO Hybrid execution | `cat .claude/skills/ao-hybrid-spawn/SKILL.md` |
+
+## Skills (invoke via Skill tool)
+
+| Situation | Skill to Invoke |
+|-----------|----------------|
+| Debugging any error | systematic-debugging |
+| Before claiming "done" | verification-before-completion |
+| Executing plan with subtasks | subagent-driven-development |
+| Decomposing complex task | task-decomposition |
+| QA after implementation | qa-validation-loop |
+| Tool call failures | error-recovery |
+| Branch merge/PR | finishing-a-development-branch |
+| Worktree needed | using-git-worktrees |
+| Pending todos after task | self-completion |
+| Expert panel requested | expert-panel |
+| Unknown codebase | codebase-mapping |
+| AO Hybrid execution | ao-hybrid-spawn |
+| Fleet cross-project ops | ao-fleet-spawn |
 
 ---
 

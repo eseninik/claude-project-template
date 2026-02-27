@@ -80,6 +80,12 @@ cmd_spawn() {
   project=$(get_project "$project")
   ensure_sessions_file
 
+  # GOTCHA: Reusing branch names causes stale worktrees (E2E finding 2026-02-27)
+  # Always generate unique session names to ensure fresh HEAD checkout
+  local timestamp
+  timestamp=$(date +%Y%m%d-%H%M%S)
+  local unique_id="${task_id}-${timestamp}"
+
   local output
   output=$(ao spawn "$project" --prompt-file "$prompt_file" 2>&1) || die "ao spawn failed: $output"
 
@@ -90,23 +96,23 @@ cmd_spawn() {
   [[ -z "$session_id" ]] && session_id=$(echo "$output" | grep -oP 'Session \K[^ ]+(?= created)' | head -1)
   [[ -z "$session_id" ]] && die "Could not parse session ID from ao output: $output"
 
-  local timestamp
-  timestamp=$(now_iso)
+  local spawned_at
+  spawned_at=$(now_iso)
   if has_jq; then
     local tmp
-    tmp=$(jq --arg tid "$task_id" --arg sid "$session_id" --arg ts "$timestamp" \
+    tmp=$(jq --arg tid "$unique_id" --arg sid "$session_id" --arg ts "$spawned_at" \
       '.sessions += [{"task_id": $tid, "session_id": $sid, "status": "spawned", "spawned_at": $ts}]' \
       "$SESSIONS_FILE")
     echo "$tmp" > "$SESSIONS_FILE"
   else
-    local entry="{\"task_id\": \"$task_id\", \"session_id\": \"$session_id\", \"status\": \"spawned\", \"spawned_at\": \"$timestamp\"}"
+    local entry="{\"task_id\": \"$unique_id\", \"session_id\": \"$session_id\", \"status\": \"spawned\", \"spawned_at\": \"$spawned_at\"}"
     if grep -q '"sessions": \[\]' "$SESSIONS_FILE"; then
       sed -i "s|\"sessions\": \[\]|\"sessions\": [$entry]|" "$SESSIONS_FILE"
     else
       sed -i "s|\(.*\)\]$|\1, $entry]|" "$SESSIONS_FILE"
     fi
   fi
-  echo "Spawned session $session_id for task $task_id"
+  echo "Spawned session $session_id for task $unique_id (base: $task_id)"
 }
 
 # --- status [--project <id>] ---

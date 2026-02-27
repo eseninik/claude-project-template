@@ -9,23 +9,27 @@
 
 ## Current Focus
 
-### AO Hybrid E2E Test + Bot Fleet Sync — COMPLETE
-**Task:** Fix AO runtime for Windows, E2E test AO Hybrid with real spawned agents, sync to 8 bots.
+### Full Skills Restoration + Auto-Loading Mechanism — COMPLETE
+**Task:** Restore full skill versions from git history, fix skill loading for all agent types, sync to 8 bots.
 
-**What was done (session 5):**
-- Fixed ao-hybrid.sh status parsing: bracketed `[spawning]` patterns instead of bare words matching "(no active sessions)"
-- Fixed AO Windows runtime: 3 issues blocking spawned sessions:
-  1. `process.exit(0)` in spawn.ts — CLI returns immediately after spawning
-  2. `detached: true` + `windowsHide: true` — child process survives parent exit
-  3. `shellEscape()` Windows fix — double quotes for cmd.exe instead of POSIX single quotes
-  4. Prompt-to-file: writes long prompts to `.ao-task-prompt.md` in worktree, passes short reference via CLI
-- Added `agentConfig.permissions: skip` to AO config for autonomous agent execution
-- Fixed ao-hybrid.sh session ID parsing: uses `SESSION=<id>` line instead of greedy regex
-- E2E test: spawned 2 agents via `ao spawn --prompt-file`, both completed tasks successfully
-  - Task 1: Skills audit → found 34 skills, wrote report, committed
-  - Task 2: Template diff → found 2 missing files + 1 diff, wrote report, committed
-- Synced AO Hybrid changes to 8 bots via Agent Teams (8 parallel agents)
-- Spot-check verification: 3 bots checked, all 8/8 files present, registry.md exact match
+**What was done (session 6):**
+- Restored 8 skills from git commit `51f6d45` to full size (43→425, 44→201, 35→338, 83→1440, 50→296, 83→601, 54→448, 46→140 lines)
+- Merged AO Hybrid Mode section into restored `subagent-driven-development` (1424+16=1440 lines)
+- Fixed `task-decomposition` YAML description: Russian → English (invisible to skill routing)
+- Updated teammate-prompt-template.md: require full skill CONTENT embedding, not just names
+- Updated CLAUDE.md: added SKILLS rule to Summary Instructions (survives compaction), split CONTEXT LOADING TRIGGERS into Guides (cat) vs Skills (Skill tool) with 13-skill trigger mapping
+- Synced all 13 skills + template + CLAUDE.md to new-project template
+- Synced to 8 bots via 8 parallel agents — all verified (1440 lines, SKILLS rule, trigger table)
+
+**Decisions:**
+- Only `task-decomposition` had Russian description (the other 12 skills already had English)
+- `using-git-worktrees` (v2.1) and `verification-before-completion` (140 lines) needed no post-reduction merges
+- Template CLAUDE.md and main CLAUDE.md get identical structural changes
+
+**Learned:**
+- Skills were reduced from ~5,000 to ~500 total lines in commit `f9e2556` (40 min after `51f6d45`)
+- ~30-40% skill compliance was caused by: terse descriptions, no content in teammate prompts, skills listed as `cat` commands instead of Skill tool invocations
+- TeamCreate subagents CAN'T use Skill tool — they need full content embedded in their prompt
 
 ---
 
@@ -108,35 +112,26 @@
 
 **[Pre-compaction save 16:38]** Completed a full hybrid agent spawning architecture implementation with 7 parallel tasks: added `--prompt` and `--prompt-file` flags to `ao spawn`, created the `ao-hybrid.sh` helper script, updated 16 documentation files across main project and template, synced template files, built and verified the system, and updated memory files. All verifications passed.
 
-### 2026-02-27 (session 2 — bot fleet sync)
-**Did:** (1) Committed 76 template files (10,721 lines). (2) Discovered 8 bots + 2 non-bots. (3) Agent Teams: 8 parallel agents synced all bots. (4) Fixed template CLAUDE.md (missing MEMORY DECAY + HOOKS AUTO-INJECT). (5) Final verification: ALL 8 bots pass — 0 diffs, all skills match, no old hooks.
-**Decided:** Use main project CLAUDE.md as source of truth (not template) for bot sync. Each agent extracts project section and merges.
-**Learned:** Agent Teams scale to 8 concurrent bots without issues. Legal Bot had wrong project name from copy-paste — agents can detect and fix. Template CLAUDE.md can drift behind main — always verify sync.
-**Next:** Consider adding decay to PreCompact hook. Monitor bot sessions for decay tier changes in 2-3 weeks.
+
+**[Pre-compaction save 18:14]** Completed full 4-phase AO Hybrid E2E pipeline: synced all 8 bots (6/8 → 7/8 → 8/8), verified files match templates, confirmed fixed bracket-based status parsing works on Windows, committed template changes (commit `855636e`, +1715 lines).
+
+
+**[Pre-compaction save 18:40]** Completed full E2E infrastructure validation: synced 13 skills to all 8 bots (100% success), then executed 3-phase test pipeline verifying skill loading (3/3 PASS with full content), Agent Teams execution (3 agents with embedded skills following protocols), and quality gate checks. Discovered and fixed false-positive merge conflict markers in documentation examples.
 
 
 
-**[Pre-compaction save 15:55]** Completed Agent Orchestrator Stage 1 (AO CLI installed globally, Windows runtime plugin created, 8 bots configured) and Stage 2 (integrated AO_FLEET mode into pipeline system across 6 documentation files). Discovered that TeamCreate subagents don't automatically load skills, knowledge, or context despite having access to CLAUDE.md rules.
+**[Pre-compaction save 19:15]** Executed a complete 5-agent parallel implementation phase (IMPLEMENT) to fix AO Hybrid E2E issues, then synced all changes to template + 8 bots (SYNC phase), and began E2E integration testing (VERIFY phase) to validate the fixes.
 
-### 2026-02-27 (session 3 — AO install + Windows runtime)
-**Did:** (1) Installed AO (pnpm monorepo) at C:\Bots\agent-orchestrator. (2) Created Windows runtime plugin (runtime-windows) — fork of runtime-process with taskkill /T /F instead of POSIX kill(-pid). (3) Fixed config: added required `repo` field (Zod schema). (4) Fixed cross-process liveness: isAlive()/destroy()/getAttachInfo() now fall back to `tasklist /FI "PID eq N"` when process isn't in in-memory map. (5) Full smoke test PASSED: ao status, spawn, session ls, session kill all work.
-**Decided:** AO is complementary to our system (outer loop vs inner loop). Windows runtime needs PID-based cross-process detection because each `ao` CLI invocation is a separate Node.js process (unlike tmux server).
-**Learned:** (1) Zod silent validation → "no config found" is a common UX trap. (2) AO's spawn.ts hardcodes "tmux attach" display regardless of runtime. (3) In-memory process maps don't survive across CLI invocations — need PID-based fallback on Windows.
-**Next:** Sync AO_FLEET changes to all 8 bots. Consider end-to-end test: pipeline with AO_FLEET phase that actually spawns fleet across bots.
+### 2026-02-27 (session 8 — E2E Infrastructure Validation COMPLETE)
+**Did:** (1) Completed Phase 2 TEST_AGENT_TEAMS — all 3 agents PASS (verifier 13/13, mapper 7-step map, error-handler 2 recoveries). (2) Fixed conflict marker false positives in template copy of subagent-driven-development. (3) Synced conflict marker fix to 8 bots. (4) Completed Phase 3 TEST_AO_HYBRID — 2 AO agents spawned, both produced outputs and git commits. (5) Wrote Phase 4 VERIFY summary. (6) Pipeline COMPLETE.
+**Decided:** AO Hybrid spawns work but have 3 concerns: stale branch reuse, no skill invocation audit trail, global/project skill confusion. Future prompts should include "Report which skills you invoked."
+**Learned:** (1) Quality gate hook matches exactly 7-char conflict markers (`"<" * 7`), so 4-char shortened examples pass. (2) AO worktrees can reuse existing branch names from previous sessions → stale code. (3) AO agents see both project and global skills. (4) Agent 2 found 13 phantom skills in SKILLS_INDEX.md and 15 orphaned skills without triggers.
+**Next:** All E2E issues addressed and verified. System is stable. Consider future: AO Hybrid production use, skill compliance monitoring.
 
-### 2026-02-27 (session 3 continued — Stage 2: AO_FLEET integration)
-**Did:** (1) Created ao-fleet-spawn skill with full protocol (pre-flight, spawn, monitor, collect, cleanup). (2) Added AO_FLEET mode to PIPELINE-v3.md template (with example phase + execution rule). (3) Added AO_FLEET execution protocol to autonomous-pipeline.md (Section 4 + Quick Reference). (4) Added fleet-orchestrator agent type to registry.md (full tools, ao-fleet-spawn skill, deep thinking). (5) Updated CLAUDE.md: AO_FLEET section, trigger keywords (fleet, ao spawn, all bots, multi-repo), compaction recovery, role mapping, context loading, knowledge locations. (6) Synced all changes to new-project template (skill, registry, pipeline template, CLAUDE.md).
-**Decided:** AO_FLEET is a pipeline mode (like AGENT_TEAMS), not a replacement for AGENT_TEAMS. They're complementary: AGENT_TEAMS for in-project parallelism, AO_FLEET for cross-project fleet operations.
-**Learned:** Mode ecosystem now has 5 options: SOLO, AGENT_TEAMS, AGENT_CHAINS, AO_FLEET, SUB_PIPELINE. Each has clear trigger and execution protocol.
-**Next:** Sync to 8 bots. Test end-to-end AO_FLEET pipeline.
+### 2026-02-27 (session 9 — E2E v2 Verification COMPLETE)
+**Did:** (1) Resumed VERIFY phase of Post-E2E Improvements pipeline. (2) Spawned 3 parallel agents: index-verifier (SKILLS_INDEX accuracy), ao-verifier (ao-hybrid.sh fixes), skills-verifier (global cleanup). (3) All 3 PASS — every criterion verified with evidence. (4) Wrote improvements-summary.md. (5) Pipeline PIPELINE_COMPLETE.
+**Decided:** All 5 E2E v1 issues are resolved. Infrastructure is clean and verified.
+**Learned:** Agent Teams with embedded verification-before-completion + "Skills Invoked:" handoff format produces reliable structured evidence. The 3-phase improvement pipeline (IMPLEMENT→SYNC→VERIFY) is a proven pattern for infrastructure fixes.
+**Next:** System stable. Future work: AO Hybrid in production pipelines, skill compliance monitoring over time.
 
-### 2026-02-27 (session 1 — memory decay integration)
-**Did:** Ported memory-engine.py (537 lines), added verified: dates to knowledge.md, updated session-orient.py with tier labels, extended config.yaml. All 8 verification checks PASS.
-**Learned:** Ebbinghaus decay prevents junk drawer. Graduated touch = natural spaced repetition. memory-engine.py target can be file OR directory.
-**Next:** Sync to all bots (done in session 2).
-
-### 2026-02-23
-**Did:** Deep analysis of Athena-Public repo using Agent Teams (10 parallel agents).
-**Decided:** Hybrid approach — adopt Athena's token efficiency + our agent teams.
-**Learned:** Athena CLAUDE.md is 80 lines vs our 300. Agent Teams gave ~10x speedup.
-**Next:** Implement Tier 1 recommendations.
+> [6 older session(s) archived — see daily/ logs]

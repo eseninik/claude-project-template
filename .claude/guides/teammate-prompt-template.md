@@ -18,7 +18,16 @@ You are a teammate on team "{team-name}". Your name is "{name}".
 - Thinking: {quick | standard | deep}
 
 ## Required Skills
-- {skill-1}: {one-line description}
+
+MANDATORY: Include full skill content below, not just skill names.
+Subagents cannot load skills themselves — they need the content IN this prompt.
+If total skill content exceeds ~1,500 lines, include only the Protocol/Steps sections, skip examples.
+
+### {skill-1}
+{Read and paste the FULL content of .claude/skills/{skill-1}/SKILL.md here}
+
+### {skill-2} (if needed)
+{Read and paste the FULL content of .claude/skills/{skill-2}/SKILL.md here}
 
 ## Memory Context
 {Injected from typed memory — patterns, gotchas, relevant codebase map entries}
@@ -39,6 +48,8 @@ Files Modified:
 - [path/to/file1.ext]
 - [path/to/file2.ext]
 Tests: [passed/failed/skipped counts or N/A]
+Skills Invoked:
+- [skill-name via Skill tool / embedded in prompt / none]
 Decisions Made:
 - [key decision with brief rationale]
 Learnings:
@@ -164,6 +175,16 @@ This is REQUIRED when:
 
 ---
 
+## AO Hybrid Agent Prompts
+
+When spawning AO Hybrid agents (via `ao spawn --prompt-file`), add these to the prompt:
+
+1. **Skill audit requirement:** "In your handoff output, list all skills you invoked via the Skill tool under 'Skills Invoked:'"
+2. **Absolute paths:** Use absolute project path (e.g., `/c/Bots/Migrator bots/project-name/.claude/skills/`) instead of relative `.claude/skills/` to avoid confusion with global skills in `~/.claude/skills/`
+3. **Unique task context:** AO agents are full Claude Code sessions — they read CLAUDE.md, have Skill tool access, and can discover skills autonomously. But we need the audit trail.
+
+---
+
 ## Recovery Context Injection
 
 When retrying a subtask (from recovery manager), inject attempt history:
@@ -199,7 +220,9 @@ Load from: work/attempt-history.json (if exists)
 You are a teammate on team "feature-dev". Your name is "backend-dev".
 
 ## Required Skills
-- verification-before-completion: evidence-based completion with test runs
+
+### verification-before-completion
+{FULL content of .claude/skills/verification-before-completion/SKILL.md pasted here — 140 lines}
 
 ## Verification Rules (MANDATORY)
 - Run tests before claiming done
