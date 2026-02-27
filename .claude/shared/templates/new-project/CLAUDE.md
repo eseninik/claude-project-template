@@ -45,6 +45,49 @@ DO NOT forget Agent Teams after compaction — check work/PIPELINE.md Mode field
 For sequential quality checks, use agent chains (cat .claude/guides/agent-chains.md)
 ```
 
+## AO Hybrid (full-context single-project agents)
+
+```
+TRIGGER: execution_engine=ao_hybrid in .claude/ops/config.yaml, or Phase Mode = AO_HYBRID
+NOTE: For cross-project fleet ops, use AO Fleet below.
+
+ACTION:
+  1. Pre-flight: `ao status` (verify config loads)
+  2. Build prompts using .claude/guides/teammate-prompt-template.md + AO additions
+  3. Write prompts to work/ao-prompts/task-{N}.md
+  4. Spawn: `bash .claude/scripts/ao-hybrid.sh spawn <task-id> <prompt-file>`
+  5. Monitor: `bash .claude/scripts/ao-hybrid.sh wait --timeout 3600`
+  6. Collect results from worktree handoff files
+  7. Merge worktree branches sequentially
+  8. Cleanup: `bash .claude/scripts/ao-hybrid.sh cleanup`
+
+WHY: TeamCreate agents see CLAUDE.md but DON'T load skills, memory, or hooks.
+     AO-spawned sessions are full Claude Code instances that follow all protocols.
+
+SKILL: cat .claude/skills/ao-hybrid-spawn/SKILL.md
+```
+
+## AO Fleet (multi-project parallel execution)
+
+```
+TRIGGER: Phase Mode = AO_FLEET, or task operates across multiple bot projects/repos
+NOTE: For in-project parallelism, use AGENT_TEAMS above. AO_FLEET is for CROSS-PROJECT work.
+
+ACTION:
+  1. Pre-flight: `ao status` (verify config loads)
+  2. Spawn: `ao spawn <project-id>` for each target project
+  3. Monitor: `ao session ls` to track all sessions
+  4. Collect: read each project's work/ directory for results
+  5. Cleanup: `ao session kill <id>` + `ao session cleanup`
+
+SKILL: cat .claude/skills/ao-fleet-spawn/SKILL.md
+CONFIG: ~/.agent-orchestrator.yaml
+RUNTIME: Windows (taskkill /T /F for process tree termination)
+
+DO NOT mix AO_FLEET with AGENT_TEAMS in the same phase.
+DO NOT leave sessions running after task completes.
+```
+
 ## Phase Transition Protocol (between pipeline phases)
 
 ```
@@ -69,7 +112,7 @@ Execute this startup sequence NOW — do NOT rely on the summary.
 1. Re-read work/PIPELINE.md — find <- CURRENT phase
 2. Re-read .claude/memory/activeContext.md + knowledge.md
 3. Query Graphiti: search_memory_facts(query=<current task>, max_facts=10)
-4. Check phase Mode: if AGENT_TEAMS -> create team
+4. Check phase Mode: if AGENT_TEAMS -> create team; if AO_HYBRID -> cat .claude/skills/ao-hybrid-spawn/SKILL.md; if AO_FLEET -> cat .claude/skills/ao-fleet-spawn/SKILL.md
 5. Continue execution from <- CURRENT
 6. DO NOT restart from beginning
 
@@ -84,13 +127,15 @@ BLOCKING: Any task with 2+ phases MUST create work/PIPELINE.md BEFORE implementa
 TRIGGER KEYWORDS (auto-detect in user message):
   "pipeline", "autonomous",
   "implement", "build", "create feature",
-  "refactor", "redesign", "migrate"
+  "refactor", "redesign", "migrate",
+  "fleet", "ao spawn", "all bots", "multi-repo"
 
 TRIGGER CONDITIONS (auto-detect by task structure):
   - Task requires research/analysis THEN implementation
   - Task has 3+ distinct steps (e.g., analyze -> plan -> code -> test)
   - Task touches 5+ files across different modules
   - Task involves architectural changes
+  - Task operates across multiple projects/repos -> use AO_FLEET mode
 
 WHEN TRIGGERED:
   1. FIRST: Read .claude/guides/autonomous-pipeline.md
@@ -176,6 +221,8 @@ IF you learned something new -> also do step 3 (knowledge.md).
 | Researcher/Explorer | spec-researcher | codebase-mapping |
 | Debugger | analyzer/fixer | systematic-debugging |
 | Pipeline Lead | pipeline-lead | subagent-driven-development |
+| Fleet Orchestrator | fleet-orchestrator | ao-fleet-spawn |
+| AO Hybrid Coordinator | ao-hybrid-coordinator | ao-hybrid-spawn, subagent-driven-development |
 | Insight Extractor | insight-extractor | — |
 
 Agent type details: `.claude/agents/registry.md`
@@ -329,6 +376,8 @@ py -3 .claude/scripts/memory-engine.py decay .claude/memory/                  # 
 | Phase template needed | `cat .claude/shared/work-templates/phases/{PHASE}.md` |
 | Agent type lookup | `cat .claude/agents/registry.md` |
 | Graphiti memory setup | `cat .claude/guides/graphiti-integration.md` |
+| AO Fleet spawn | `cat .claude/skills/ao-fleet-spawn/SKILL.md` |
+| AO Hybrid execution | `cat .claude/skills/ao-hybrid-spawn/SKILL.md` |
 
 ---
 
@@ -353,6 +402,10 @@ py -3 .claude/scripts/memory-engine.py decay .claude/memory/                  # 
 | Runtime config | `.claude/ops/config.yaml` |
 | Observation guide | `.claude/guides/observation-capture.md` |
 | Memory engine | `.claude/scripts/memory-engine.py` |
+| AO Fleet skill | `.claude/skills/ao-fleet-spawn/SKILL.md` |
+| AO Hybrid skill | `.claude/skills/ao-hybrid-spawn/SKILL.md` |
+| AO Hybrid helper | `.claude/scripts/ao-hybrid.sh` |
+| AO config | `~/.agent-orchestrator.yaml` |
 | Memory config | `.claude/memory/.memory-config.json` |
 
 ---

@@ -35,7 +35,7 @@ The autonomous pipeline is a **state machine encoded in markdown** that drives m
 
 ## 3. Pipeline Creation
 
-**Step 1: Analyze.** Break into phases. For each: Mode (`SOLO`/`AGENT_TEAMS`/`SUB_PIPELINE`), Gate Type (`AUTO`/`USER_APPROVAL`/`HYBRID`), transitions (PASS/FAIL/REWORK).
+**Step 1: Analyze.** Break into phases. For each: Mode (`SOLO`/`AGENT_TEAMS`/`AO_HYBRID`/`AO_FLEET`/`SUB_PIPELINE`), Gate Type (`AUTO`/`USER_APPROVAL`/`HYBRID`), transitions (PASS/FAIL/REWORK). Use `AO_FLEET` when phase operates across multiple projects. Use `AO_HYBRID` when agents need full Claude Code context (skills, memory, hooks) within a single project.
 
 **Step 2: Create work/PIPELINE.md** from `.claude/shared/work-templates/PIPELINE-v3.md`. Delete unused phases, set first phase `<- CURRENT`, set `Status: IN_PROGRESS`. Note: the v3 template includes a QA_REVIEW phase between IMPLEMENT and TEST by default; keep it unless the project has no implementation phases.
 
@@ -74,6 +74,37 @@ The autonomous pipeline is a **state machine encoded in markdown** that drives m
 3. Each agent is a fresh subagent (never reuse)
 4. Reference: .claude/guides/agent-chains.md
 ```
+
+### AO_FLEET (multi-project parallel execution)
+```
+1. Pre-flight: run `ao status` to verify config loads and no conflicting sessions
+2. Read Projects field from PIPELINE.md phase — list of project IDs from ~/.agent-orchestrator.yaml
+3. For each project: `ao spawn <project-id>` (or `ao spawn <project-id> "<task-context>"`)
+4. Monitor: `ao session ls` — wait for all sessions to complete or timeout
+5. Collect results: check each project's work/ directory for outputs
+6. Cleanup: `ao session kill <id>` for each session, then `ao session cleanup`
+7. Gate: all sessions completed successfully = PASS; any failed = REWORK; timeout = BLOCKED
+```
+**When to use:** Fleet-wide operations across multiple repos (template sync, multi-repo deploy, migration).
+**Skill reference:** `cat .claude/skills/ao-fleet-spawn/SKILL.md`
+**Key difference from AGENT_TEAMS:** Each session is a separate Claude Code process with its own context and CLAUDE.md.
+
+### AO_HYBRID (single-project parallel with full context)
+```
+1. Pre-flight: `ao status`, verify project in ~/.agent-orchestrator.yaml
+2. Build task prompts using teammate-prompt-template.md + AO additions
+3. Write prompts to work/ao-prompts/task-{N}.md
+4. Spawn: `bash .claude/scripts/ao-hybrid.sh spawn <task-id> work/ao-prompts/task-{N}.md`
+5. Monitor: `bash .claude/scripts/ao-hybrid.sh wait --timeout 3600`
+6. Collect: read handoff blocks from worktree result files
+7. Merge: sequential worktree merge (see worktree-mode.md)
+8. Cleanup: `bash .claude/scripts/ao-hybrid.sh cleanup`
+9. Gate: all sessions completed + handoffs PASS = PASS
+```
+**When to use:** Same-project parallelism where agents need full CLAUDE.md context, skills, and memory. Preferred for complex implementation tasks or 5+ concurrent agents.
+**Skill reference:** `cat .claude/skills/ao-hybrid-spawn/SKILL.md`
+**Key difference from AGENT_TEAMS:** Each agent is a separate Claude Code process with full startup protocol (skills, hooks, memory). TeamCreate agents see CLAUDE.md as background text but don't load skills or memory.
+**Key difference from AO_FLEET:** AO_HYBRID targets a single project (same repo, different worktrees). AO_FLEET targets multiple projects (different repos).
 
 ---
 
@@ -276,7 +307,8 @@ CHAINS:     .claude/guides/agent-chains.md
 QA SKILL:   .claude/skills/qa-validation-loop/SKILL.md
 
 EXECUTE:    Find <- CURRENT -> read Inputs -> implement -> run Gate -> apply verdict -> update state
-MODES:      SOLO (direct) | AGENT_TEAMS (TeamCreate) | AGENT_CHAINS (sequential) | SUB_PIPELINE (nested)
+MODES:      SOLO (direct) | AGENT_TEAMS (TeamCreate) | AO_HYBRID (ao spawn, single project) | AGENT_CHAINS (sequential) | AO_FLEET (ao spawn, multi-project) | SUB_PIPELINE (nested)
+AO_HYBRID:  .claude/skills/ao-hybrid-spawn/SKILL.md
 GATES:      AUTO (commands) | USER_APPROVAL (human) | HYBRID (auto + human)
 VERDICTS:   PASS (advance) | CONCERNS (log + advance) | REWORK (retry) | FAIL (block)
 

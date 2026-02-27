@@ -152,10 +152,14 @@ Coordinate multi-phase autonomous pipelines.
 |------|-------|--------|----------|---------|--------|-----|
 | `pipeline-lead` | full | subagent-driven-development | deep | full | full | none |
 | `wave-coordinator` | full | subagent-driven-development, task-decomposition | standard | standard | patterns | none |
+| `fleet-orchestrator` | full | ao-fleet-spawn | deep | full | full | none |
+| `ao-hybrid-coordinator` | full | ao-hybrid-spawn, subagent-driven-development | deep | full | full | none |
 
 **Notes:**
 - `pipeline-lead` owns the full pipeline lifecycle (PIPELINE.md state machine)
 - `wave-coordinator` manages a single wave of parallel agents within a pipeline phase
+- `fleet-orchestrator` manages AO_FLEET phases: spawns sessions via `ao` CLI, monitors, collects results, kills sessions
+- `ao-hybrid-coordinator` manages AO_HYBRID phases: spawns full Claude Code sessions via `ao spawn --prompt-file`, monitors progress, collects results, merges worktrees
 
 ---
 

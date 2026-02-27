@@ -1,88 +1,70 @@
-# Pipeline: Memory Decay Integration (agent-memory-skill)
+# Pipeline: AO Hybrid E2E Test + Bot Fleet Sync
 
 - Status: PIPELINE_COMPLETE
-- Phase: ALL DONE
-- Mode: AGENT_TEAMS
+- Phase: VERIFY
+- Mode: INTERACTIVE
 
-> Integrate Ebbinghaus forgetting curve + tiered search + creative mode from agent-memory-skill into our template.
-> Source repo: /tmp/agent-memory-skill/memory-engine.py (645 lines, zero deps)
+> Goal: (1) Fix prep issues, (2) E2E test AO Hybrid with real tasks, (3) Sync to 8 bots.
 > After compaction: find `<- CURRENT`, read that phase, continue.
 
 ---
 
 ## Phases
 
-### Phase: IMPLEMENT
-- Status: DONE
-- Mode: AGENT_TEAMS(4)
-- Attempts: 0 of 2
-- On PASS: -> INTEGRATE
-- On FAIL: -> STOP
-- On REWORK: -> IMPLEMENT
-- On BLOCKED: -> STOP
-- Gate: memory-engine.py works, knowledge.md has decay metadata, session-orient shows tiers, config.yaml has memory section
-- Gate Type: AUTO
-- Inputs: /tmp/agent-memory-skill/memory-engine.py, .claude/memory/knowledge.md, .claude/hooks/session-orient.py, .claude/ops/config.yaml
-- Outputs: .claude/scripts/memory-engine.py (adapted), updated knowledge.md, updated session-orient.py, updated config.yaml
-- Checkpoint: pipeline-checkpoint-IMPLEMENT
-
-  **Tasks:**
-  1. Port memory-engine.py → .claude/scripts/memory-engine.py (adapt for our structure, add knowledge.md-aware commands)
-  2. Add decay metadata (last_verified dates) to all 29 entries in knowledge.md
-  3. Update session-orient.py to calculate tiers and show tier distribution
-  4. Extend ops/config.yaml with memory: section (decay_rate, tier thresholds, etc.)
-
-### Phase: INTEGRATE
-- Status: DONE
+### Phase: PREP
+- Status: PASS
 - Mode: SOLO
-- Attempts: 0 of 2
-- On PASS: -> VERIFY
-- On FAIL: -> IMPLEMENT
-- On REWORK: -> IMPLEMENT
-- On BLOCKED: -> STOP
-- Gate: All commands work (scan, decay, touch, creative, stats), session-orient shows tiers, CLAUDE.md has search protocol
+- Attempts: 0 of 1
+- On PASS: -> AO_HYBRID_TEST
+- On FAIL: -> STOP
+- Gate: ao-hybrid.sh status parsing fixed, AO config has agentConfig.permissions
 - Gate Type: AUTO
-- Inputs: All outputs from IMPLEMENT
-- Outputs: Updated CLAUDE.md (search protocol section), tested commands
-- Checkpoint: pipeline-checkpoint-INTEGRATE
+- Inputs: ao-hybrid.sh, ~/.agent-orchestrator.yaml
+- Outputs: fixed script, updated config
+- Checkpoint: pipeline-checkpoint-PREP
+
+### Phase: AO_HYBRID_TEST
+- Status: PASS
+- Mode: AO_HYBRID
+- Attempts: 0 of 2
+- On PASS: -> BOT_SYNC
+- On FAIL: -> STOP
+- On REWORK: -> PREP
+- Gate: 2+ sessions spawned, all produced handoff files, results verified
+- Gate Type: USER_APPROVAL
+- Inputs: ao-hybrid.sh, ao spawn CLI with --prompt-file
+- Outputs: work/ao-results/*.md (handoff files from spawned agents)
+- Checkpoint: pipeline-checkpoint-AO_HYBRID_TEST
+
+### Phase: BOT_SYNC
+- Status: PASS
+- Mode: AGENT_TEAMS
+- Attempts: 0 of 1
+- On PASS: -> VERIFY
+- On FAIL: -> STOP
+- Gate: all 8 bots have updated files, CLAUDE.md includes AO_HYBRID section
+- Gate Type: AUTO
+- Inputs: template files from .claude/shared/templates/new-project/
+- Outputs: 8 git commits (one per bot)
+- Checkpoint: pipeline-checkpoint-BOT_SYNC
 
 ### Phase: VERIFY
-- Status: DONE
+- Status: PASS
 - Mode: SOLO
 - Attempts: 0 of 1
-- On PASS: -> SYNC
-- On FAIL: -> INTEGRATE
-- On BLOCKED: -> STOP
-- Gate: memory-engine.py scan/decay/stats pass, session-orient outputs tier info, config.yaml valid YAML
-- Gate Type: AUTO
-- Inputs: All integrated code
-- Outputs: work/verify-results.md
-- Checkpoint: pipeline-checkpoint-VERIFY
-
-### Phase: SYNC
-- Status: DONE
-- Mode: AGENT_TEAMS(2)
-- Attempts: 0 of 1
 - On PASS: -> COMPLETE
-- On FAIL: -> STOP
-- On BLOCKED: -> STOP
-- Gate: Template files match main project files
-- Gate Type: USER_APPROVAL
-- Inputs: All verified code
-- Outputs: Synced template files
-- Checkpoint: pipeline-checkpoint-SYNC
-
-  **Tasks:**
-  1. Sync .claude/scripts/, .claude/hooks/, .claude/ops/ to .claude/shared/templates/new-project/
-  2. Update MEMORY.md auto-memory with new learnings
+- On FAIL: -> BOT_SYNC
+- Gate: spot-check 2-3 bots, verify key files match template
+- Gate Type: AUTO
+- Inputs: 8 bot directories
+- Outputs: verification report
+- Checkpoint: pipeline-checkpoint-VERIFY
 
 ---
 
 ## Decisions
 
-- [IMPLEMENT] Decision: Port memory-engine.py as-is with minimal adaptations. Reason: Zero deps, clean code, well-structured. Our adaptations: add knowledge.md-specific parsing, keep all original commands.
-- [IMPLEMENT] Decision: Add last_verified date to knowledge.md entry headers, NOT full YAML frontmatter per entry. Reason: Keep human readability. Dates in headers are enough for decay calculation.
-- [IMPLEMENT] Decision: Decay formula same as original: relevance = max(0.1, 1.0 - days × 0.015). Reason: Proven, tunable, simple.
+<!-- Append-only -->
 
 ---
 
@@ -90,7 +72,7 @@
 
 1. **Start of session / after compaction:** Re-read this file. Find `<- CURRENT`. Resume from that phase.
 2. **Phase execution:** Read phase Inputs. Execute. Produce Outputs. Run Gate check.
-3. **Gate verdicts:** PASS (advance), CONCERNS (log + advance), REWORK (go to On REWORK, increment Attempts), FAIL (go to On FAIL or STOP).
-4. **Attempts overflow:** When Attempts X >= max Y, set Status: BLOCKED, stop pipeline.
-5. **Agent Teams:** If Mode = AGENT_TEAMS, use TeamCreate. Build prompts with Required Skills section.
-6. **After each phase:** Update this file (move `<- CURRENT`, set Status: DONE). Update memory. Git commit with checkpoint tag.
+3. **Gate verdicts:** PASS (advance), CONCERNS (log + advance), REWORK (retry), FAIL (block).
+4. **After each phase:** Update this file, update memory, git commit with checkpoint.
+5. **Agent Teams:** If Mode = AGENT_TEAMS, use TeamCreate with Required Skills.
+6. **AO Hybrid:** If Mode = AO_HYBRID, use ao spawn --prompt-file per task. Monitor via ao-hybrid.sh. Skill: `cat .claude/skills/ao-hybrid-spawn/SKILL.md`.

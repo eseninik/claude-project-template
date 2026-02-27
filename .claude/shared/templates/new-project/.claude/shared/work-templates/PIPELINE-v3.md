@@ -143,6 +143,20 @@
 > - On BLOCKED: -> STOP
 > ```
 
+> To use AO fleet mode (multi-project parallel execution via Agent Orchestrator):
+> ```
+> ### Phase: FLEET_SYNC
+> - Mode: AO_FLEET
+> - Projects: call-rate-bot, clients-legal-bot, conference-bot, ...
+> - On PASS: -> VERIFY
+> - On BLOCKED: -> STOP
+> - Gate: all sessions completed, no errors
+> - Gate Type: AUTO
+> ```
+> AO_FLEET spawns separate Claude Code sessions per project via `ao spawn`.
+> Use for fleet-wide operations across multiple repos (sync, deploy, migrate).
+> Skill: `cat .claude/skills/ao-fleet-spawn/SKILL.md`
+
 ---
 
 ## Decisions
@@ -161,6 +175,7 @@
 5. **Agent Teams:** If Mode = AGENT_TEAMS, use TeamCreate. Build prompts with Required Skills section. Scale to 5-10 agents for large wave groups.
 6. **Agent Chains:** For sequential multi-agent workflows (e.g., QA_REVIEW: reviewer -> fixer -> re-reviewer), run agents in sequence within the phase, looping up to the Max Attempts limit.
 7. **Sub-pipeline:** If Mode = SUB_PIPELINE, execute referenced Pipeline file to completion, then return.
+8. **AO Fleet:** If Mode = AO_FLEET, use `ao spawn` per project listed in Projects field. Monitor via `ao session ls`. Collect results from each project's work/ directory. Kill sessions after completion. Skill: `cat .claude/skills/ao-fleet-spawn/SKILL.md`.
 8. **After each phase:** Update this file (move `<- CURRENT`, set Status: DONE). Update work/STATE.md. Update memory. Git commit with checkpoint tag.
-9. **Phase Transition Protocol:** Between phases, execute: (1) git commit + checkpoint tag, (2) quick insight extraction — what worked/failed/learned, (3) update knowledge.md with new patterns/gotchas, (4) save to Graphiti (add_memory), (5) re-read PIPELINE.md + STATE.md + knowledge.md, (6) advance <- CURRENT.
+9. **Phase Transition Protocol:** Between phases, execute: (1) git commit + checkpoint tag, (2) quick insight extraction — what worked/failed/learned, (3) update typed memory (knowledge.md), (4) save to Graphiti (add_memory), (5) re-read PIPELINE.md + STATE.md + typed memory, (6) advance <- CURRENT.
 10. **Pipeline complete:** When last phase passes, set top-level Status: PIPELINE_COMPLETE.

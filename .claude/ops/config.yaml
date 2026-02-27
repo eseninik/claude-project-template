@@ -27,6 +27,11 @@ model_preference: opus
 #   agent_chains — sequential multi-agent pipelines
 pipeline_mode: agent_teams
 
+# Execution engine for AGENT_TEAMS phases
+#   teamcreate  — subagents within current session (default, current behavior)
+#   ao_hybrid   — full Claude Code sessions via AO spawn (each gets CLAUDE.md + skills + memory)
+execution_engine: teamcreate
+
 # Observation threshold — session-orient hook alerts when pending count exceeds
 observation_threshold: 10
 
