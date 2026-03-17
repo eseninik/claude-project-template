@@ -1,48 +1,67 @@
-# Pipeline: Best Practice Integration (5 Features)
+# Pipeline: Global Skills Migration
 
 - Status: PIPELINE_COMPLETE
 - Phase: COMPLETE
 - Mode: AGENT_TEAMS
 
-> 5 features from claude-code-best-practice analysis. All touch different files — fully parallel.
-> No SPEC/PLAN needed — features designed and approved in discussion.
-
----
-
-## Features
-
-1. **Agent Memory** — `.claude/agent-memory/` directory with templates
-2. **Per-Phase Fresh Session Verification** — Update pipeline template + verification skill
-3. **Auto-Research Phase** — Lightweight RPI (2-3 agents) auto-triggered in pipeline
-4. **Self-Evolving Agent Pattern** — Skills improve from usage + Skill Conductor gate
-5. **Skill Examples** — examples.md template + organic growth via self-evolving
+> Move shared skills to ~/.claude/ (global), keep project-specific in project .claude/skills/.
+> Test all 5 new features: AUTO_RESEARCH, FRESH_VERIFY, SKILL_EVOLUTION, Agent Memory, Examples.
 
 ---
 
 ## Phases
 
+### Phase: AUTO_RESEARCH
+- Status: DONE
+- Mandatory: true
+- Mode: AGENT_TEAMS
+- Attempts: 1 of 1
+- On PASS: -> PLAN
+- On FAIL: -> STOP
+- Gate: auto-research.md exists with GO decision
+- Gate Type: AUTO
+- Inputs: user request, current project structure, Claude Code docs on global skills
+- Outputs: work/global-skills/auto-research.md
+- Checkpoint: pipeline-checkpoint-AUTO_RESEARCH
+
+### Phase: PLAN
+- Status: DONE
+- Mode: SOLO
+- Attempts: 0 of 1
+- On PASS: -> IMPLEMENT
+- On FAIL: -> STOP
+- Gate: migration plan exists with file list
+- Gate Type: USER_APPROVAL
+- Inputs: auto-research.md
+- Outputs: work/global-skills/migration-plan.md
+
 ### Phase: IMPLEMENT
 - Status: DONE
 - Mode: AGENT_TEAMS
-- Attempts: 1 of 2
-- On PASS: -> QA_REVIEW
+- Attempts: 0 of 2
+- On PASS: -> FRESH_VERIFY
 - On FAIL: -> STOP
-- Gate: all 5 features implemented, files exist, no syntax errors
+- Gate: skills moved, projects updated
 - Gate Type: AUTO
-- Inputs: feature specs from discussion, existing skill/pipeline files
-- Outputs: new/modified files for all 5 features
-- Checkpoint: pipeline-checkpoint-IMPLEMENT
+
+### Phase: FRESH_VERIFY
+- Status: DONE
+- Mandatory: true
+- Mode: AO_HYBRID
+- Attempts: 0 of 2
+- On PASS: -> QA_REVIEW
+- On FAIL: -> FIX
+- Gate: fresh-verify-report.md exists with 0 CRITICAL
+- Gate Type: AUTO
 
 ### Phase: QA_REVIEW
 - Status: PENDING
-- Mode: AGENT_TEAMS
+- Mode: SOLO
 - Attempts: 0 of 2
-- On PASS: -> SYNC
+- On PASS: -> SKILL_EVOLUTION
 - On REWORK: -> FIX
-- Gate: no CRITICAL issues in qa-review-report.md
+- Gate: no CRITICAL issues
 - Gate Type: AUTO
-- Inputs: implemented features
-- Outputs: work/qa-review-report.md
 
 ### Phase: FIX
 - Status: PENDING
@@ -50,54 +69,34 @@
 - Attempts: 0 of 3
 - On PASS: -> QA_REVIEW
 - On BLOCKED: -> STOP
-- Gate: all QA issues resolved
-- Gate Type: AUTO
 
-### Phase: SYNC
+### Phase: SKILL_EVOLUTION
 - Status: DONE
-- Mode: AGENT_TEAMS
-- Attempts: 0 of 1
-- On PASS: -> VERIFY
-- On BLOCKED: -> STOP
-- Gate: new-project template mirrors main .claude/
-- Gate Type: AUTO
-- Inputs: all modified/new files
-- Outputs: synced template files
-
-### Phase: VERIFY  <- CURRENT
-- Status: DONE
+- Mandatory: true
 - Mode: SOLO
 - Attempts: 0 of 1
 - On PASS: -> COMPLETE
-- On FAIL: -> FIX
-- Gate: all features work, files exist with substantive content
+- Gate: evolution proposed for used skills OR "no learnings" logged
 - Gate Type: AUTO
-- Outputs: verification report
 
 ### Phase: COMPLETE
 - Status: PENDING
 - Mode: SOLO
 - On PASS: -> DONE
-- Gate: memory updated, git committed
+- Gate: memory updated, committed
 
 ---
 
 ## Decisions
 
-- [DISCUSS] All 5 features approved by user in interactive discussion
-- [DISCUSS] rules/ directory — REJECTED (agents ignore non-CLAUDE.md files, compliance ~10-20%)
-- [DISCUSS] Autocompact 50% — REJECTED (not needed with 1M context, 95% is optimal)
-- [DISCUSS] Cross-model Codex — REJECTED (we use only Claude)
-- [DISCUSS] Self-evolving needs Skill Conductor as quality gate
-- [DISCUSS] Per-phase verification uses fresh AO sessions, not subagents
-- [DISCUSS] Skill examples grow organically via self-evolving, not pre-filled
+- [USER] Skills should be global (~/.claude/) so self-evolution applies across all projects
+- [USER] Project-specific skills stay in project .claude/skills/ (e.g. Freelance bot unique skill)
+- [USER] This pipeline tests all 5 new features (AUTO_RESEARCH, FRESH_VERIFY, SKILL_EVOLUTION, Agent Memory, Examples)
 
 ---
 
 ## Execution Rules
 
-1. **Start of session / after compaction:** Re-read this file. Find `<- CURRENT`. Resume from that phase.
-2. **Phase execution:** Read phase Inputs. Execute. Produce Outputs. Run Gate check.
-3. **Gate verdicts:** PASS (advance), REWORK (go to On REWORK), FAIL (go to On FAIL or STOP).
-4. **Agent Teams:** If Mode = AGENT_TEAMS, use TeamCreate. Build prompts with Required Skills section.
-5. **After each phase:** Update this file (move `<- CURRENT`). Update memory. Git commit.
+1. Start of session / after compaction: find <- CURRENT, resume.
+2. Mandatory phases cannot be skipped.
+3. Agent Teams for 3+ parallel tasks.
