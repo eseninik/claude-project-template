@@ -4,7 +4,7 @@ When compacting, ALWAYS preserve these rules (they are lost most often):
 - **AGENT TEAMS**: 3+ independent tasks -> ALWAYS use TeamCreate, not sequential execution
 - **PIPELINE**: Read work/PIPELINE.md after compaction, continue from <- CURRENT marker
 - **MEMORY**: ALWAYS update activeContext.md + daily log before commit/exit
-- **AGENT MEMORY**: При спавне агента → inject .claude/agent-memory/{type}/MEMORY.md (первые 200 строк)
+- **AGENT MEMORY**: NEVER write Agent prompts by hand. ALWAYS use spawn-agent.py → auto-injects agent memory + skills + type detection
 - **SKILLS**: Before task matching skill trigger -> invoke Skill tool. Before spawning teammate -> `python .claude/scripts/spawn-agent.py --task "..." --team X --name Y`
 - **ELEGANCE**: After IMPLEMENT, before QA: ask "Is there a simpler way?" If yes and non-trivial → reimplement first
 - **VERIFICATION**: NEVER say "done" without running tests
@@ -58,7 +58,7 @@ TRIGGER: Phase Mode = AO_FLEET or cross-project task. Skill: `cat .claude/skills
 
 After completing any phase, BEFORE starting the next:
 1. Git commit with checkpoint tag (`pipeline-checkpoint-{PHASE}`)
-2. If IMPLEMENT phase: spawn fresh AO Hybrid verification session
+2. If IMPLEMENT phase: spawn fresh AO Hybrid verification. If CRITICAL findings -> fix -> re-verify (loop until 0 CRITICAL, max 3 cycles)
 3. Update knowledge.md + daily log + Graphiti
 4. Re-read PIPELINE.md + activeContext.md + knowledge.md
 5. Agents output `=== PHASE HANDOFF ===` block, advance <- CURRENT marker
@@ -166,10 +166,13 @@ Write test → Run test → Fail? → fix → rerun → Pass → continue
 ## Before Commit
 1. Update activeContext.md (Did/Decided/Learned/Next) | 2. Update daily log | 3. Stage both, commit
 
-## Before Spawning Teammate
-Run `python .claude/scripts/spawn-agent.py --task "<desc>" --team <team> --name <name>` — auto-detects type, embeds skills, injects agent memory.
-If `.claude/agent-memory/{type}/MEMORY.md` exists, first 200 lines are injected automatically.
-FALLBACK: manually build per `.claude/guides/teammate-prompt-template.md`
+## Before Spawning Teammate (MANDATORY — no exceptions)
+NEVER write Agent tool prompts by hand. ALWAYS use spawn-agent.py:
+1. Run: `python .claude/scripts/spawn-agent.py --task "<desc>" --team <team> --name <name> -o work/prompts/<name>.md`
+2. Read the generated prompt: `cat work/prompts/<name>.md`
+3. Pass the generated prompt to Agent tool
+spawn-agent.py auto-injects: agent type detection → matching skills → agent memory → handoff template.
+Hand-written prompts skip agent memory injection = broken feature.
 
 ## Before "done" (Verification Gate)
 1. Run tests (`uv run pytest` / `npm test`) | 2. Type check (`mypy` / `tsc`)

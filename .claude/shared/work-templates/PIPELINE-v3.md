@@ -116,15 +116,27 @@
 - Status: PENDING
 - Mandatory: true
 - Mode: AO_HYBRID
-- Attempts: 0 of 2
+- Attempts: 0 of 3
 - On PASS: -> QA_REVIEW
-- On FAIL: -> FIX
+- On FAIL: -> FRESH_FIX
 - On BLOCKED: -> STOP
 - Gate: fresh-verify-report.md exists with 0 CRITICAL findings
 - Gate Type: AUTO
 - Inputs: code changes from IMPLEMENT, acceptance criteria
 - Outputs: work/{feature}/fresh-verify-report.md
 - Checkpoint: pipeline-checkpoint-FRESH_VERIFY
+
+### Phase: FRESH_FIX
+- Status: PENDING
+- Mode: SOLO
+- Attempts: 0 of 3
+- On PASS: -> FRESH_VERIFY
+- On BLOCKED: -> STOP
+- Gate: all CRITICAL issues from fresh-verify-report.md resolved
+- Gate Type: AUTO
+- Inputs: fresh-verify-report.md with CRITICAL findings
+- Outputs: fixed code
+- Checkpoint: pipeline-checkpoint-FRESH_FIX
 
 ### Phase: QA_REVIEW
 - Status: PENDING
@@ -325,7 +337,8 @@
 8. **AO Fleet:** If Mode = AO_FLEET, use `ao spawn` per project listed in Projects field. Monitor via `ao session ls`. Collect results from each project's work/ directory. Kill sessions after completion. Skill: `cat .claude/skills/ao-fleet-spawn/SKILL.md`.
 8b. **AO Hybrid:** If Mode = AO_HYBRID, use `ao spawn --prompt-file` per task. Each spawned session is a full Claude Code process with own context. Monitor via `ao-hybrid.sh wait`. Collect results from worktree paths. Merge worktree branches sequentially. Skill: `cat .claude/skills/ao-hybrid-spawn/SKILL.md`.
 9. **After each phase:** Update this file (move `<- CURRENT`, set Status: DONE). Update work/STATE.md. Update memory. Git commit with checkpoint tag.
-9b. **Phase Transition Protocol:** Between phases, execute: (1) git commit + checkpoint tag, (1b) if phase was IMPLEMENT: spawn fresh AO Hybrid verification session — fresh session prompt: "You are a fresh verification agent. You have NOT seen the implementation. Read ONLY the changed files, tests, and acceptance criteria. Verify everything works. Report: CRITICAL / IMPORTANT / MINOR findings." If CRITICAL findings: fix before advancing, (2) quick insight extraction — what worked/failed/learned, (3) update typed memory (knowledge.md), (4) save to Graphiti (add_memory), (5) re-read PIPELINE.md + STATE.md + typed memory, (6) advance <- CURRENT.
+9b. **Phase Transition Protocol:** Between phases, execute: (1) git commit + checkpoint tag, (1b) if phase was IMPLEMENT: spawn fresh AO Hybrid verification session — fresh session prompt: "You are a fresh verification agent. You have NOT seen the implementation. Read ONLY the changed files, tests, and acceptance criteria. Verify everything works. Report: CRITICAL / IMPORTANT / MINOR findings." If CRITICAL findings: fix in FRESH_FIX phase -> re-verify in new FRESH_VERIFY session (loop until 0 CRITICAL, max 3 cycles), (2) quick insight extraction — what worked/failed/learned, (3) update typed memory (knowledge.md), (4) save to Graphiti (add_memory), (5) re-read PIPELINE.md + STATE.md + typed memory, (6) advance <- CURRENT.
 10. **Nyquist validation:** If NYQUIST_CHECK phase exists, ALL requirements from task files must have planned test coverage before IMPLEMENT begins. Gap analysis produces nyquist-map.md.
 11. **Pipeline complete:** When last phase passes, set top-level Status: PIPELINE_COMPLETE.
 12. **Mandatory phases:** Phases with `Mandatory: true` CANNOT be deleted when creating a pipeline from this template. They can be set to Skip-if conditions, but the phase definition must remain. If skip conditions are met, set Status: SKIPPED and advance to next phase.
+13. **Fresh Verify Loop:** FRESH_VERIFY -> FRESH_FIX -> FRESH_VERIFY cycles until 0 CRITICAL or max attempts reached. Each re-verification uses a NEW fresh session (not the fixing session). Max 3 cycles before BLOCKED.

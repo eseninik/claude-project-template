@@ -106,6 +106,20 @@ For pipeline work, verification is stronger when done by a FRESH session — one
 3. **Fresh session** runs verification independently
 4. **Lead agent** reads findings, fixes CRITICALs, re-verifies
 
+### Re-verification Loop
+
+After fixing CRITICAL findings, ALWAYS re-verify before proceeding:
+
+```
+FRESH_VERIFY -> findings
+  IF 0 CRITICAL -> PASS -> next phase
+  IF CRITICAL found -> FRESH_FIX -> fix issues -> FRESH_VERIFY (again)
+  Max 3 cycles. If still CRITICAL after 3 -> BLOCKED, escalate to human.
+```
+
+The re-verification MUST use a FRESH session (not the same one that fixed the bugs).
+Why: The fixer has confirmation bias — they believe their fix works. Fresh eyes catch remaining issues.
+
 ### Final Comprehensive Verification
 After ALL pipeline phases complete, before COMPLETE:
 - Spawn fresh session with 2-3 sub-agents:

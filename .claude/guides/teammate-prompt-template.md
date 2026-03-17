@@ -1,5 +1,9 @@
 # Teammate Prompt Template
 
+> **IMPORTANT**: Do NOT manually write teammate prompts. Use spawn-agent.py:
+> `python .claude/scripts/spawn-agent.py --task "..." --team X --name Y -o work/prompts/name.md`
+> This auto-injects: agent type → skills → agent memory → handoff template.
+
 > Mandatory template for teammate prompts when spawning agents in Agent Teams Mode.
 > BLOCKING: Cannot spawn teammate without "## Required Skills" section.
 

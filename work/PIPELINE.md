@@ -1,11 +1,11 @@
-# Pipeline: Global Skills Migration
+# Pipeline: Agent Memory Fix + Global Skills Audit
 
-- Status: PIPELINE_COMPLETE
-- Phase: COMPLETE
+- Status: IN_PROGRESS
+- Phase: AUTO_RESEARCH
 - Mode: AGENT_TEAMS
 
-> Move shared skills to ~/.claude/ (global), keep project-specific in project .claude/skills/.
-> Test all 5 new features: AUTO_RESEARCH, FRESH_VERIFY, SKILL_EVOLUTION, Agent Memory, Examples.
+> Task 1: Make Agent Memory work (spawn-agent.py integration or alternative)
+> Task 2: Audit 14 original global skills — needed or dead weight?
 
 ---
 
@@ -17,86 +17,48 @@
 - Mode: AGENT_TEAMS
 - Attempts: 1 of 1
 - On PASS: -> PLAN
-- On FAIL: -> STOP
-- Gate: auto-research.md exists with GO decision
+- Gate: auto-research.md exists with findings for both tasks
 - Gate Type: AUTO
-- Inputs: user request, current project structure, Claude Code docs on global skills
-- Outputs: work/global-skills/auto-research.md
-- Checkpoint: pipeline-checkpoint-AUTO_RESEARCH
 
 ### Phase: PLAN
-- Status: DONE
+- Status: PENDING
 - Mode: SOLO
-- Attempts: 0 of 1
 - On PASS: -> IMPLEMENT
-- On FAIL: -> STOP
-- Gate: migration plan exists with file list
-- Gate Type: USER_APPROVAL
-- Inputs: auto-research.md
-- Outputs: work/global-skills/migration-plan.md
+- Gate: plan approved by user
 
-### Phase: IMPLEMENT
-- Status: DONE
+### Phase: IMPLEMENT  <- CURRENT
+- Status: IN_PROGRESS
 - Mode: AGENT_TEAMS
-- Attempts: 0 of 2
 - On PASS: -> FRESH_VERIFY
-- On FAIL: -> STOP
-- Gate: skills moved, projects updated
-- Gate Type: AUTO
 
 ### Phase: FRESH_VERIFY
-- Status: DONE
+- Status: PENDING
 - Mandatory: true
 - Mode: AO_HYBRID
-- Attempts: 0 of 2
-- On PASS: -> QA_REVIEW
-- On FAIL: -> FIX
-- Gate: fresh-verify-report.md exists with 0 CRITICAL
-- Gate Type: AUTO
-
-### Phase: QA_REVIEW
-- Status: PENDING
-- Mode: SOLO
-- Attempts: 0 of 2
 - On PASS: -> SKILL_EVOLUTION
-- On REWORK: -> FIX
-- Gate: no CRITICAL issues
-- Gate Type: AUTO
-
-### Phase: FIX
-- Status: PENDING
-- Mode: SOLO
-- Attempts: 0 of 3
-- On PASS: -> QA_REVIEW
-- On BLOCKED: -> STOP
+- Gate: fresh-verify-report.md with 0 CRITICAL
 
 ### Phase: SKILL_EVOLUTION
-- Status: DONE
+- Status: PENDING
 - Mandatory: true
 - Mode: SOLO
-- Attempts: 0 of 1
 - On PASS: -> COMPLETE
-- Gate: evolution proposed for used skills OR "no learnings" logged
-- Gate Type: AUTO
+- Gate: evolution proposed or "no learnings" logged
 
 ### Phase: COMPLETE
 - Status: PENDING
-- Mode: SOLO
 - On PASS: -> DONE
-- Gate: memory updated, committed
 
 ---
 
 ## Decisions
+- [USER] Agent Memory must work without forcing spawn-agent.py
+- [USER] 14 original global skills need audit — remove if dead weight
+- [USER] Test in passive mode — don't force features, observe if they trigger
 
-- [USER] Skills should be global (~/.claude/) so self-evolution applies across all projects
-- [USER] Project-specific skills stay in project .claude/skills/ (e.g. Freelance bot unique skill)
-- [USER] This pipeline tests all 5 new features (AUTO_RESEARCH, FRESH_VERIFY, SKILL_EVOLUTION, Agent Memory, Examples)
-
----
-
-## Execution Rules
-
-1. Start of session / after compaction: find <- CURRENT, resume.
-2. Mandatory phases cannot be skipped.
-3. Agent Teams for 3+ parallel tasks.
+## Feature Tracking (passive observation)
+- AUTO_RESEARCH: ⏳ testing now
+- Agent Memory: ⏳ main goal of this pipeline
+- FRESH_VERIFY: ⏳ after IMPLEMENT
+- SKILL_EVOLUTION: ⏳ after FRESH_VERIFY
+- Skill Examples: ⏳ via SKILL_EVOLUTION

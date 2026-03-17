@@ -99,6 +99,7 @@ DO NOT leave sessions running after task completes.
 ```
 After completing any pipeline phase, execute these steps BEFORE starting the next:
 1. Git commit with checkpoint tag (pipeline-checkpoint-{PHASE})
+1b. If phase was IMPLEMENT: spawn fresh AO Hybrid verification. If CRITICAL findings -> fix -> re-verify (loop until 0 CRITICAL, max 3 cycles)
 2. Update knowledge.md with new patterns/gotchas from this phase
 3. Update daily/{YYYY-MM-DD}.md with what happened
 4. Save to Graphiti: add_memory(name="phase_insight", episode_body=<phase learnings>)
