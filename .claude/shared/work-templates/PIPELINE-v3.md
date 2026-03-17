@@ -8,7 +8,7 @@
 > v3.1: Added SKEPTIC_CHECK phase and quality/adequacy validator split in QA_REVIEW.
 > v3: Added QA_REVIEW phase (reviewer+fixer agent chain) between IMPLEMENT and TEST.
 > Supports agent chains (sequential multi-agent loops) and higher parallelism (5-10 agents).
-> Delete unused phases. Reorder by editing `On PASS/FAIL/REWORK` transitions.
+> Delete unused phases. Mandatory phases (Mandatory: true) cannot be deleted — skip them via Skip-if conditions instead. Reorder by editing `On PASS/FAIL/REWORK` transitions.
 > After compaction: find `<- CURRENT`, read that phase, continue.
 > Phase Transition Protocol between phases preserves knowledge via typed memory + Graphiti.
 
@@ -18,6 +18,7 @@
 
 ### Phase: AUTO_RESEARCH  <- CURRENT
 - Status: PENDING
+- Mandatory: true
 - Mode: AGENT_TEAMS
 - Attempts: 0 of 1
 - On PASS: -> SPEC
@@ -101,7 +102,7 @@
 - Status: PENDING
 - Mode: AGENT_TEAMS
 - Attempts: 0 of 2
-- On PASS: -> QA_REVIEW
+- On PASS: -> FRESH_VERIFY
 - On FAIL: -> FIX
 - On REWORK: -> PLAN
 - On BLOCKED: -> STOP
@@ -110,6 +111,20 @@
 - Inputs: tasks/*.md, work/{feature}/tech-spec.md
 - Outputs: source code, test files
 - Checkpoint: pipeline-checkpoint-IMPLEMENT
+
+### Phase: FRESH_VERIFY
+- Status: PENDING
+- Mandatory: true
+- Mode: AO_HYBRID
+- Attempts: 0 of 2
+- On PASS: -> QA_REVIEW
+- On FAIL: -> FIX
+- On BLOCKED: -> STOP
+- Gate: fresh-verify-report.md exists with 0 CRITICAL findings
+- Gate Type: AUTO
+- Inputs: code changes from IMPLEMENT, acceptance criteria
+- Outputs: work/{feature}/fresh-verify-report.md
+- Checkpoint: pipeline-checkpoint-FRESH_VERIFY
 
 ### Phase: QA_REVIEW
 - Status: PENDING
@@ -134,7 +149,7 @@
 - Status: PENDING
 - Mode: SOLO
 - Attempts: 0 of 1
-- On PASS: -> DEPLOY
+- On PASS: -> SKILL_EVOLUTION
 - On FAIL: -> FIX
 - On BLOCKED: -> STOP
 - Gate: all tests pass (`uv run pytest`), no type errors
@@ -142,6 +157,20 @@
 - Inputs: source code, test files
 - Outputs: work/test-results.md
 - Checkpoint: pipeline-checkpoint-TEST
+
+### Phase: SKILL_EVOLUTION
+- Status: PENDING
+- Mandatory: true
+- Mode: SOLO
+- Attempts: 0 of 1
+- On PASS: -> DEPLOY
+- On FAIL: -> DEPLOY
+- On BLOCKED: -> DEPLOY
+- Gate: evolution proposed for used skills OR "no learnings" logged in pipeline decisions
+- Gate Type: AUTO
+- Inputs: list of skills used during pipeline, execution outcomes
+- Outputs: skill evolution deltas (if any), updated examples.md entries
+- Checkpoint: pipeline-checkpoint-SKILL_EVOLUTION
 
 ### Phase: FIX
 - Status: PENDING
@@ -299,3 +328,4 @@
 9b. **Phase Transition Protocol:** Between phases, execute: (1) git commit + checkpoint tag, (1b) if phase was IMPLEMENT: spawn fresh AO Hybrid verification session — fresh session prompt: "You are a fresh verification agent. You have NOT seen the implementation. Read ONLY the changed files, tests, and acceptance criteria. Verify everything works. Report: CRITICAL / IMPORTANT / MINOR findings." If CRITICAL findings: fix before advancing, (2) quick insight extraction — what worked/failed/learned, (3) update typed memory (knowledge.md), (4) save to Graphiti (add_memory), (5) re-read PIPELINE.md + STATE.md + typed memory, (6) advance <- CURRENT.
 10. **Nyquist validation:** If NYQUIST_CHECK phase exists, ALL requirements from task files must have planned test coverage before IMPLEMENT begins. Gap analysis produces nyquist-map.md.
 11. **Pipeline complete:** When last phase passes, set top-level Status: PIPELINE_COMPLETE.
+12. **Mandatory phases:** Phases with `Mandatory: true` CANNOT be deleted when creating a pipeline from this template. They can be set to Skip-if conditions, but the phase definition must remain. If skip conditions are met, set Status: SKIPPED and advance to next phase.
