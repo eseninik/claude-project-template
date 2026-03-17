@@ -1,0 +1,25 @@
+# Wave Checkpoint — Subagent-Driven Development
+# Location: work/{feature}/checkpoint.yml
+# Created by subagent-driven-development skill when executing waves
+# Read at session resume to continue from last completed wave
+
+feature: ""           # Feature name
+current_wave: 1       # Current wave number
+total_waves: 0        # Total waves planned
+
+waves: {}
+# Wave format:
+#   1:
+#     status: pending  # pending | in_progress | completed | failed
+#     tasks: []        # Task numbers in this wave
+#     started_at: ""   # ISO timestamp
+#     completed_at: "" # ISO timestamp (only when completed)
+#     results: []      # Per-task results
+#     # Result format:
+#     #   - task: 1
+#     #     status: completed  # completed | failed
+#     #     files_changed: []
+
+decisions: []
+# Append-only log of decisions made during execution
+# Format: "Description of decision and why"

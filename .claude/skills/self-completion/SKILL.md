@@ -1,85 +1,74 @@
 ---
 name: self-completion
-version: 1.0.0
 description: |
-  Auto-continue through pending todo items until complete.
-  Prevents stopping mid-task when there's more work to do.
-
-  AUTOMATIC TRIGGER:
-  - TodoWrite has pending items after completing a task
-  - Autowork pipeline running
-
-  Do NOT use for: exploratory work, user-guided tasks
+  Auto-continues through pending tasks until all complete or iteration limit reached. Loops through todo items autonomously without requiring manual "continue" commands.
+  Use when there are pending tasks to work through, when user says "keep going", "finish the rest", "don't stop", or "work through remaining items", or during autonomous pipeline execution.
+  Do NOT use for creating todo lists, checking task status, exploratory research, or user-guided interactive step-by-step work.
 roles: [pipeline-lead, wave-coordinator]
 ---
 
-# Self-Completion Skill
-
-Automatically continue working through pending todo items until all are complete or a limit is reached.
+# Self-Completion
 
 ## Overview
 
-When executing a plan with multiple tasks:
-1. Complete current task
-2. Check for more pending tasks
-3. If pending exist → continue automatically
-4. Stop when: all done, max iterations, or blocked
-
-This prevents the agent from stopping mid-plan and requiring manual "continue" commands.
+Automatically continue working through pending todo items without requiring manual "continue" commands.
+Core principle: after finishing one task, check for more pending work and keep going.
 
 ## Algorithm
 
 ```
-SELF_COMPLETION:
-  iteration_count = 0
-  max_iterations = 5
+iteration_count = 0
+max_iterations = 5
 
-  LOOP:
-    # Step 1: Check todo list
-    todos = GET_TODOS()
-    pending = [t for t in todos if t.status == "pending"]
-    in_progress = [t for t in todos if t.status == "in_progress"]
+LOOP:
+  1. Check todo list
+     pending = todos where status == "pending"
+     in_progress = todos where status == "in_progress"
 
-    # Step 2: Check completion
-    IF len(pending) == 0 AND len(in_progress) == 0:
-      OUTPUT("<done>")
-      RETURN { status: "success", completed: iteration_count }
+  2. Check completion
+     IF no pending AND no in_progress:
+       OUTPUT <done>
+       RETURN success
 
-    # Step 3: Check iteration limit
-    IF iteration_count >= max_iterations:
-      OUTPUT("<max_iterations>")
-      RETURN { status: "limit_reached", completed: iteration_count, remaining: len(pending) }
+  3. Check iteration limit
+     IF max_iterations != unlimited AND iteration_count >= max_iterations:
+       OUTPUT <max_iterations>
+       RETURN limit_reached
+     IF max_iterations == unlimited:
+       // Safety valve checks (defense in depth)
+       IF context_pressure() > context_threshold:
+         save_state()
+         OUTPUT <safety_stop reason="context_pressure">
+         RETURN safety_stop
+       IF wall_clock_elapsed() > wall_clock_timeout:
+         save_state()
+         OUTPUT <safety_stop reason="timeout">
+         RETURN safety_stop
+       IF consecutive_no_change_iterations >= idle_threshold:
+         // Idle = no git-diff changes (not self-reported). Trivial edits count as no change.
+         save_state()
+         OUTPUT <safety_stop reason="idle">
+         RETURN safety_stop
+       IF same_error_count >= 3:
+         save_state()
+         OUTPUT <safety_stop reason="progress_stall">
+         RETURN safety_stop
+       IF iteration_count % checkpoint_interval == 0 AND iteration_count > 0:
+         log_checkpoint()  // log progress, re-read task list, assess if continuing makes sense
 
-    # Step 4: Get next task
-    IF len(in_progress) > 0:
-      current = in_progress[0]  # Continue in-progress first
-    ELSE:
-      current = pending[0]
-      MARK_IN_PROGRESS(current)
+  4. Get next task
+     IF in_progress exists: current = in_progress[0]
+     ELSE: current = pending[0], mark in_progress
 
-    # Step 5: Execute task
-    result = EXECUTE_TASK(current)
+  5. Execute task
 
-    # Step 6: Handle result
-    IF result.success:
-      MARK_COMPLETED(current)
-      iteration_count += 1
-      CONTINUE LOOP  # Go to next task
-
-    IF result.blocked:
-      OUTPUT("<blocked>")
-      RETURN { status: "blocked", reason: result.reason, task: current }
-
-    IF result.failed:
-      MARK_FAILED(current)
-      OUTPUT("<error>")
-      ASK_USER("Task failed: " + result.error + ". How to proceed?")
-      RETURN { status: "error", error: result.error, task: current }
+  6. Handle result
+     success -> mark completed, increment count, CONTINUE
+     blocked -> OUTPUT <blocked>, RETURN blocked
+     failed  -> mark failed, OUTPUT <error>, ask user
 ```
 
 ## Completion Markers
-
-The skill outputs these markers for orchestrator integration:
 
 | Marker | Meaning | Action |
 |--------|---------|--------|
@@ -87,8 +76,10 @@ The skill outputs these markers for orchestrator integration:
 | `<blocked>` | Needs user input | Wait for user |
 | `<max_iterations>` | Hit limit (5) | Check with user |
 | `<error>` | Unrecoverable error | Report and wait |
+| `<context_warning>` | Context > 70% full | Suggest subagent |
+| `<safety_stop>` | Safety valve triggered (unlimited mode) | Save state, report reason, stop |
 
-### Marker Output Format
+### Marker Examples
 
 ```
 <done>
@@ -108,232 +99,140 @@ Continuing would risk context overflow.
 Continue? (yes/no)
 ```
 
-```
-<error>
-Task "Deploy to production" failed.
-Error: Permission denied
-Awaiting guidance.
-```
-
 ## Integration with Subagent-Driven-Development
 
-When used with subagent-driven-development:
+When used with wave-based execution:
 
 ```
-SUBAGENT_LOOP:
-  # Main orchestrator tracks overall progress
-  # Each subagent handles one task with fresh context
-
-  FOR wave IN waves:
-    # Dispatch subagents for wave
-    FOR task IN wave.tasks:
-      DISPATCH_SUBAGENT(task)
-
-    # Wait for wave completion
-    WAIT_FOR_WAVE()
-
-    # Check if should continue
-    IF remaining_waves > 0:
-      # Self-completion: continue automatically
-      CONTINUE
-    ELSE:
-      # Done
-      OUTPUT("<done>")
+FOR wave IN waves:
+  Dispatch subagents for wave tasks
+  Wait for wave completion
+  IF remaining waves > 0: CONTINUE (self-completion)
+  ELSE: OUTPUT <done>
 ```
 
-### Subagent Self-Completion
-
-Each subagent can also use self-completion:
-
-```
-SUBAGENT_TASK:
-  # Subagent receives single task
-  # But task may have sub-steps
-
-  WHILE has_sub_steps():
-    step = next_sub_step()
-    execute(step)
-    mark_complete(step)
-
-  # Task done
-  RETURN result
-```
+Each subagent can also self-complete through sub-steps within its task.
 
 ## Integration with Autowork Pipeline
 
-Autowork uses self-completion for the execution phase:
-
 ```
-AUTOWORK_PIPELINE:
-  # Phase 1: Intent Classification
-  # Phase 2: Spec Generation
+Autowork Phase 3 (Execution):
+  result = INVOKE self-completion with subagent-driven-development context
 
-  # Phase 3: Execution (uses self-completion)
-  execution_result = INVOKE skill: self-completion
-    context: subagent-driven-development
-    tasks: tech-spec.tasks
-
-  IF execution_result.status == "success":
-    # Phase 4: Quality Gates
-    INVOKE skill: user-acceptance-testing
-    INVOKE skill: verification-before-completion
-
-  ELIF execution_result.status == "limit_reached":
-    ASK_USER("Completed {N} tasks. Continue with remaining?")
-
-  ELIF execution_result.status == "blocked":
-    HANDLE_BLOCKER(execution_result.reason)
+  success       -> proceed to Phase 4 (Quality Gates)
+  limit_reached -> ask user to continue with remaining
+  blocked       -> handle blocker
 ```
 
 ## Configuration
 
-### Max Iterations
+**Max iterations:** 5 (default) or `unlimited` for long-running tasks.
+- Default (5): Safe for most tasks. Prevents loops, manages context.
+- Custom (10, 20): For known multi-step tasks with predictable scope.
+- Unlimited: For optimization/experimentation. REQUIRES safety valves (see Unlimited Mode).
 
-Default: 5 tasks per self-completion cycle
+Override: `INVOKE skill: self-completion max_iterations: 10`
+Unlimited: `INVOKE skill: self-completion max_iterations: unlimited`
 
-Rationale:
-- Prevents infinite loops
-- Manages context usage
-- Provides natural checkpoints
+## Unlimited Mode
 
-Can be overridden:
+Removes the hard iteration cap for long-running optimization and experimentation tasks.
+Triggered by: `max_iterations: unlimited` or user says "don't stop", "work until done", "no limit", "keep going indefinitely".
+
+### Safety Architecture (Defense in Depth)
+
+Unlimited mode has 5 INDEPENDENT safety valves. If ANY ONE triggers, the loop MUST stop immediately. No single point of failure.
+
+| Safety Valve | Trigger | Action | Configurable? |
+|-------------|---------|--------|---------------|
+| **Context pressure** | >75% context used | Save state → STOP | Threshold: yes (60-85%) |
+| **Wall-clock timeout** | >4 hours elapsed | Save state → STOP | Duration: yes (1-12h) |
+| **Idle detection** | 3 consecutive iterations with 0 file changes | Save state → STOP | Count: yes (2-5) |
+| **Progress stall** | Same error repeated 3+ times | Save state → STOP | Count: yes (2-5) |
+| **Iteration checkpoint** | Every 10 iterations | Log progress, check all valves | Interval: yes (5-20) |
+
+### Why Each Valve Exists
+
+1. **Context pressure (75%)** — Primary defense. Claude Code's context window is finite. At 75%, quality degrades and risk of losing work increases. This is the MOST IMPORTANT valve.
+2. **Wall-clock timeout (4h)** — Prevents runaway sessions overnight. Even if context is fine, a 12-hour session suggests something is wrong.
+3. **Idle detection (3 iterations)** — If the agent runs 3 loops without changing any files, it's spinning without progress. Likely stuck in a reasoning loop.
+4. **Progress stall (3 same errors)** — Existing behavior from base algorithm. Same error 3x = not making progress.
+5. **Iteration checkpoint (every 10)** — Forces periodic self-assessment. Agent must re-evaluate whether continuing makes sense.
+
+### State Preservation on Stop
+
+When ANY safety valve triggers, BEFORE stopping:
+
+1. Write `work/self-completion-state.md`:
+
+```markdown
+# Self-Completion State
+
+- Status: PAUSED
+- Reason: {context_pressure|timeout|idle|stall|manual}
+- Completed: {N} tasks
+- Remaining: {M} tasks
+- Total iterations: {count}
+- Time elapsed: {duration}
+- Context usage: {percentage}%
+
+## Completed Tasks
+1. [task description] — DONE
+2. [task description] — DONE
+
+## Remaining Tasks
+3. [task description] — PENDING
+4. [task description] — PENDING
+
+## Resume Instructions
+To continue: read this file, pick up from task #{next_task_number}
+```
+
+2. Update activeContext.md with progress summary
+3. Output `<safety_stop>` marker with reason
+
+### Configuration
+
 ```
 INVOKE skill: self-completion
-  max_iterations: 10
+  max_iterations: unlimited
+  context_threshold: 75      # percent (default 75, range 60-85)
+  wall_clock_timeout: 4h     # duration (default 4h, range 1-12h)
+  idle_threshold: 3           # consecutive no-change iterations (default 3)
+  checkpoint_interval: 10     # iterations between checkpoints (default 10)
 ```
 
-### Blocking Conditions
+## Blocking Conditions
 
 Stop self-completion when:
 
-1. **User input required**
-   - Question needs answering
-   - Decision point reached
-   - Ambiguous requirement
-
-2. **External dependency**
-   - Waiting for API
-   - Waiting for build
-   - Waiting for deployment
-
-3. **Error occurred**
-   - Test failure (needs investigation)
-   - Permission denied
-   - Resource unavailable
-
-4. **Quality gate**
-   - Code review rejected
-   - UAT failed
-   - Verification failed
+1. **User input required** — question, decision point, ambiguous requirement
+2. **External dependency** — waiting for API, build, deployment
+3. **Error occurred** — test failure, permission denied, resource unavailable
+4. **Quality gate** — code review rejected, UAT failed, verification failed
+5. **Context pressure** — estimated context > 70% full
 
 ## Error Handling
 
-### Task Execution Fails
+**Task fails:**
+- Do NOT automatically retry
+- Mark as failed, report to user
+- Offer: retry / skip and continue / stop and investigate
 
-```
-IF task.execute() fails:
-  # Don't automatically retry
-  # Mark as failed and report
-  MARK_FAILED(task)
+**Context getting full:**
+- At 50%: warn but continue
+- At 70%: stop self-completion, suggest using subagent for remaining tasks
 
-  # Ask user how to proceed
-  options = [
-    "Retry this task",
-    "Skip and continue",
-    "Stop and investigate"
-  ]
+**Unlimited mode safety stop:**
+- Save state to work/self-completion-state.md
+- Report which safety valve triggered and why
+- Provide resume instructions
+- Do NOT automatically restart — wait for human decision
 
-  ASK_USER(options)
-```
+## Common Mistakes
 
-### Context Getting Full
-
-```
-IF estimated_context > 50%:
-  # Warn but continue if under limit
-  LOG("Context at 50%, continuing cautiously")
-
-IF estimated_context > 70%:
-  # Stop self-completion
-  OUTPUT("<context_warning>")
-  SUGGEST("Use subagent for remaining tasks")
-```
-
-## Example Flow
-
-```
-[Starting with 5 todos]
-
-Agent: Starting self-completion cycle.
-
-[Iteration 1]
-Agent: Task 1: Create user model
-*executes task*
-Agent: Task 1 complete. ✓
-
-[Iteration 2]
-Agent: Task 2: Create API endpoints
-*executes task*
-Agent: Task 2 complete. ✓
-
-[Iteration 3]
-Agent: Task 3: Add validation
-*executes task*
-Agent: Task 3 complete. ✓
-
-[Iteration 4]
-Agent: Task 4: Integration tests
-*executes task*
-Agent: Task 4 complete. ✓
-
-[Iteration 5]
-Agent: Task 5: E2E tests
-*executes task*
-Agent: Task 5 complete. ✓
-
-Agent: <done>
-All 5 tasks completed successfully.
-```
-
-### With Blocking
-
-```
-[Iteration 3]
-Agent: Task 3: Configure Stripe
-*attempts task*
-Agent: Need Stripe API key to proceed.
-
-Agent: <blocked>
-Blocked on: "Stripe API key required"
-
-Provide API key or skip this task?
-```
-
-## Output Format
-
-```json
-{
-  "skill": "self-completion",
-  "status": "success",
-  "iterations_completed": 5,
-  "iterations_max": 5,
-  "tasks_completed": [
-    "Create user model",
-    "Create API endpoints",
-    "Add validation",
-    "Integration tests",
-    "E2E tests"
-  ],
-  "tasks_remaining": [],
-  "blocked_on": null,
-  "errors": []
-}
-```
-
-## Best Practices
-
-1. **Clear todo items** - Each todo should be atomic and completable
-2. **Set realistic limits** - 5 iterations is good default
-3. **Handle blockers gracefully** - Don't spin on blocked tasks
-4. **Monitor context** - Stop if context getting full
-5. **Report progress** - User should see what's happening
+1. **Spinning on blocked tasks** — stop immediately, report the blocker
+2. **Retrying failed tasks automatically** — always ask user first
+3. **Ignoring context limits** — monitor and stop before overflow
+4. **Not reporting progress** — user should see each task start/complete
+5. **Running without clear todo items** — each todo must be atomic and completable

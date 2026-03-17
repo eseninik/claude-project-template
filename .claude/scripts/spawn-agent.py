@@ -365,6 +365,14 @@ Examples:
             print(f"\n  Low confidence. Consider --type override.")
         return
 
+    # --- Check for agent-type memory ---
+    agent_memory_content = ''
+    memory_path = root / '.claude' / 'agent-memory' / agent_type / 'MEMORY.md'
+    if memory_path.is_file():
+        with open(memory_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()[:200]
+        agent_memory_content = ''.join(lines).strip()
+
     # --- Build prompt ---
     prompt = gen.build_prompt(
         agent_type=agent_type,
@@ -378,13 +386,32 @@ Examples:
         memory_context=memory_context,
     )
 
+    # Inject agent-type memory after Required Skills section
+    if agent_memory_content:
+        agent_memory_block = (
+            "\n## Agent Memory\n\n"
+            f"{agent_memory_content}\n\n"
+            "> Update your agent memory learnings in the === PHASE HANDOFF === block.\n"
+        )
+        # Insert after ## Required Skills ... before ## Memory Context
+        marker = "\n## Memory Context"
+        if marker in prompt:
+            prompt = prompt.replace(marker, agent_memory_block + marker, 1)
+        else:
+            # Fallback: append before ## Verification Rules
+            marker2 = "\n## Verification Rules"
+            if marker2 in prompt:
+                prompt = prompt.replace(marker2, agent_memory_block + marker2, 1)
+
     # --- Output ---
     skill_names = [s['name'] for s in matched_skills]
     total_lines = sum(s['lines'] for s in matched_skills)
+    agent_mem_status = f"yes ({memory_path.name})" if agent_memory_content else "no"
     info = (
         f"Auto-detection:\n{explanation}\n"
         f"  Skills:     {', '.join(skill_names) or '(none)'} ({total_lines} lines)\n"
         f"  Memory:     {memory_level}\n"
+        f"  Agent Mem:  {agent_mem_status}\n"
         f"  Team/Name:  {args.team}/{args.name}"
     )
 

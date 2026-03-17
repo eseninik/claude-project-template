@@ -1,7 +1,6 @@
 ---
 name: finishing-a-development-branch
-version: 1.0.0
-description: Use when implementation is complete, all tests pass, and you need to decide how to integrate the work - guides completion of development work by presenting structured options for merge, PR, or cleanup
+description: Structured workflow for finishing a completed feature branch — presents 4 options: local merge, create PR, keep as-is, or discard. Triggers when development work is done and all tests pass, and you need to decide the integration path. Do NOT use for standalone merge commands, standalone PR creation, branch deletion, rebasing, or any in-progress work.
 roles: [commit-helper]
 ---
 
@@ -12,8 +11,6 @@ roles: [commit-helper]
 Guide completion of development work by presenting clear options and handling chosen workflow.
 
 **Core principle:** Verify tests → Present options → Execute choice → Clean up.
-
-**Announce at start:** "I'm using the finishing-a-development-branch skill to complete this work."
 
 ## The Process
 

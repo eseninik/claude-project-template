@@ -1,602 +1,316 @@
 ---
 name: task-decomposition
-version: 1.0.0
 description: |
-  Analyzes tasks for parallel subtask splitting.
-  Detects work streams (DB/API/UI/Tests) for smarter parallelization.
-  Use when complex task has no clear structure or checking parallelization.
-  Does NOT apply when tasks/*.md already exist (use subagent-driven-development).
-roles: [planner, complexity-assessor, wave-coordinator]
+  Break down a complex task into parallel subtasks with DAG-based dependency analysis, XML task structure, and wave scheduling. Creates task files (tasks/*.md) with dependency graphs and formal DAG construction.
+  Use when user wants to split, decompose, break down, or structure a large task into smaller pieces, when checking if work items can run in parallel, when figuring out how to approach a big implementation, or when no task plan exists yet.
+  Do NOT use when task files already exist (use subagent-driven-development to execute them), when user wants to execute tasks (not plan them), or for project-level roadmap planning.
+roles: [planner, complexity-assessor, wave-coordinator, dag-analyzer]
 ---
 
-# Task Decomposition Skill
+# Task Decomposition
 
-**Назначение:** Автоматическое обнаружение возможности параллелизации задач.
+## Overview
 
-**Когда использовать:**
-- AUTO-CHECK вариант C (нет явного плана)
-- Пользователь спрашивает: "Можно ли распараллелить?"
-- Сложная задача без чёткой структуры
+Analyze a complex task to discover independent subtasks that can run in parallel.
+Core principle: identify work streams, check independence, group into execution waves.
 
-**НЕ использовать:**
-- Есть tasks/*.md → используй subagent-driven-development
-- Есть plan.md → предложи конвертацию (вариант B)
+## Process
 
----
-
-## Процесс
-
-### Шаг 1: Загрузка базы знаний
+### 1. Load Knowledge Base
 
 ```bash
 cat .claude/knowledge/parallelization-patterns.md
 ```
 
-**Получаю:**
-- Типовые паттерны задач
-- Триггеры для распознавания
-- Алгоритм определения независимости
-- Примеры с рекомендациями
+Extract: typical task patterns, recognition triggers, independence algorithm, examples.
 
----
+### 2. Parse Task Description
 
-### Шаг 2: Парсинг описания задачи
+Extract from the user's task:
+1. Keywords (match against pattern triggers)
+2. Structure (lists, conjunctions, file references)
+3. Mentioned files/modules
+4. Dependencies between parts
 
-**Извлекаю:**
-1. Ключевые слова
-2. Структуру (списки, связки)
-3. Упомянутые файлы/модули
-4. Зависимости между частями
+**Extraction techniques:**
 
-**Техники:**
+- **Pattern matching** — check keywords against knowledge base triggers
+  - Example: "JWT authentication" matches "Authentication" pattern
+- **List extraction** — numbered/bulleted lists become subtasks directly
+- **File extraction** — "Update user.py, api.py, auth.py" = 3 file-based subtasks
+- **Conjunctions** — "X, and also Y", "X, besides Z" = 2+ subtasks
 
-#### A. Поиск паттернов
+### 3. Determine Subtasks
 
-```
-Проверяю ключевые слова задачи на совпадение с триггерами из базы знаний.
+**If pattern matched:** use subtasks from the pattern definition.
 
-Пример:
-Задача: "Добавь JWT аутентификацию"
-Триггер: "JWT", "аутентификац*" → Паттерн "Аутентификация"
-```
+**If no pattern:** extract from text structure (lists, conjunctions, files).
 
-#### B. Извлечение из списков
+### 4. Check Independence
 
-```
-Если в задаче есть нумерованный или маркированный список:
+For each pair of subtasks (A, B):
 
-"Нужно:
-1. X
-2. Y
-3. Z"
+| Condition | Result |
+|-----------|--------|
+| Different files | INDEPENDENT |
+| Same file, different functions/classes | INDEPENDENT (worktree possible) |
+| "using result of", "based on" | DEPENDENT |
+| Sequential keywords but no data flow | INDEPENDENT |
+| Uncertain | UNCERTAIN |
 
-→ Извлекаю: 3 подзадачи [X, Y, Z]
-```
-
-#### C. Множественные файлы
+### 5. Build Waves
 
 ```
-Если упомянуты конкретные файлы:
-
-"Обнови user.py, api.py, auth.py"
-
-→ Извлекаю: 3 подзадачи по файлам
+Wave 1: All tasks with zero dependencies
+For each remaining task:
+  max_wave = max(wave[dep] for dep in task.dependencies)
+  wave[task] = max_wave + 1
 ```
 
-#### D. Связки
-
-```
-"X, и также Y", "X, кроме того Z"
-
-→ Извлекаю: 2+ подзадачи
-```
-
----
-
-### Шаг 3: Определение подзадач
-
-**Если совпадение с паттерном:**
-
-Использую подзадачи из паттерна.
-
-**Пример:**
-```
-Задача: "Систему уведомлений"
-Паттерн: Notifications
-Подзадачи (из базы):
-  1. Модель Notification
-  2. API endpoints
-  3. Email сервис
-  4. Push notification
-  5. Webhook integration
-  6. Тесты
-```
-
-**Если НЕТ совпадения:**
-
-Извлекаю из структуры текста (списки, связки, файлы).
-
-**Пример:**
-```
-Задача: "Обнови README.md и добавь smoke tests"
-Подзадачи (извлечённые):
-  1. Обновить README.md
-  2. Добавить smoke tests
-```
-
----
-
-### Шаг 4: Проверка независимости
-
-**Для каждой пары подзадач (A, B):**
-
-```python
-def check_independence(task_a, task_b):
-    # 1. Проверка файлов
-    if task_a.files != task_b.files:
-        return "INDEPENDENT" # Разные файлы
-
-    # 2. Один файл, разные функции/классы
-    if task_a.scope != task_b.scope:
-        return "INDEPENDENT" # Worktree Mode возможен
-
-    # 3. Явная зависимость
-    if "используя результат" in task_description:
-        return "DEPENDENT"
-
-    if "на основе" in task_description:
-        return "DEPENDENT"
-
-    # 4. Последовательность ("сначала X, потом Y")
-    if sequential_keywords(task_description):
-        # НО проверить реальную зависимость
-        if b_uses_output_of_a():
-            return "DEPENDENT"
-        else:
-            return "INDEPENDENT" # Просто порядок, но не зависимость
-
-    # 5. Неуверен
-    return "UNCERTAIN"
-```
-
-**Пример:**
-```
-A: Модель Notification (models/notification.py)
-B: API endpoints (api/notifications.py)
-
-Файлы разные → INDEPENDENT
-```
-
----
-
-### Шаг 5: Построение waves
-
-**Алгоритм:**
-
-```
-Wave 1: Все независимые задачи без зависимостей
-
-FOR each remaining task:
-    dependencies = tasks it depends on
-    max_wave = max(wave[dep] for dep in dependencies)
-    wave[task] = max_wave + 1
-```
-
-**Пример:**
-```
-Подзадачи:
-  1. Модель (models/)       - depends_on: []
-  2. API (api/)             - depends_on: [1]
-  3. Email service (services/) - depends_on: []
-  4. Tests (tests/)         - depends_on: [1, 2, 3]
-
-Waves:
-  Wave 1: [1, 3] (независимые)
-  Wave 2: [2] (зависит от 1)
-  Wave 3: [4] (зависит от всех)
-```
-
----
-
-### Шаг 6: Оценка уверенности
-
-```python
-def calculate_confidence():
-    confidence = 0.5 # Базовая уверенность
-
-    # +30% если совпадение с паттерном
-    if pattern_matched:
-        confidence += 0.3
-
-    # +20% если чёткий список
-    if explicit_list:
-        confidence += 0.2
-
-    # +10% если разные файлы
-    if different_files:
-        confidence += 0.1
-
-    # -20% если есть UNCERTAIN зависимости
-    if uncertain_dependencies:
-        confidence -= 0.2
-
-    return confidence
-```
-
-**Уровни:**
-- **>90%** - Высокая: Предложить уверенно
-- **60-90%** - Средняя: Предложить с пометкой "рекомендуется"
-- **<60%** - Низкая: Спросить детали
-
----
-
-### Шаг 7: Формирование рекомендации
-
-**IF задач < 3:**
-```
-Рекомендация: ПОСЛЕДОВАТЕЛЬНО (параллелизация не нужна)
-```
-
-**IF задач >= 3 AND уверенность > 80%:**
-```
-Рекомендация: ПАРАЛЛЕЛИЗАЦИЯ
-
-Сообщение пользователю:
-"Вижу что задачу можно разбить на [N] независимых подзадач:
- 1. [подзадача 1]
- 2. [подзадача 2]
- 3. [подзадача 3]
-
- Wave analysis:
- - Wave 1: [список] (параллельно)
- - Wave 2: [список] (зависит от Wave 1)
-
- Варианты:
- 1. Создать work/{feature}/tasks/*.md и выполнить параллельно (рекомендуется)
-    → Сэкономит ~[X]% времени
- 2. Работать последовательно
- 3. Дать мне больше деталей для уточнения плана
-
- Какой вариант предпочитаете?"
-```
-
-**IF задач >= 3 AND уверенность 60-80%:**
-```
-Рекомендация: ПАРАЛЛЕЛИЗАЦИЯ (с осторожностью)
-
-Сообщение:
-"Похоже задачу можно разбить на подзадачи, но есть неуверенность в зависимостях.
-
- Предполагаемые подзадачи:
- 1. [подзадача 1]
- 2. [подзадача 2]
- 3. [подзадача 3]
-
- Вопросы:
- - [Подзадача 2] зависит от [Подзадача 1]?
- - Можно ли выполнять [1, 2, 3] параллельно?
-
- Варианты:
- 1. Подтвердите независимость → создам tasks/*.md
- 2. Уточните зависимости → скорректирую план
- 3. Работать последовательно (безопасно)"
-```
-
-**IF задач >= 3 AND уверенность < 60%:**
-```
-Рекомендация: СПРОСИТЬ ДЕТАЛИ
-
-Сообщение:
-"Задача выглядит сложной, но мне не хватает информации для определения подзадач.
-
- Можете уточнить:
- 1. Какие конкретно компоненты нужно создать/изменить?
- 2. Есть ли зависимости между ними?
- 3. Какие файлы будут затронуты?
-
- Или я могу работать последовательно, разбирая задачу по ходу."
-```
-
----
-
-## Примеры использования
-
-### Пример 1: Высокая уверенность
-
-**Задача:**
-```
-"Добавь систему уведомлений"
-```
-
-**Процесс:**
-
-1. **Парсинг:**
-   - Ключевое слово: "уведомлен*"
-   - Паттерн: Notifications (совпадение)
-
-2. **Подзадачи (из паттерна):**
-   - Модель Notification
-   - API endpoints
-   - Email сервис
-   - Push notification
-   - Webhook integration
-   - Тесты
-
-3. **Независимость:**
-   - Все разные файлы → INDEPENDENT
-
-4. **Waves:**
-   - Wave 1: [1,2,3,4,5] (параллельно)
-   - Wave 2: [6] (тесты зависят от всех)
-
-5. **Уверенность:**
-   - Паттерн: +30%
-   - Разные файлы: +10%
-   - Итого: 90% → ВЫСОКАЯ
-
-6. **Рекомендация:**
-   ```
-   Вижу что задачу можно разбить на 6 подзадач:
-   1. Модель Notification (models/notification.py)
-   2. API endpoints (api/notifications.py)
-   3. Email сервис (services/email.py)
-   4. Push notification (services/push.py)
-   5. Webhook integration (webhooks/notifications.py)
-   6. Тесты (tests/test_notifications.py)
-
-   Wave analysis:
-   - Wave 1: [1,2,3,4,5] (5 задач параллельно)
-   - Wave 2: [6] (тесты после всех)
-
-   Варианты:
-   1. Создать tasks/*.md и выполнить параллельно (рекомендуется)
-      → Сэкономит ~80% времени (5 задач одновременно вместо последовательно)
-   2. Работать последовательно
-
-   Какой вариант?
-   ```
-
----
-
-### Пример 2: Средняя уверенность
-
-**Задача:**
-```
-"Нужно:
-- Добавить логирование
-- Обновить README
-- Написать smoke tests"
-```
-
-**Процесс:**
-
-1. **Парсинг:**
-   - Список: 3 пункта
-   - Паттерн: Нет совпадения
-
-2. **Подзадачи (извлечённые):**
-   - Добавить логирование (код, разные файлы)
-   - Обновить README (README.md)
-   - Написать smoke tests (tests/)
-
-3. **Независимость:**
-   - Разные файлы → INDEPENDENT
-   - НО: smoke tests могут зависеть от логирования (неуверенность)
-
-4. **Waves:**
-   - Вариант A: Wave 1: [1,2,3] (все параллельно, если независимые)
-   - Вариант B: Wave 1: [1,2], Wave 2: [3] (если тесты зависят)
-
-5. **Уверенность:**
-   - Список: +20%
-   - Разные файлы: +10%
-   - Неуверенность в зависимостях: -20%
-   - Итого: 60% → СРЕДНЯЯ
-
-6. **Рекомендация:**
-   ```
-   Похоже задачу можно разбить на 3 подзадачи, но есть вопрос о зависимостях.
-
-   Подзадачи:
-   1. Добавить логирование (код)
-   2. Обновить README.md
-   3. Написать smoke tests
-
-   Вопрос: Smoke tests зависят от логирования, или это независимая задача?
-
-   Варианты:
-   1. Если независимые → выполнить все 3 параллельно
-   2. Если тесты зависят → логирование + README параллельно, затем тесты
-   3. Работать последовательно
-
-   Какой случай у вас?
-   ```
-
----
-
-### Пример 3: Низкая уверенность
-
-**Задача:**
-```
-"Улучши производительность"
-```
-
-**Процесс:**
-
-1. **Парсинг:**
-   - Ключевое слово: "производительност*"
-   - Паттерн: Performance Optimization (частичное совпадение)
-
-2. **Проблема:**
-   - Не ясно КАКИЕ оптимизации
-   - Не ясно какие файлы
-   - Нужен profiling сначала
-
-3. **Уверенность:**
-   - Паттерн (частичный): +10%
-   - Неясные детали: -40%
-   - Итого: 20% → НИЗКАЯ
-
-4. **Рекомендация:**
-   ```
-   Задача про оптимизацию производительности.
-
-   Типовые подзадачи для такой задачи:
-   1. Profiling для выявления bottlenecks
-   2. Database optimization (indexes, queries)
-   3. Caching layer
-   4. Background jobs
-
-   НО мне нужно больше информации:
-   - Какие части приложения медленные?
-   - Уже известны bottlenecks или нужен profiling?
-   - Какие конкретно оптимизации нужны?
-
-   Варианты:
-   1. Дать детали → создам точный план
-   2. Начать с profiling → определим bottlenecks → затем план
-   3. Работать последовательно, разбирая по ходу
-
-   Что предпочитаете?
-   ```
-
----
-
-## Интеграция с AUTO-CHECK
-
-**Вызов из BLOCKING RULES:**
+## Formal DAG Construction
+
+### Algorithm
+
+1. Parse all tasks — extract `depends_on` and `files_modified`
+2. Build adjacency list: task — [dependencies]
+3. Topological sort (detect cycles — if cycle found, STOP and report)
+4. Assign waves using critical path:
+   - Wave 0: tasks with no dependencies
+   - Wave N: max(wave[dep] for dep in task.deps) + 1
+5. Within each wave, check file conflicts:
+   - No overlap — standard parallel
+   - Overlap detected — mark for Worktree Mode
+6. Output: tasks/waves.md with DAG visualization
+
+### DAG Visualization Format
 
 ```markdown
-## Dynamic Skill Selection
+# Wave Analysis
 
-2. AUTO-CHECK: Есть чёткий план для реализации?
+## Dependency Graph
 
-   A. План в формате work/*/tasks/*.md?
-      → subagent-driven-development
+task-1 ---\
+task-2 ----+--- task-4 ---\
+task-3 ---/                +--- task-6
+            task-5 --------/
 
-   B. План в другом формате (plan.md)?
-      → Предложить конвертацию
+## Wave Assignment
+| Wave | Tasks | Parallel | Dependencies |
+|------|-------|----------|-------------|
+| 1 | task-1, task-2, task-3 | Yes (3) | None |
+| 2 | task-4, task-5 | Yes (2) | Wave 1 |
+| 3 | task-6 | No (1) | Wave 2 |
 
-   C. Контекстный анализ (НОВОЕ)
-      1. cat .claude/skills/task-decomposition/SKILL.md
-      2. Применить процесс (Шаги 1-7)
-      3. Вывести рекомендацию пользователю
-      4. Если пользователь выбрал "создать tasks/*.md":
-         → Создать structure + вызвать subagent-driven-development
+## File Conflict Matrix
+| | task-1 | task-2 | task-3 |
+|---|--------|--------|--------|
+| task-1 | - | None | config.yaml |
+| task-2 | None | - | None |
+| task-3 | config.yaml | None | - |
+
+Conflicts: task-1 <-> task-3 on config.yaml -> Worktree Mode required
 ```
 
----
+### 6. Calculate Confidence
 
-## Создание tasks/*.md после анализа
+Start at 50% base:
 
-**Если пользователь выбрал вариант "Создать tasks/*.md":**
+| Factor | Adjustment |
+|--------|-----------|
+| Pattern matched | +30% |
+| Explicit list found | +20% |
+| Different files | +10% |
+| UNCERTAIN dependencies exist | -20% |
 
-### Шаг 8: Генерация структуры
+**Thresholds:**
+- **>90%** High — propose confidently
+- **60-90%** Medium — propose with "recommended" note
+- **<60%** Low — ask for details first
+
+### 7. Present Recommendation
+
+**If subtasks < 3:** recommend sequential execution.
+
+**If subtasks >= 3 and confidence > 80%:**
+```
+I see the task can be split into [N] independent subtasks:
+1. [subtask 1]
+2. [subtask 2]
+3. [subtask 3]
+
+Wave analysis:
+- Wave 1: [list] (parallel)
+- Wave 2: [list] (depends on Wave 1)
+
+Options:
+1. Create work/{feature}/tasks/*.md and execute in parallel (recommended)
+   -> Saves ~[X]% time
+2. Work sequentially
+3. Give me more details to refine the plan
+
+Which option?
+```
+
+**If confidence 60-80%:** present subtasks but ask about uncertain dependencies before proceeding.
+
+**If confidence < 60%:** ask for specifics (which components, which files, what dependencies).
+
+### 8. Generate Task Files (if user approves)
 
 ```bash
-# 1. Создать папку
 mkdir -p work/{feature-name}/tasks/
-
-# 2. Для каждой подзадачи создать task-{N}.md
 ```
 
-**Формат task-{N}.md:**
-
-```markdown
----
-depends_on: [список номеров задач]
-files_modified:
-  - путь/к/файлу1
-  - путь/к/файлу2
----
-
-# Task {N}: [Название подзадачи]
-
-## Описание
-[Что нужно сделать]
-
-## Детали реализации
-[Конкретные шаги из паттерна или извлечённые]
-
-## Критерии готовности
-- [ ] Код написан
-- [ ] Тесты написаны
-- [ ] Тесты проходят
-- [ ] Committed
-```
-
-**Пример:**
-
-Для подзадачи "Модель Notification":
+Each `task-{N}.md`:
 
 ```markdown
 ---
 depends_on: []
 files_modified:
-  - models/notification.py
+  - path/to/file
 ---
 
-# Task 001: Модель Notification
+# Task {N}: [Subtask Name]
 
-## Описание
-Создать модель Notification для хранения уведомлений пользователей
+## Description
+[What to do]
 
-## Детали реализации
-- Поля: id, user_id, type, message, read, created_at
-- Методы: mark_as_read(), to_dict()
-- Миграция БД для таблицы notifications
+## Implementation Details
+[Steps from pattern or extracted]
 
-## Критерии готовности
-- [ ] Модель создана в models/notification.py
-- [ ] Миграция создана
-- [ ] Тесты модели написаны (tests/test_notification.py)
-- [ ] Тесты проходят
+## Done Criteria
+- [ ] Code written
+- [ ] Tests written
+- [ ] Tests pass
 - [ ] Committed
 ```
 
-### Шаг 9: Передача в subagent-driven-development
+## XML Task Structure
+
+For Claude-optimized parsing, tasks support XML format within markdown:
+
+### Task File Format (Enhanced)
+
+```markdown
+---
+depends_on: []
+wave: 1
+files_modified:
+  - path/to/file
+must_haves:
+  truths: ["Users can log in via email"]
+  artifacts: ["src/auth/login.ts", "src/auth/login.test.ts"]
+  key_links: ["login.ts imports from auth-provider.ts"]
+---
+
+# Task {N}: [Name]
+
+<objective>
+What this task accomplishes and why.
+</objective>
+
+<tasks>
+<task type="auto">
+  <name>Implement login endpoint</name>
+  <files>src/auth/login.ts</files>
+  <action>Create POST /auth/login handler with email/password validation</action>
+  <verify>curl -s http://localhost:3000/auth/login -d '{"email":"test@test.com"}' | jq .token</verify>
+  <done>Login endpoint returns JWT token for valid credentials</done>
+</task>
+
+<task type="checkpoint:human-verify">
+  <what-built>Login form with error states</what-built>
+  <how-to-verify>
+    1. Navigate to /login
+    2. Enter invalid email -- see error message
+    3. Enter valid creds -- redirect to dashboard
+  </how-to-verify>
+  <resume-signal>Type "approved" or describe issues</resume-signal>
+</task>
+</tasks>
+
+<success_criteria>
+- Login endpoint returns 200 with JWT for valid credentials
+- Login endpoint returns 401 for invalid credentials
+- Login form displays validation errors
+</success_criteria>
+```
+
+### Checkpoint Types in Tasks
+
+| Type | Usage | Auto-Mode |
+|------|-------|-----------|
+| `auto` | Fully automated task | Execute normally |
+| `checkpoint:human-verify` | Claude built it, user checks visually | Auto-approve in YOLO mode |
+| `checkpoint:decision` | User must choose between options | Auto-select first option |
+| `checkpoint:human-action` | Requires manual action (2FA, OAuth) | Always pause |
+
+## Decimal Phase Support
+
+When gap-closure work is needed between existing phases, use decimal numbering:
+
+### When to Use
+- Verification found gaps after Phase 3 -- create Phase 3.1
+- UAT failed on Phase 2 -- create Phase 2.1 for fixes
+- Urgent insertion needed -- Phase N.M where M is sequential
+
+### Numbering Rules
+- Integer phases: 1, 2, 3 (planned work)
+- Decimal phases: 3.1, 3.2 (gap closure / urgent inserts)
+- Execution order: 1 -> 2 -> 2.1 -> 3 -> 3.1 -> 3.2 -> 4
+- No renumbering of existing phases needed
+
+### Task File Naming
+- Standard: `task-001.md`, `task-002.md`
+- Decimal phase: `task-003.1-001.md` (phase 3.1, task 1)
+
+### In PIPELINE.md
 
 ```
-После создания всех tasks/*.md:
+### Phase: 3
+- Status: DONE
 
-1. AUTO-CHECK вариант A сработает
-2. subagent-driven-development загрузится
-3. Wave analysis
-4. Параллельное выполнение
+### Phase: 3.1 (Gap Closure)
+- Status: PENDING
+- Inserted: after verification gaps in Phase 3
+- On PASS: -> Phase 4
 ```
 
----
+### 9. Hand Off to Execution
 
-## Red Flags
+After creating tasks/*.md:
+1. AUTO-CHECK variant A triggers
+2. subagent-driven-development loads
+3. Wave analysis runs
+4. Parallel execution begins
 
-**Никогда:**
-- Создавать tasks/*.md без согласия пользователя
-- Утверждать высокую уверенность при неясных зависимостях
-- Игнорировать явные зависимости ("используя результат", "на основе")
+## Integration with AUTO-CHECK
 
-**Если неуверен:**
-- Спросить пользователя
-- Консервативный подход: последовательно безопаснее
-- Предложить варианты вместо навязывания
+```
+AUTO-CHECK question: "Is there a clear plan?"
 
----
+A. Plan in work/*/tasks/*.md format?
+   -> subagent-driven-development
 
-## Метрики эффективности
+B. Plan in other format (plan.md)?
+   -> Offer conversion
 
-**Для оценки работы skill:**
+C. No plan (this skill):
+   1. Invoke task-decomposition
+   2. Apply steps 1-7
+   3. Present recommendation
+   4. If user chooses "create tasks/*.md"
+      -> Generate structure, then subagent-driven-development
+```
 
-- **Precision:** Сколько предложенных параллелизаций были корректными
-- **Recall:** Сколько возможностей параллелизации обнаружено
-- **User satisfaction:** Пользователь принял рекомендацию?
+## Common Mistakes
 
-**Собирать feedback для улучшения базы знаний.**
+1. **Creating tasks/*.md without user consent** — always ask first
+2. **Claiming high confidence with unclear dependencies** — be conservative
+3. **Ignoring explicit dependency markers** ("using result of", "based on")
+4. **Forcing parallelization on < 3 subtasks** — sequential is fine for small sets
+5. **Not checking for existing plans** — if tasks/*.md or plan.md already exist, use them
 
----
+When uncertain: ask the user. Sequential is always the safe fallback.
 
-## Эволюция
-
-**Этот skill будет улучшаться:**
-- Добавление новых паттернов в базу знаний
-- Улучшение алгоритма определения зависимостей
-- Learning from user feedback (какие паттерны работают лучше)
-- Domain-specific расширения (Telegram bots, web scraping, ML pipelines)
+See `references/examples.md` for worked examples at each confidence level.

@@ -40,6 +40,28 @@ Read-only researchers that gather requirements and write specifications.
 
 ---
 
+## Research Agents
+
+Lightweight analysis agents for auto-research phase. All read-only.
+
+| Type | Tools | Skills | Thinking | Context | Memory | MCP |
+|------|-------|--------|----------|---------|--------|-----|
+| `requirement-analyst` | read-only | -- | standard | standard | patterns | none |
+| `feasibility-analyst` | read-only | codebase-mapping | standard | full | full | none |
+| `risk-assessor` | read-only | -- | deep | standard | patterns | none |
+| `product-analyst` | read-only | -- | standard | standard | patterns | none |
+| `ux-reviewer` | read-only | -- | standard | standard | none | none |
+
+**Notes:**
+- `requirement-analyst` parses task into structured acceptance criteria
+- `feasibility-analyst` checks codebase for constraints and complexity
+- `risk-assessor` identifies risks, breaking changes, security concerns
+- `product-analyst` evaluates user value, market fit, acceptance criteria from user perspective
+- `ux-reviewer` checks UX flows, accessibility, user-facing text (for UI tasks)
+- Auto-Research uses first 3 types. Product-analyst and ux-reviewer are optional additions for user-facing features.
+
+---
+
 ## Planning Agents
 
 Break down specs into actionable implementation plans.
@@ -49,9 +71,12 @@ Break down specs into actionable implementation plans.
 | `planner` | full + web | task-decomposition | deep | full | full | context7 |
 | `complexity-assessor` | read-only | task-decomposition | standard | standard | patterns | none |
 
+| `dag-analyzer` | read-only | task-decomposition | deep | full | patterns | none |
+
 **Notes:**
 - `planner` creates phased implementation plans with dependency graphs
 - `complexity-assessor` estimates task complexity and identifies risks
+- `dag-analyzer` builds formal dependency graphs with topological sort, cycle detection, and wave assignment
 
 ---
 
@@ -63,11 +88,13 @@ Write and modify code. Always get `verification-before-completion`.
 |------|-------|--------|----------|---------|--------|-----|
 | `coder` | full | verification-before-completion | standard | standard | patterns | none |
 | `coder-complex` | full + web | verification-before-completion | deep | full | full | context7 |
+| `experimenter` | full | experiment-loop, skill-evolution, verification-before-completion | deep | full | full | none |
 
 **Notes:**
 - `coder` handles straightforward implementation tasks (single file/module changes)
 - `coder-complex` handles tasks requiring research, multiple modules, or architectural decisions
-- Both MUST run tests before claiming done
+- `experimenter` runs autonomous experiment loops with quantifiable metrics (hypothesis → measure → keep/discard)
+- All three MUST run tests before claiming done
 
 ---
 
@@ -79,10 +106,12 @@ Review code quality and fix issues found during review.
 |------|-------|--------|----------|---------|--------|-----|
 | `qa-reviewer` | read-only | qa-validation-loop | deep | full | full | none |
 | `qa-fixer` | full | verification-before-completion | standard | full | full | none |
+| `nyquist-auditor` | read-only | qa-validation-loop | deep | full | full | none |
 
 **Notes:**
 - `qa-reviewer` is READ-ONLY -- analyzes code against acceptance criteria, reports issues
 - `qa-fixer` receives issues from reviewer and fixes them, then verifies
+- `nyquist-auditor` maps requirements to planned tests (Nyquist pre-flight) and audits post-implementation coverage
 - Use in chain: qa-reviewer -> qa-fixer -> qa-reviewer (max 3 cycles)
 
 ---
@@ -127,6 +156,25 @@ Always READ-ONLY. Analyze and report via SendMessage, never modify files.
 
 ---
 
+## Validation Agents
+
+Verify documents and code against requirements and reality.
+
+| Type | Tools | Skills | Thinking | Context | Memory | MCP |
+|------|-------|--------|----------|---------|--------|-----|
+| `skeptic` | read-only | -- | deep | full | full | none |
+| `quality-validator` | read-only | qa-validation-loop | deep | full | full | none |
+| `adequacy-validator` | read-only | qa-validation-loop | deep | full | full | none |
+
+**Notes:**
+- `skeptic` verifies factual claims (file paths, function names, dependencies) against actual codebase. Anti-hallucination gate.
+- `quality-validator` checks document quality: structure, completeness, acceptance criteria testability, contradictions, template compliance
+- `adequacy-validator` checks solution adequacy: feasibility, sizing, overengineering, underengineering, better alternatives
+- Use in chain: skeptic -> quality-validator -> adequacy-validator (for tech-spec review)
+- All are READ-ONLY — analyze and report, never modify files
+
+---
+
 ## Utility Agents
 
 Lightweight agents for mechanical tasks.
@@ -150,7 +198,7 @@ Coordinate multi-phase autonomous pipelines.
 
 | Type | Tools | Skills | Thinking | Context | Memory | MCP |
 |------|-------|--------|----------|---------|--------|-----|
-| `pipeline-lead` | full | subagent-driven-development | deep | full | full | none |
+| `pipeline-lead` | full | subagent-driven-development, skill-evolution | deep | full | full | none |
 | `wave-coordinator` | full | subagent-driven-development, task-decomposition | standard | standard | patterns | none |
 | `fleet-orchestrator` | full | ao-fleet-spawn | deep | full | full | none |
 | `ao-hybrid-coordinator` | full | ao-hybrid-spawn, subagent-driven-development | deep | full | full | none |

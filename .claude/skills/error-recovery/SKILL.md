@@ -1,16 +1,11 @@
 ---
 name: error-recovery
-version: 1.0.0
-description: |
-  Structured recovery patterns for common errors.
-  Handles Edit failures, Bash timeouts, test failures, and general errors.
-
-  AUTOMATIC TRIGGER:
-  - Tool call returns error
-  - Test command fails
-  - Unexpected exception
-
-  Do NOT use for: successful operations, user-initiated cancellations
+description: >
+  Structured recovery patterns for Edit failures, Bash timeouts, test failures, and tool errors.
+  Use when a Claude tool call (Edit/Bash/Write) returns an error, a command times out or hangs,
+  a test command fails with non-zero exit, or a transient exception (EAGAIN, connection refused)
+  blocks progress. Do NOT use for application-level error handling code, user-initiated cancellations,
+  debugging logic bugs, or writing try-catch/error-handling features.
 roles: [coder, coder-complex, fixer, qa-fixer, reproducer]
 ---
 

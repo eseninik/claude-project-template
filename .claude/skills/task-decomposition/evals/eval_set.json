@@ -1,0 +1,27 @@
+{
+  "skill_name": "task-decomposition",
+  "queries": [
+    {"id": 1, "query": "this feature is too big, break it down into subtasks", "should_trigger": true, "would_trigger": true},
+    {"id": 2, "query": "how should I split this work across multiple agents?", "should_trigger": true, "would_trigger": true},
+    {"id": 3, "query": "I need to implement auth + payments + notifications, figure out what can be parallel", "should_trigger": true, "would_trigger": true},
+    {"id": 4, "query": "analyze this task for parallelization opportunities", "should_trigger": true, "would_trigger": true},
+    {"id": 5, "query": "decompose this requirement into independent work streams", "should_trigger": true, "would_trigger": true},
+    {"id": 6, "query": "can these 5 things run at the same time or do they depend on each other?", "should_trigger": true, "would_trigger": true},
+    {"id": 7, "query": "I want to divide this refactoring into manageable chunks", "should_trigger": true, "would_trigger": true},
+    {"id": 8, "query": "help me structure this complex feature into tasks", "should_trigger": true, "would_trigger": true},
+    {"id": 9, "query": "what's the best way to approach this big implementation?", "should_trigger": true, "would_trigger": true},
+    {"id": 10, "query": "create task files for this feature with proper dependencies", "should_trigger": true, "would_trigger": true},
+    {"id": 11, "query": "execute these 5 tasks in parallel with subagents", "should_trigger": false, "would_trigger": false},
+    {"id": 12, "query": "plan the Q3 product roadmap", "should_trigger": false, "would_trigger": false},
+    {"id": 13, "query": "debug this performance issue in the database query", "should_trigger": false, "would_trigger": false},
+    {"id": 14, "query": "write a project proposal with timeline", "should_trigger": false, "would_trigger": false},
+    {"id": 15, "query": "keep working through the remaining todo items", "should_trigger": false, "would_trigger": false},
+    {"id": 16, "query": "review the architecture decision for caching", "should_trigger": false, "would_trigger": false},
+    {"id": 17, "query": "run all the tests and report results", "should_trigger": false, "would_trigger": false},
+    {"id": 18, "query": "estimate how long each task will take", "should_trigger": false, "would_trigger": false},
+    {"id": 19, "query": "schedule a meeting to discuss the sprint plan", "should_trigger": false, "would_trigger": false},
+    {"id": 20, "query": "organize my notes into categories", "should_trigger": false, "would_trigger": false}
+  ],
+  "scores": {"discovery": 9, "clarity": 9, "efficiency": 8, "robustness": 9, "completeness": 9, "total": 44},
+  "description_version": "optimized"
+}

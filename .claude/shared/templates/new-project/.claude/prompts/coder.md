@@ -52,6 +52,42 @@ Rules:
 
 ---
 
+## Step 3.5: Add Logging
+
+Every function you write or modify MUST have structured logging. Reference: `.claude/guides/logging-standards.md`
+
+**Mandatory logging points:**
+- **Function entry**: Log key parameters at INFO level
+- **Function exit**: Log result summary at INFO level
+- **Error handling**: Every catch/except block MUST log the error with context at ERROR level
+- **External calls**: Log API/DB/file calls with timing at INFO level
+- **State transitions**: Log from_state → to_state at INFO level
+- **Retries**: Log attempt number and reason at WARNING level
+
+**Rules:**
+- Use the project's existing logging library (match existing patterns)
+- Use structured format (key=value pairs), never bare print()/console.log()
+- Never log sensitive data (passwords, tokens, PII)
+- If existing code you're modifying lacks logging → add logging to functions you touch
+- DEBUG for data details, INFO for flow, WARNING for recoverable issues, ERROR for failures
+
+**Example (Python):**
+```python
+async def process_lead(lead_id: int, source: str) -> dict:
+    logger.info("processing_lead_started", lead_id=lead_id, source=source)
+    try:
+        result = await transform(lead_data)
+        logger.info("processing_lead_completed", lead_id=lead_id, status=result["status"])
+        return result
+    except Exception as e:
+        logger.error("processing_lead_failed", lead_id=lead_id, error=str(e))
+        raise
+```
+
+Skip logging only if your task explicitly says "no logging needed" (e.g., pure config/data file changes).
+
+---
+
 ## Step 4: Write / Update Tests
 
 For every behavioral change:
@@ -93,6 +129,7 @@ Before claiming done, check:
 | Scope | Did I change anything outside my task scope? |
 | Tests | Do tests actually verify the acceptance criteria, not just run? |
 | Imports | Any unused imports? Missing imports? |
+| Logging | Does every new/modified function have entry/exit/error logging? |
 
 If you find issues during self-critique, fix them before proceeding.
 
@@ -155,3 +192,5 @@ Before reporting done, confirm ALL:
 - [ ] Every acceptance criterion verified with evidence
 - [ ] No files modified outside task scope
 - [ ] No unnecessary changes (refactoring, formatting, comments)
+- [ ] Structured logging in all new/modified functions (entry, exit, errors)
+- [ ] No bare print()/console.log() — use project logger

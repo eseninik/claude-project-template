@@ -3,11 +3,60 @@
 > Session bridge. Agent reads at start, updates at end. Max ~150 lines.
 > Old sessions → `.claude/memory/archive/`
 
-**Last updated:** 2026-02-27
+**Last updated:** 2026-03-11
 
 ---
 
 ## Current Focus
+
+### Logging Standards Integration — COMPLETE
+**Task:** Add mandatory structured logging to all code produced by our development system.
+
+**What was done (session 2026-03-12):**
+- Created `.claude/guides/logging-standards.md` (290 lines) — comprehensive guide with Python + Node.js patterns
+- Updated `coder.md` — added Step 3.5: Add Logging + Self-Critique row + Quality Checklist items
+- Updated `verification-before-completion/SKILL.md` — logging in Common Failures, Stub Detection, Goal-Backward, new Logging Verification section
+- Updated `qa-validation-loop/SKILL.md` — Logging Coverage Review section with checklist + severity table, updated depth behaviors
+- Updated `CLAUDE.md` — LOGGING in Summary, one-liners, HARD CONSTRAINTS, TRIGGERS, KNOWLEDGE, FORBIDDEN
+- Updated `teammate-prompt-template.md` — logging in Verification Rules, Minimum Requirements, Anti-Patterns
+- Synced all 6 files + new guide to new-project template (7 files total)
+- Used Agent Teams (5 parallel agents) for IMPLEMENT phase
+- Fleet synced to 10 bot projects (5 parallel agents, 2 bots each) — all verified
+
+**Decisions:**
+- Logging is a HARD CONSTRAINT, not a recommendation — enforced at write, review, and verify stages
+- Missing logging in new code = CRITICAL QA finding
+- Guide covers Python (structlog/stdlib) + Node.js (pino) with concrete examples
+- No sensitive data in logs (passwords, tokens, PII)
+
+### Autoresearch Integration (4 Features) — COMPLETE
+**Task:** Analyze Karpathy's autoresearch + agenthub, extract useful patterns, integrate into our development system.
+
+**What was done (session 2026-03-11):**
+- Analyzed autoresearch repo, agenthub branch, moltbook, Reddit post, agent harness concept via 4 parallel research agents
+- Identified 4 integrable patterns (experiment loop, evaluation firewall, unlimited self-completion, results board)
+- Implemented all 4 via Agent Teams (4 parallel implementation agents)
+- Safety verified unlimited self-completion with 3 independent review agents (all SAFE)
+- QA reviewed all changes (PASS, 0 CRITICAL, 1 MINOR fixed)
+- Synced to new-project template + 10 bot projects (5 parallel sync agents)
+
+**New files created:**
+- `.claude/skills/experiment-loop/SKILL.md` (213 lines) — autonomous hypothesis→experiment→measure→keep/discard loop
+- `.claude/guides/results-board.md` (133 lines) — shared agent coordination board
+
+**Files modified:**
+- `self-completion/SKILL.md` — added unlimited mode with 5 safety valves (context 75%, timeout 4h, idle 3, stall 3, checkpoint 10)
+- `qa-validation-loop/SKILL.md` — added Evaluation Firewall section
+- `teammate-prompt-template.md` — added Read-Only Files + Results Board sections
+- `registry.md` — added `experimenter` agent type
+- `CLAUDE.md` — added experimenter role, evaluation firewall constraint, results board trigger, experiment-loop trigger
+- `PIPELINE-v3.md` — added optional EXPERIMENT phase template
+
+**Decisions:**
+- Evaluation Firewall is prose-based (like Karpathy), enforced via QA reviewer check
+- Unlimited self-completion uses defense-in-depth: 5 independent valves, any one stops the loop
+- Results Board is append-only shared file, not a server (simpler than AgentHub)
+- Rejected: AgentHub server, moltbook pattern, prose-only guardrails (we keep enforcement)
 
 ### Full Skills Restoration + Auto-Loading Mechanism — COMPLETE
 **Task:** Restore full skill versions from git history, fix skill loading for all agent types, sync to 8 bots.
@@ -128,26 +177,54 @@
 
 **[Pre-compaction save 21:03]** Built and tested a complete autonomous agent spawning pipeline (`spawn-agent.py`) with auto-detection of agent types based on task keywords. Implemented 7 critical fixes (word boundary matching, null checks, Russian language support, role mappings, BOM handling, dry-run guards) after parallel testing revealed edge cases and false positives.
 
-### 2026-02-27 (session 8 — E2E Infrastructure Validation COMPLETE)
-**Did:** (1) Completed Phase 2 TEST_AGENT_TEAMS — all 3 agents PASS (verifier 13/13, mapper 7-step map, error-handler 2 recoveries). (2) Fixed conflict marker false positives in template copy of subagent-driven-development. (3) Synced conflict marker fix to 8 bots. (4) Completed Phase 3 TEST_AO_HYBRID — 2 AO agents spawned, both produced outputs and git commits. (5) Wrote Phase 4 VERIFY summary. (6) Pipeline COMPLETE.
-**Decided:** AO Hybrid spawns work but have 3 concerns: stale branch reuse, no skill invocation audit trail, global/project skill confusion. Future prompts should include "Report which skills you invoked."
-**Learned:** (1) Quality gate hook matches exactly 7-char conflict markers (`"<" * 7`), so 4-char shortened examples pass. (2) AO worktrees can reuse existing branch names from previous sessions → stale code. (3) AO agents see both project and global skills. (4) Agent 2 found 13 phantom skills in SKILLS_INDEX.md and 15 orphaned skills without triggers.
-**Next:** All E2E issues addressed and verified. System is stable. Consider future: AO Hybrid production use, skill compliance monitoring.
 
-### 2026-02-27 (session 9 — E2E v2 Verification COMPLETE)
-**Did:** (1) Resumed VERIFY phase of Post-E2E Improvements pipeline. (2) Spawned 3 parallel agents: index-verifier, ao-verifier, skills-verifier. (3) All 3 PASS.
-**Next:** Build prompt generator for skill auto-discovery.
+**[Pre-compaction save 17:17]** Successfully deployed all 8 bots to Contabo (7 migrated + client-bot), verified commits match source, and updated CI/CD pipelines (GitHub secrets + deploy.yml) for all repos. Resolved d-brain commit mismatch (unpushed EC2 commits) and fixed SSH key formatting in GitHub secrets.
 
-### 2026-02-27 (session 10 — Prompt Generator COMPLETE)
-**Did:** (1) Built `generate-prompt.py` (280 lines, stdlib only) — auto-discovers skills via `roles:` YAML field. (2) Added `roles:` to all 13 skill YAML front matters. (3) Updated CLAUDE.md with generator rule. (4) TEST phase: 3 agents (coder, qa-reviewer, pipeline-lead) each correctly received their skills and followed protocols. (5) Fixed BOM handling for Windows. (6) Synced to template + 8 bots (56/56 checks pass).
-**Decided:** Auto-discovery via YAML `roles:` field — adding a new skill requires only creating SKILL.md with `roles:`, no other files to edit. Generator reduces teammate prompt creation from 5 steps to 1.
-**Learned:** (1) Prompt generator eliminates the multi-step compliance problem — 1 command produces a complete prompt with correct skills, memory, and handoff template. (2) qa-reviewer agent correctly identified BOM handling and registry parsing fragility. (3) pipeline-lead agent created a realistic 3-agent plan showing the generator integrates naturally into workflows.
-**Next:** Build spawn-agent.py — one-command spawning with auto-type detection.
 
-### 2026-02-27 (session 11 — spawn-agent.py + Full Flow Automation COMPLETE)
-**Did:** (1) Built `spawn-agent.py` (406 lines) — auto-detects agent type from task keywords, imports generate-prompt.py. (2) TYPE_RULES: 16 agent types with EN+RU keywords, confidence scoring, word-boundary matching. (3) TEST phase: 3 parallel agents (skill verifier, code reviewer, edge tester) — found 6 issues. (4) ITERATE: fixed all 6 (word boundaries, null checks, Russian "баг", qa-reviewer roles, BOM strip, dry-run guard). (5) EVALUATE: "does everything work automatically?" → YES. (6) SYNC: 8 parallel agents synced spawn-agent.py + generate-prompt.py + verification SKILL.md + CLAUDE.md to all 8 bots — 32/32 checks pass.
-**Decided:** spawn-agent.py as MANDATORY (not PREFERRED) in CLAUDE.md Before Spawning Teammate. Word boundary regex (`\b`) prevents substring false positives. Fallback to `coder` when score ≤ 0.
-**Learned:** (1) Substring matching causes false positives ("fix" in "fixture", "add" in "address"). (2) Generic keywords like "code" and "change" cause cross-type detection collisions. (3) qa-reviewer was missing from verification-before-completion roles — a gap that affects skill routing.
-**Next:** System fully automatic. Pipeline COMPLETE.
+> [4 older session(s) archived — see daily/ logs]
 
-> [7 older session(s) archived — see daily/ logs]
+**[Pre-compaction save 12:40]** Diagnosed and fixed chronic autocompact failure in DocCheck Bot project. Identified that PreCompact hook was failing silently, preventing context cleanup before 85% threshold. Replaced broken hook with working version from another bot.
+
+
+**[Pre-compaction save 21:44]** Диагностировал и исправил баг в OpenClaw — проблема была в `execFileUtf8`, который переписывал пустой stderr сообщением Node.js вместо реального вывода systemctl. Применил патч в коде, установил daemon и запустил gateway. Теперь OpenClaw полностью работает на сервере (слушает 127.0.0.1:18789), Telegram бот подключён, включены группы и получен pairing code для привязки.
+
+
+**[Pre-compaction save 19:23]** Successfully diagnosed and fixed OpenClaw node-gateway connectivity issue. Node was missing `OPENCLAW_GATEWAY_TOKEN` in environment variables, preventing authentication. Added token, restarted services, and confirmed node is now connected and paired with gateway (capabilities: browser, system). Telegram bot (@genrihclawbot/"Gosh") is operational and connected to gateway.
+
+
+**[Pre-compaction save 20:35]** Completed full 5-phase Skill Conductor pipeline (INSTALL → UPGRADE → VALIDATE → OPTIMIZE → SYNC) with 13 skills upgraded to 55% smaller size and F1 trigger scores improved from 0.87→0.97. Conducted deep analysis of molyanov-ai-dev repository identifying 6 integration opportunities.
+
+### GSD Framework Integration — COMPLETE
+**Task:** Analyze GSD (Get Shit Done) framework, identify improvements, integrate 9 features into our system, sync to all bots.
+
+**What was done (2026-03-05):**
+- Cloned + analyzed GSD repo (38,600 lines, 32 slash commands, 12 agents)
+- Compared architectures: GSD is fresh-context executor model, ours is persistent-context pipeline model
+- Identified 9 adoptable features across 3 tiers
+
+**Tier 1 (Core Skills):**
+- Goal-Backward Verification + 3-Level Artifact Check → verification-before-completion (181→280 lines)
+- Wave-Based DAG Enhancement → task-decomposition (182→316 lines, formal DAG + XML tasks + decimal phases)
+- Nyquist Pre-Flight Validation → qa-validation-loop (113→221 lines, requirement-to-test mapping)
+
+**Tier 2 (Workflow):**
+- Formalized Checkpoints (human-verify/decision/human-action) → PIPELINE-v3.md
+- Discuss-Phase Decision Capture → new guide (discuss-phase-decisions.md, 140 lines)
+- Quick Mode → new guide (quick-mode.md, 105 lines)
+
+**Tier 3 (Templates):**
+- Decimal Phase Numbering → PIPELINE-v3.md + task-decomposition
+- XML Task Structure → task-decomposition
+- Health Command → new command (health.md, 76 lines) + guide (health-check.md, 80 lines)
+
+**QA fixes:**
+- Added `dag-analyzer` + `nyquist-auditor` agent types to registry
+- Fixed health command `--repair` flag → "say repair"
+- Fixed duplicate rule 9. → 9b. in PIPELINE-v3
+- CLAUDE.md: 7 targeted edits (summary rules, guides, skills, knowledge locations, constraints, blocking rules, role mapping)
+
+**Synced to:**
+- New-project template (9 files)
+- 9 bot projects × 9 files = 81 file copies (all verified)
+
+**Pipeline:** IMPLEMENT_W1(5 agents) → IMPLEMENT_W2(3 agents) → INTEGRATE → QA_REVIEW(3 agents) → FIX → TEMPLATE_SYNC → FLEET_SYNC → COMPLETE

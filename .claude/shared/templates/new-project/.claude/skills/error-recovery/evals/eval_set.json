@@ -1,0 +1,41 @@
+{
+  "skill": "error-recovery",
+  "version": "2026-03-05",
+  "queries": {
+    "should_trigger": [
+      {"id": 1, "query": "Edit tool returned 'old_string not found', how do I fix this?", "reason": "Direct Edit tool error"},
+      {"id": 2, "query": "My bash command timed out after 2 minutes", "reason": "Bash timeout"},
+      {"id": 3, "query": "pytest exited with code 1, getting ModuleNotFoundError", "reason": "Test infrastructure failure"},
+      {"id": 4, "query": "The Write tool keeps failing with permission denied", "reason": "Tool permission error"},
+      {"id": 5, "query": "I'm getting EAGAIN errors when running npm install", "reason": "Transient system error"},
+      {"id": 6, "query": "Tool call failed with 'file does not exist'", "reason": "File missing error"},
+      {"id": 7, "query": "Build command hangs with no output", "reason": "Command hang/timeout"},
+      {"id": 8, "query": "Getting ConnectionRefused when running integration tests", "reason": "Test environment error"},
+      {"id": 9, "query": "Edit says old_string is not unique in the file", "reason": "Edit multiple matches"},
+      {"id": 10, "query": "Command keeps timing out, already tried twice", "reason": "Repeated timeout with retry"}
+    ],
+    "should_not_trigger": [
+      {"id": 11, "query": "My code has a bug in the login function", "reason": "Logic bug — use systematic-debugging"},
+      {"id": 12, "query": "Add error handling to my API endpoints", "reason": "Writing error handling code, not recovering from tool errors"},
+      {"id": 13, "query": "Handle errors gracefully in the user registration flow", "reason": "Application-level error design"},
+      {"id": 14, "query": "The user clicked cancel during upload", "reason": "User-initiated cancellation"},
+      {"id": 15, "query": "Refactor the error messages to be more descriptive", "reason": "Code refactoring"},
+      {"id": 16, "query": "Write a try-catch block for the database query", "reason": "Code writing task"},
+      {"id": 17, "query": "The app shows a 404 error to users", "reason": "Application behavior, not tool error"},
+      {"id": 18, "query": "Create an error logging middleware", "reason": "Feature development"},
+      {"id": 19, "query": "Review the error handling in this module", "reason": "Code review"},
+      {"id": 20, "query": "Why does my function return None instead of the expected value?", "reason": "Logic bug investigation"}
+    ]
+  },
+  "evaluation": {
+    "original": {"TP": 10, "TN": 9, "FP": 1, "FN": 0, "precision": 0.91, "recall": 1.0, "f1": 0.95},
+    "optimized": {"TP": 10, "TN": 10, "FP": 0, "FN": 0, "precision": 1.0, "recall": 1.0, "f1": 1.0}
+  },
+  "scores": {
+    "discovery": 9,
+    "clarity": 9,
+    "efficiency": 8,
+    "robustness": 9,
+    "completeness": 9
+  }
+}

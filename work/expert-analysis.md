@@ -1,337 +1,174 @@
----
-date: 2026-02-16
-task: "Deep research: autonomous pipeline architecture for Claude Code"
-panel_size: 5
-domains: [orchestration, persistence, templates, pipeline, anti-drift]
-experts: [orchestration-researcher, patterns-researcher, persistence-researcher, doccheck-analyzer, web-deep-researcher]
----
+# Expert Analysis: Boris Cherny Principles vs. Current CLAUDE.md
 
-# Expert Analysis: Autonomous Pipeline Architecture
-
-## Task Scope
-
-Comprehensive analysis of 12+ repositories/sources for building reliable autonomous development pipelines in Claude Code, compared against our current template system and real project usage (DocCheck Bot, 45+ sessions).
-
-## Sources Analyzed
-
-| Source | Stars | Type | Key Pattern |
-|--------|-------|------|-------------|
-| claude-flow (ruvnet) | 14k+ | Orchestration | SQLite memory + swarm topologies |
-| claude-squad (smtg-ai) | 5.6k+ | Parallel agents | Git worktree isolation per agent |
-| oh-my-claudecode | 1k+ | Plugin framework | 31 hooks, 7 execution modes, XML semantic tags |
-| claude-code-templates (davila7) | 2k+ | Component marketplace | 600+ agents, installable components |
-| claude-commands (badlogic) | 484 | State machine | 150 LOC markdown = full pipeline |
-| claude-code-skills (levnikolaevich) | — | Skill hierarchy | L0-L3 orchestrator, 4-verdict quality gate |
-| wshobson/agents | — | Plugin ecosystem | 99 agents, 3-tier model routing |
-| ClaudeFast | — | Hook system | Context monitoring, threshold backups |
-| Ralph Loop / ralph-wiggum | — | Fresh-context loop | New process per atomic task |
-| ardmhacha24 | — | Enhanced Ralph | 4-layer learning system |
-| Manus team | — | Production patterns | Todo rewriting, controlled variation |
-| Shrivu Shankar | — | Enterprise patterns | Document & Clear, test-gated commits |
-| Boris Cherny | — | CLAUDE.md patterns | Self-correcting error-to-rule loop |
-| DocCheck Bot | — | Our real project | 45+ sessions, 335 tests |
+**Date:** 2026-03-01
+**Task:** Should we update CLAUDE.md based on Boris Cherny's (creator of Claude Code) published methodology?
+**Panel:** Business Analyst, System Architect, Risk Assessor
 
 ---
 
-## Critical Problem: Agent Teams Mode Lost After Compaction
+## Executive Summary
 
-### Problem Statement
-User reports that after 1-2 compactions, the lead agent "forgets" to use Agent Teams Mode and starts doing everything sequentially. This dramatically increases execution time for complex tasks.
+**Verdict: Selective adoption. Our system already exceeds Cherny's framework in 7 of 9 principles.**
 
-### Root Cause Analysis
-1. **Silent Rule Dropping** — research confirms LLMs silently ignore instructions when context has 7-10+ rules after compaction
-2. **AGENT TEAM PROPOSAL** is located mid-CLAUDE.md (lines 68-93) — NOT in the high-attention zone (beginning/end)
-3. **No `# Summary instructions`** section telling compactor what to preserve
-4. **Auto-behaviors are "soft" enforcement** — CLAUDE.md text, not hooks. Compaction treats them as "resolved" and compresses them out
-5. **"Lost in the Middle" phenomenon** — information in the middle of context has lowest recall
-
-### Why This Happens Specifically to Agent Teams
-- Agent Teams Mode is a BEHAVIORAL rule ("when you see 3+ independent tasks, propose a team")
-- Behavioral rules are the FIRST thing compaction drops (they look like "resolved instructions")
-- Contrast with HARD CONSTRAINTS ("never commit secrets") which look like ongoing rules and survive better
-- After compaction, lead agent retains WHAT to do but loses HOW to do it (Agent Teams is a "how")
+Key conflict resolved: Business Analyst/System Architect say "add elegance + lessons". Risk Assessor says "CLAUDE.md is already at compliance-risk length — adding 6 more rules drops compliance below 30%." **Consensus:** 2 genuine gaps exist, but both can be addressed with ≤ 5 net new lines in CLAUDE.md.
 
 ---
 
-## What Works in Our System (Keep These)
+## Coverage Scorecard
 
-| Pattern | Evidence | Verdict |
-|---------|----------|---------|
-| Memory system (activeContext.md) | 31 commits in DocCheck Bot, high-quality Did/Decided/Learned/Next entries | WORKING WELL |
-| Expert Panel | Used 4+ times with real 4-agent analysis, produces actionable expert-analysis.md | WORKING WELL |
-| Verification culture | 300+ tests, test counts in every session log | WORKING WELL |
-| STATE.md tracking | Updated every session, clear phase progression (15 phases) | WORKING WELL |
-| ADR system | 4+ active decisions with rationale | WORKING WELL |
-| Session bridging | Next Steps to Did pattern verifiable across sessions | WORKING WELL |
-| Auto-behaviors concept | Correct approach per ALL research sources | CORRECT APPROACH |
-| Agent Teams (TeamCreate) | Effective fresh-context per teammate, 10-agent teams work | WORKING WELL |
-| Skills system (SKILL.md frontmatter) | Matches oh-my-claudecode and wshobson patterns | GOOD STANDARD |
-| No hooks decision | Confirmed: hooks unreliable on Windows, oh-my-claudecode 31 hooks = fragility | CORRECT DECISION |
+| Cherny Principle | Our Coverage | Verdict |
+|---|---|---|
+| Planning mode by default | PIPELINE.md + phase gates + compaction survival | **EXCEEDS** |
+| Subagent strategy | Agent Teams + AO Hybrid + AO Fleet + spawn-agent.py | **EXCEEDS** |
+| Self-improvement loop | knowledge.md + Ebbinghaus decay + observations/ | **PARTIAL** — no failure-focused file |
+| Verification before completion | verification-before-completion skill + blocking rule + hook | **EXCEEDS** |
+| Require elegance (balanced) | Not present | **MISSING** |
+| Autonomous bug fixing | systematic-debugging skill + retry protocol | **MATCHES** |
+| Plan first / track progress | PIPELINE.md + TaskCreate | **EXCEEDS** |
+| Simplicity first | "Fewer Rules = Higher Compliance" (active pattern) | **EXCEEDS** |
+| No laziness / root cause | Debugging blocking rule + gotchas | **MATCHES** |
 
----
-
-## What's Missing (Gap Analysis)
-
-### GAP 1: No Compaction Recovery Mechanism (CRITICAL)
-**Problem:** After compaction, lead agent loses behavioral rules (Agent Teams Mode, plan execution protocol, etc.)
-**Research says:** Use `# Summary instructions` in CLAUDE.md + state machine files read after every compaction
-**Our status:** No summary instructions, no post-compaction re-read protocol
-**Impact:** Agent Teams Mode lost -> sequential execution -> 3-5x slower
-
-### GAP 2: No State Machine File with Explicit Markers (HIGH)
-**Problem:** STATE.md is prose-based, requires reading 134 lines to find current state
-**Research says:** Use markers like `<- CURRENT`, machine-parseable status, one file per pipeline run
-**Our status:** STATE.md has phase descriptions, no explicit markers
-**Impact:** After compaction, agent can't quickly orient itself
-
-### GAP 3: CLAUDE.md Not Customized Per Project (HIGH)
-**Problem:** DocCheck Bot CLAUDE.md still says "Project: Claude Project Template Update"
-**Research says:** CLAUDE.md should be project-specific contract with tech stack, commands, invariants
-**Our status:** Generic template text copied verbatim, no project-specific context
-**Impact:** Agent lacks project-specific constraints, makes generic decisions
-
-### GAP 4: activeContext.md = Layer 3 Noise Accumulation (MEDIUM)
-**Problem:** 438 lines with 10+ historical session logs, no rotation
-**Research says:** Three-layer model: activeContext should be Layer 2 (working set), not Layer 3 (history)
-**Our status:** Mixing current focus + historical sessions in one growing file
-**Impact:** Context waste when loading, relevant info buried in noise
-
-### GAP 5: No Consolidated Patterns File (MEDIUM)
-**Problem:** Project-wide learnings scattered across session logs
-**Research says:** ardmhacha24 Layer 1 = consolidated patterns, highest-signal, read FIRST every iteration
-**Our status:** Patterns in activeContext.md session logs, not extracted/consolidated
-**Impact:** Same mistakes repeated across sessions
-
-### GAP 6: No Self-Correcting CLAUDE.md Loop (MEDIUM)
-**Problem:** Agent makes same mistakes across sessions
-**Research says:** Boris Cherny: every error triggers CLAUDE.md update, system improves with each failure
-**Our status:** Mistakes go into activeContext.md Learned section but never become CLAUDE.md rules
-**Impact:** No compounding improvement of agent behavior
-
-### GAP 7: No Model-Aware Agent Routing (LOW)
-**Problem:** All teammates use same model regardless of task complexity
-**Research says:** wshobson 3-tier (42 Opus, 39 Sonnet, 18 Haiku), oh-my-claudecode 3-tier routing
-**Our status:** No model specification per role
-**Impact:** Overpaying for simple tasks, underperforming on complex ones
-
-### GAP 8: No Fresh-Context Pattern for Lead Agent (LOW-MEDIUM)
-**Problem:** Lead agent accumulates context across multiple phases
-**Research says:** Ralph Loop: new process per phase, state in files
-**Our status:** Lead runs entire session, relies on compaction survival
-**Impact:** Lead agent degrades over long sessions
+**Coverage: 7/9 principles already covered, 2 missing.**
 
 ---
 
-## Recommendations: 5 Tiers
+## Genuine Gaps (2 of 9)
 
-### Tier 1: CLAUDE.md Compaction Hardening (IMMEDIATE, no code)
+### Gap 1: Elegance Review Gate — HIGH PRIORITY
 
-**1.1 Add Summary Instructions section (TOP of CLAUDE.md)**
-```markdown
-# Summary instructions
-When compacting, ALWAYS preserve:
-- AGENT TEAM PROPOSAL trigger and criteria (3+ independent tasks -> team)
-- Current pipeline phase from work/PIPELINE.md
-- BLOCKING RULES section (all 5 rules)
-- HARD CONSTRAINTS section
-After compaction, immediately re-read work/PIPELINE.md and work/STATE.md.
+**What's missing:** No gate between IMPLEMENT and TEST that asks "Is there a more elegant way?"
+
+Our QA loop checks **correctness**. It does not check **design quality**. Cherny's elegance check prevents technical debt accumulation — each hacky fix that passes QA creates compounding maintenance cost.
+
+**Risk Assessor constraint:** Must be implemented without adding verbose rules. One-liners only.
+
+**Proposed minimal addition to Summary Instructions:**
+```
+- **ELEGANCE**: After IMPLEMENT, before QA: ask "Is there a simpler way?" If yes → reimplement. Skip for 1-line fixes.
 ```
 
-**1.2 Move AGENT TEAM PROPOSAL to HIGH-ATTENTION zone**
-Currently at lines 68-93 (middle). Move to TOP, right after SESSION START. Compaction preserves beginning and end better.
-
-**1.3 Add "Always Y" to every "Never X" constraint**
-Research (Shankar): "Never pure negative constraints" are ineffective.
-- "Не делать всё самому" -> "Не делать всё самому: ВСЕГДА предлагай Agent Teams для 3+ задач"
-- "Не говорить готово без verification" -> "Не говорить готово: ВСЕГДА запускай verification-before-completion"
-
-**1.4 Shorten CLAUDE.md to ~300 lines**
-Research: >7-10 rules leads to silent dropping. Move detailed sections to on-demand guides. Keep CLAUDE.md as a CONTRACT (Layer 1), not a manual.
-
-### Tier 2: Pipeline State Machine File (HIGH PRIORITY)
-
-Create `work/PIPELINE.md` — a machine-readable file that survives compaction:
-
-```markdown
-# Pipeline: [Task Name]
-## Status: IN_PROGRESS
-## Mode: AGENT_TEAMS (3+ independent tasks detected)
-## Current Phase: 2 of 4
-
-- [x] Phase 1: Analysis <- DONE (Agent Teams: 3 researchers)
-- [ ] Phase 2: Implementation <- CURRENT (Agent Teams: 4 developers)
-  - Mode: AGENT_TEAMS
-  - Tasks: task-1.md, task-2.md, task-3.md, task-4.md
-  - Acceptance: all tests pass
-- [ ] Phase 3: Fix bugs (Agent Teams: dispatching-parallel-agents)
-- [ ] Phase 4: Verification (Agent Teams: 2 reviewers)
-
-## Execution Rule
-EVERY phase with 3+ tasks -> USE AGENT TEAMS (TeamCreate)
-DO NOT execute phases sequentially when parallelizable
+**One row in HARD CONSTRAINTS:**
+```
+| Не проверять элегантность после IMPLEMENT | Спроси: "Есть ли способ проще?" |
 ```
 
-**Auto-behavior addition:**
-```
-## AFTER COMPACTION (always)
-1. Re-read work/PIPELINE.md
-2. Re-read work/STATE.md
-3. Check current phase Mode: if AGENT_TEAMS, propose team
-4. Continue from <- CURRENT marker
-```
-
-### Tier 3: Three-Layer Context Separation (MEDIUM PRIORITY)
-
-**3.1 Split activeContext.md:**
-- `activeContext.md` — ONLY current focus + recent decisions + next steps (Layer 2, max 50 lines)
-- `sessionHistory.md` — historical session logs (Layer 3, rotated)
-- Archive sessions older than 5 entries
-
-**3.2 Create consolidated-patterns.md:**
-- Extract recurring patterns from session logs
-- Read FIRST at session start (like ardmhacha24 Layer 1)
-- Example: "Phone truncation: use smart truncation, not generic", "Always check field_mappings/ before modifying extraction"
-
-**3.3 Customize CLAUDE.md per project:**
-- Replace template header with actual project name/description
-- Add project-specific tech stack, commands, invariants
-- Add project-specific "common mistakes" from session history
-
-### Tier 4: Ralph Loop for Autonomous Sessions (MEDIUM PRIORITY)
-
-Create `scripts/ralph.sh` for long-running autonomous work:
-
-```bash
-#!/bin/bash
-PIPELINE_FILE="work/PIPELINE.md"
-PROMPT_FILE="work/PROMPT.md"
-MAX_ITERATIONS=20
-
-for i in $(seq 1 $MAX_ITERATIONS); do
-  echo "=== Phase $i ==="
-  claude -p "$(cat $PROMPT_FILE)" --dangerously-skip-permissions
-  git add -A && git commit -m "checkpoint: phase $i"
-  if grep -q "PIPELINE_COMPLETE" "$PIPELINE_FILE"; then
-    echo "Pipeline complete!"
-    break
-  fi
-done
-```
-
-With `work/PROMPT.md`:
-```markdown
-Read CLAUDE.md, work/PIPELINE.md, and work/STATE.md.
-Complete the next unchecked phase.
-IMPORTANT: If phase has 3+ tasks, use Agent Teams (TeamCreate).
-After completion, update PIPELINE.md (mark done, advance <- CURRENT).
-If all phases complete, write PIPELINE_COMPLETE to PIPELINE.md.
-```
-
-**Key benefit:** Each phase gets FRESH 200K context. No compaction. Agent Teams Mode instruction is in PROMPT.md which is re-read every iteration.
-
-### Tier 5: Self-Correcting System (LOW PRIORITY, long-term)
-
-**5.1 Error-to-Rule Pipeline:**
-Add auto-behavior:
-```
-## AFTER ERROR (always)
-1. If this error could have been prevented by a rule:
-   a. Add rule to CLAUDE.md (if project-wide)
-   b. Or add to consolidated-patterns.md (if project-specific)
-2. Format: "LEARNED: [what happened] -> RULE: [what to do instead]"
-```
-
-**5.2 Model-Aware Routing:**
-Add to TEAM ROLE SKILLS MAPPING:
-```
-| Role | Model | Rationale |
-|------|-------|-----------|
-| Architect/Planner | opus | Complex reasoning |
-| Developer/Implementer | sonnet | Standard work |
-| Researcher/Explorer | haiku | Fast lookups |
-| Reviewer | sonnet | Code analysis |
-| Security | sonnet | Pattern matching |
-```
-
-**5.3 Quality Gate Enhancement:**
-Upgrade verification-before-completion with 4-verdict model:
-- **PASS** — all checks green, proceed
-- **CONCERNS** — minor issues, document and proceed
-- **REWORK** — significant issues, fix and re-verify
-- **FAIL** — fundamental problem, escalate to user
+**Effort:** 10 minutes. **ROI:** Prevents technical debt accumulation.
 
 ---
 
-## Per-Project vs. Global Template
+### Gap 2: Failure-Driven Self-Improvement — MEDIUM PRIORITY
 
-### Answer: BOTH, with clear separation
+**What's missing:** After user feedback or circular fix — no explicit "write a rule for yourself" mechanism. Our knowledge.md is **discovery-oriented** ("here's what works"). Cherny's lessons are **failure-oriented** ("here's what I keep breaking"). These complement each other.
 
-| Layer | Where | What | Changes How Often |
-|-------|-------|------|-------------------|
-| **Template infrastructure** | `.claude/shared/templates/new-project/` | Pipeline scripts, skills, guides, CLAUDE.md skeleton | Rarely (template upgrades) |
-| **Project CLAUDE.md** | Each project `CLAUDE.md` | Project name, tech stack, commands, invariants, common mistakes | Per project, updated as project evolves |
-| **Pipeline file** | Each project `work/PIPELINE.md` | Current task pipeline, phases, agent modes | Per task/session |
-| **Memory** | Each project `.claude/memory/` | Session context, patterns, decisions | Every session |
+**Three-Layer Memory Model (System Architect synthesis):**
+1. **Lessons** (defensive) — rules from failures, no decay, session-start priority
+2. **Knowledge.md** (constructive) — patterns, Ebbinghaus decay
+3. **Graphiti** (semantic) — cross-session search
 
-### What goes in template (apply to ALL projects):
-- Summary instructions section (compaction hardening)
-- AGENT TEAM PROPOSAL auto-behavior (with high-attention placement)
-- AFTER COMPACTION auto-behavior (re-read pipeline + state)
-- Pipeline file structure (PIPELINE.md template)
-- Ralph Loop script (scripts/ralph.sh)
-- Three-layer context structure
-- Model-aware routing table
-- Quality gate 4-verdict model
-
-### What's per-project (customize each time):
-- CLAUDE.md header (project name, description, tech stack)
-- CLAUDE.md commands section (project-specific CLI commands)
-- CLAUDE.md invariants (project-specific constraints)
-- consolidated-patterns.md (project-specific learnings)
-- work/PIPELINE.md content (current task phases)
-
----
-
-## Trade-off Matrix
-
-| Criterion | Current System | With Tier 1-2 | With Tier 1-4 (Full) |
-|-----------|---------------|---------------|---------------------|
-| **Agent Teams survival** | Lost after 1-2 compactions | Survives via Summary Instructions + PIPELINE.md | Guaranteed (fresh context per phase) |
-| **Setup complexity** | Zero (CLAUDE.md only) | Low (add sections + PIPELINE.md) | Medium (Ralph script + prompt template) |
-| **Compaction resilience** | Low (soft rules) | Medium (state machine + summary) | High (no compaction in Ralph) |
-| **Per-project cost** | Minimal | +15 min setup (customize CLAUDE.md) | +30 min (script + prompt + pipeline) |
-| **Token efficiency** | Poor (lead accumulates) | Same | Better (fresh context per phase) |
-| **Maintenance** | Low | Low | Medium (script + PROMPT.md upkeep) |
-
----
-
-## Implementation Priority
-
+**Proposed minimal addition to AUTO-BEHAVIORS → Session Start:**
 ```
-WEEK 1: Tier 1 (CLAUDE.md hardening) + Tier 2 (PIPELINE.md)
-  Impact: Agent Teams survival after compaction
-  Dependencies: zero
-  Apply to: template + DocCheck Bot
-
-WEEK 2: Tier 3 (Three-layer context)
-  Impact: cleaner context, faster orientation
-  Apply to: DocCheck Bot first, then template
-
-WEEK 3+: Tier 4 (Ralph Loop) + Tier 5 (Self-correcting)
-  Impact: full compaction immunity for autonomous sessions
-  Test on: real autonomous session in DocCheck Bot
+3. IF work/tasks/lessons.md exists → read top 5 lessons (rules from past failures)
 ```
 
+Create `work/tasks/lessons.md` as project artifact (not a CLAUDE.md section). Recovery manager auto-appends when circular fix detected.
+
+**Effort:** 20 minutes + template file.
+
 ---
 
-## Open Questions (Require User Input)
+## REJECTED Changes (with rationale)
 
-1. **Ralph Loop adoption**: Ready to use `claude -p` headless mode for autonomous sessions? Or prefer staying in interactive mode?
+| Cherny Principle | Why NOT to Add |
+|---|---|
+| Planning mode by default | PIPELINE.md already enforces this. Adding "3+ steps → plan" duplicates existing behavior |
+| Subagent strategy | Agent Teams + AO already exceed this. Adding it is documentation debt |
+| Verification before completion | Already a blocking rule + skill + hook. Any addition duplicates |
+| Autonomous bug fixing | systematic-debugging covers it. Gap 2 (lessons) handles the "don't repeat" aspect |
+| tasks/todo.md with checkboxes | PIPELINE.md + TaskCreate is strictly superior. Two task systems = confusion |
+| Root-cause documentation | 70% overlap with knowledge.md gotchas. Marginal ROI doesn't justify complexity cost |
 
-2. **CLAUDE.md size target**: Current CLAUDE.md ~280 lines. Research recommends ~300-500 max. Need to shorten or current size is acceptable?
+---
 
-3. **Model routing**: Want to specify model (opus/sonnet/haiku) per teammate role? Saves tokens but adds complexity.
+## Risk Matrix
 
-4. **activeContext.md rotation**: Automatically archive sessions older than 5 entries? Or do you use history for context?
+| Risk | P×I | Analysis |
+|---|---|---|
+| **CLAUDE.md complexity growth** | **4×5 = CRITICAL** | Active pattern: "Fewer Rules = Higher Compliance". Compliance ~30-40% at current length. Each new rule dilutes attention. Mitigation: ≤ 5 net new lines total. |
+| tasks/lessons.md vs knowledge.md duplication | 2×2 = LOW | Different abstraction levels: lessons = tactical rules, knowledge = strategic patterns. Complementary. |
+| Planning mode redundancy | 1×0 = NONE | PIPELINE.md already enforces this — same behavior, no conflict. |
+| "Require elegance" subjectivity | 2×1 = LOW | Cherny's "balanced" framing is the key. Skip for 1-line fixes. Not a blocking gate. |
+| tasks/todo.md vs TaskCreate | 2×3 = MEDIUM-LOW | TaskCreate is superset. Keep `session-todos.md` as optional human-readable artifact only. |
 
-5. **Per-project customization**: Ready to spend 15-30 min customizing CLAUDE.md per /init-project? Or want to maximize automation?
+---
+
+## Architecture Recommendation (System Architect)
+
+**Option B: Minimal targeted integration** (NOT full restructuring)
+
+```
++ Add: work/tasks/lessons.md (new project artifact file)
++ Add: 1 bullet in Session Start (read lessons.md)
++ Add: 1 line in Summary Instructions (elegance)
++ Add: 1 row in HARD CONSTRAINTS (elegance)
+~ Enhance: recovery-manager.md (auto-generate lesson on circular fix)
+
+Total CLAUDE.md delta: +4 lines, +1 table row
+New files: 1 (work/tasks/lessons.md template)
+Breaking changes: ZERO
+```
+
+**Why not Option A (just a side reference):** Lessons without session-start loading won't be read. Must be in Session Start sequence.
+
+**Why not Option C (full unification):** Over-engineering. The two systems serve different purposes and should remain separate.
+
+---
+
+## Consensus Recommendations
+
+### Rec 1: ADD Elegance Gate — 2 lines total in CLAUDE.md
+```
+In Summary Instructions (1 line):
+"**ELEGANCE**: After IMPLEMENT, before QA: ask 'Is there a simpler way?'
+If yes and non-trivial → reimplement first. Skip for 1-line fixes."
+
+In HARD CONSTRAINTS (1 row):
+| Не проверять элегантность после IMPLEMENT | Спроси себя: "Есть ли способ проще?" |
+```
+
+### Rec 2: ADD Lessons File + Session Start Hook — 1 line in CLAUDE.md
+```
+In AUTO-BEHAVIORS → Session Start, add bullet:
+"3. IF work/tasks/lessons.md exists → read top 5 lessons"
+
+Create: work/tasks/lessons.md (template, not in CLAUDE.md body)
+Enhance: recovery-manager.md to auto-append lessons on circular fix detection
+```
+
+### Rec 3: NO CLAUDE.md restructuring
+The other 7 principles are already covered. Documenting them again = complexity cost with zero compliance benefit. Cherny's system is **simpler** than ours because it's designed for single-session use. Our system handles compaction, multi-bot fleets, and cross-session memory — necessarily more complex.
+
+---
+
+## Implementation Plan (if approved)
+
+**Phase 1 — Elegance Gate (30 min, SOLO):**
+1. Add 1 line to `Summary Instructions` in CLAUDE.md
+2. Add 1 row to `HARD CONSTRAINTS` in CLAUDE.md
+3. Sync to new-project template
+
+**Phase 2 — Lessons Mechanism (45 min, SOLO):**
+1. Create `work/tasks/lessons.md` template
+2. Add 1 bullet to `AUTO-BEHAVIORS → Session Start` in CLAUDE.md
+3. Update `recovery-manager.md` to auto-generate lessons on circular fix
+4. Sync to new-project template
+
+**Total CLAUDE.md delta:** +4 lines, +1 table row (~1% size increase)
+**Compliance risk:** NEGLIGIBLE
+
+---
+
+## Open Questions for User
+
+1. **Elegance gate scope:** Code changes only, or also prompt/CLAUDE.md changes?
+2. **Lessons file location:** `work/tasks/lessons.md` (per-project, gitignored) or `.claude/memory/lessons.md` (methodology-level, synced to template)?
+3. **Auto-generation threshold:** Lessons auto-created after 3 failed attempts OR only after explicit user feedback?

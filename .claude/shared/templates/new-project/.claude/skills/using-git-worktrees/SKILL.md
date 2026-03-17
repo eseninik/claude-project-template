@@ -1,32 +1,6 @@
 ---
 name: using-git-worktrees
-version: 2.1.0
-description: |
-  Use for isolated workspace creation OR parallel task execution.
-
-  v2.0 adds:
-  - Multi-worktree creation for parallel tasks
-  - Merge flow with conflict classification
-  - Batch cleanup
-  - Platform detection
-
-  v2.1 adds:
-  - Corrupted worktree recovery
-  - Pre-cleanup safety check (uncommitted changes)
-
-changelog:
-  - version: 2.1.0
-    date: 2026-01-21
-    changes:
-      - Added Corrupted Worktree Recovery section
-      - Added Pre-Cleanup Safety Check (uncommitted changes)
-  - version: 2.0.0
-    date: 2026-01-21
-    changes:
-      - Added Multi-Worktree Parallel Execution section
-      - Added Conflict Classification (5 types)
-      - Added Batch Cleanup
-      - Added Platform Detection
+description: Isolated workspace creation and parallel task execution via git worktrees. Use when you need to work on multiple branches simultaneously, set up isolated workspaces for parallel subtasks, or recover corrupted worktrees. Do NOT use for simple branch switching or single-task workflows.
 roles: [pipeline-lead, wave-coordinator, ao-hybrid-coordinator]
 ---
 
@@ -37,8 +11,6 @@ roles: [pipeline-lead, wave-coordinator, ao-hybrid-coordinator]
 Git worktrees create isolated workspaces sharing the same repository, allowing work on multiple branches simultaneously without switching.
 
 **Core principle:** Systematic directory selection + safety verification = reliable isolation.
-
-**Announce at start:** "I'm using the using-git-worktrees skill to set up an isolated workspace."
 
 ## Directory Selection Process
 
@@ -216,7 +188,7 @@ Ready to implement auth feature
 
 ---
 
-## Multi-Worktree Parallel Execution (v2.0+)
+## Multi-Worktree Parallel Execution
 
 For use with `subagent-driven-development` Worktree Mode.
 
@@ -260,7 +232,7 @@ done
 
 ---
 
-## Pre-Cleanup Safety Check (v2.1)
+## Pre-Cleanup Safety Check
 
 **Before removing any worktree, check for uncommitted changes:**
 
@@ -334,7 +306,7 @@ done
 
 ---
 
-## Corrupted Worktree Recovery (v2.1)
+## Corrupted Worktree Recovery
 
 Handle cases where worktree is corrupted or inconsistent.
 
@@ -428,16 +400,16 @@ When session-resumption detects stale worktrees, it should:
 - Proceed with failing tests without asking
 - Assume directory location when ambiguous
 - Skip CLAUDE.md check
-- **Remove worktrees with uncommitted changes without warning (v2.1)**
-- **Skip corrupted worktree recovery when needed (v2.1)**
+- **Remove worktrees with uncommitted changes without warning**
+- **Skip corrupted worktree recovery when needed**
 
 **Always:**
 - Follow directory priority: existing > CLAUDE.md > ask
 - Verify .gitignore for project-local
 - Auto-detect and run project setup
 - Verify clean test baseline
-- **Check for uncommitted changes before cleanup (v2.1)**
-- **Attempt corrupted worktree recovery before giving up (v2.1)**
+- **Check for uncommitted changes before cleanup**
+- **Attempt corrupted worktree recovery before giving up**
 
 ## Integration
 

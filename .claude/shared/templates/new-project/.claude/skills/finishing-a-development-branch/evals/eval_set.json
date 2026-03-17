@@ -1,0 +1,53 @@
+{
+  "skill": "finishing-a-development-branch",
+  "eval_date": "2026-03-05",
+  "queries": [
+    {"query": "I'm done with this feature branch, what now?", "should_trigger": true, "reason": "branch completion decision"},
+    {"query": "finish up this development branch", "should_trigger": true, "reason": "explicit skill name trigger"},
+    {"query": "implementation is complete, how should I integrate?", "should_trigger": true, "reason": "integration decision post-implementation"},
+    {"query": "should I merge or create a PR for this work?", "should_trigger": true, "reason": "merge vs PR decision"},
+    {"query": "all tests pass, ready to wrap up this branch", "should_trigger": true, "reason": "completion signal with tests passing"},
+    {"query": "clean up after development is done", "should_trigger": true, "reason": "post-development cleanup"},
+    {"query": "how do I finalize this feature branch", "should_trigger": true, "reason": "finalize branch"},
+    {"query": "done coding, need to decide merge strategy", "should_trigger": true, "reason": "merge strategy decision post-coding"},
+    {"query": "wrap up this worktree work", "should_trigger": true, "reason": "worktree completion integration"},
+    {"query": "discard this branch, work is no good", "should_trigger": true, "reason": "discard option is part of the 4 choices"},
+    {"query": "merge these branches together", "should_trigger": false, "reason": "standalone merge command, not finishing workflow"},
+    {"query": "create a PR for this", "should_trigger": false, "reason": "standalone PR creation"},
+    {"query": "push this branch to remote", "should_trigger": false, "reason": "just push, not finishing workflow"},
+    {"query": "delete this old branch", "should_trigger": false, "reason": "branch deletion only"},
+    {"query": "I'm still working on this feature", "should_trigger": false, "reason": "in-progress work"},
+    {"query": "fix these failing tests", "should_trigger": false, "reason": "tests failing, not ready to finish"},
+    {"query": "review this pull request", "should_trigger": false, "reason": "PR review, not branch finishing"},
+    {"query": "rebase my branch on main", "should_trigger": false, "reason": "rebasing, not finishing"},
+    {"query": "start a new feature branch", "should_trigger": false, "reason": "starting, not finishing"},
+    {"query": "what branches exist in this repo", "should_trigger": false, "reason": "branch listing, not finishing"}
+  ],
+  "scores_before": {
+    "discovery": 7,
+    "clarity": 8,
+    "efficiency": 8,
+    "robustness": 6,
+    "completeness": 8
+  },
+  "metrics_before": {
+    "precision": 0.7,
+    "recall": 0.9,
+    "f1": 0.78
+  },
+  "scores_after": {
+    "discovery": 9,
+    "clarity": 9,
+    "efficiency": 8,
+    "robustness": 9,
+    "completeness": 9
+  },
+  "metrics_after": {
+    "precision": 0.9,
+    "recall": 0.9,
+    "f1": 0.9
+  },
+  "optimized": true,
+  "description_before": "Guides completion of development work by presenting structured options for merge, PR, or cleanup. Use when implementation is complete, all tests pass, and you need to decide how to integrate the work. Do NOT use for in-progress work or when tests are still failing.",
+  "description_after": "Structured workflow for finishing a completed feature branch -- presents 4 options: local merge, create PR, keep as-is, or discard. Triggers when development work is done and all tests pass, and you need to decide the integration path. Do NOT use for standalone merge commands, standalone PR creation, branch deletion, rebasing, or any in-progress work."
+}

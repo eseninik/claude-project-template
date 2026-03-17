@@ -123,3 +123,92 @@
 | 2026-02-27 20:33 | 11 | test-planner | test-planner | PASSED |
 | 2026-02-27 20:33 | 8 | Test: pipeline-lead agent with embedded skills pla | main | PASSED |
 | 2026-02-27 20:38 | 12 | bot-syncer | bot-syncer | PASSED |
+| 2026-03-01 16:52 | 2 | Deploy conference-bot to Contabo | deploy-conference | PASSED |
+| 2026-03-01 16:52 | 3 | Deploy d-brain to Contabo | deploy-dbrain | PASSED |
+| 2026-03-01 16:53 | 6 | Deploy legal-bot to Contabo | deploy-legal | PASSED |
+| 2026-03-01 16:53 | 1 | Deploy call-rate-bot to Contabo | deploy-call-rate | PASSED |
+| 2026-03-01 16:58 | 7 | Deploy quality-control-bot to Contabo | deploy-quality | PASSED |
+| 2026-03-01 17:01 | 5 | Deploy knowledge-bot to Contabo | deploy-knowledge | PASSED |
+| 2026-03-01 17:02 | 4 | Deploy doccheck-bot to Contabo | deploy-doccheck | PASSED |
+| 2026-03-01 17:20 | 8 | deploy-call-rate | main | PASSED |
+| 2026-03-01 17:20 | 9 | deploy-conference | main | PASSED |
+| 2026-03-01 17:20 | 10 | deploy-dbrain | main | PASSED |
+| 2026-03-01 17:20 | 11 | deploy-doccheck | main | PASSED |
+| 2026-03-01 17:20 | 12 | deploy-knowledge | main | PASSED |
+| 2026-03-01 17:20 | 13 | deploy-legal | main | PASSED |
+| 2026-03-01 17:20 | 14 | deploy-quality | main | PASSED |
+| 2026-03-01 19:21 | 15 | РџСЂРѕРІРµСЂРєР° РѕРєСЂСѓР¶РµРЅРёСЏ | main | PASSED |
+| 2026-03-01 19:22 | 16 | РћРїСЂРµРґРµР»РµРЅРёРµ С‚РёРїР° РїСЂРѕРµРєС‚Р° | main | PASSED |
+| 2026-03-01 19:23 | 17 | РљРѕРїРёСЂРѕРІР°РЅРёРµ С€Р°Р±Р»РѕРЅР° | main | PASSED |
+| 2026-03-01 19:26 | 18 | Р РµРіРёСЃС‚СЂР°С†РёСЏ РїСЂРѕРµРєС‚Р° | main | PASSED |
+| 2026-03-02 17:16 | 21 | Secure Contabo server - disable password auth | main | PASSED |
+| 2026-03-03 22:25 | 2 | Research mcp-filter proxy setup and configuration | mcp-filter-researcher | PASSED |
+| 2026-03-03 22:25 | 3 | Analyze actual Telegram MCP tool usage patterns | usage-analyst | PASSED |
+| 2026-03-03 22:26 | 4 | Research IBM ContextForge as long-term MCP gateway | contextforge-researcher | PASSED |
+| 2026-03-03 22:27 | 4 | Research IBM ContextForge as long-term MCP gateway | contextforge-researcher | PASSED |
+| 2026-03-03 22:53 | 1 | Check Claude Code version and Tool Search feature  | main | PASSED |
+| 2026-03-05 10:50 | 3 | Upgrade error-recovery + using-git-worktrees + fin | upgrader-3 | PASSED |
+| 2026-03-05 10:51 | 4 | Upgrade systematic-debugging + verification-before | upgrader-4 | PASSED |
+| 2026-03-05 10:51 | 1 | Upgrade subagent-driven-development (1445в†’<500 l | upgrader-1 | PASSED |
+| 2026-03-05 10:51 | 5 | Upgrade ao-fleet-spawn + ao-hybrid-spawn + expert- | upgrader-5 | PASSED |
+| 2026-03-05 10:51 | 2 | Upgrade task-decomposition (602в†’<500) + self-com | upgrader-2 | PASSED |
+| 2026-03-05 11:02 | 2 | Optimize error-recovery + systematic-debugging + v | optimizer-2 | BLOCKED | PYTHON SYNTAX ERRORS: |
+| 2026-03-05 11:02 | 6 | optimizer-2 | optimizer-2 | PASSED |
+| 2026-03-05 11:02 | 1 | Optimize subagent-driven-development + task-decomp | optimizer-1 | PASSED |
+| 2026-03-05 11:02 | 3 | Optimize using-git-worktrees + finishing-a-develop | optimizer-3 | PASSED |
+| 2026-03-05 11:02 | 8 | optimizer-4 | optimizer-4 | PASSED |
+| 2026-03-05 11:02 | 4 | Optimize ao-fleet-spawn + ao-hybrid-spawn + expert | optimizer-4 | PASSED |
+| 2026-03-05 11:02 | 2 | Optimize error-recovery + systematic-debugging + v | optimizer-2 | PASSED |
+| 2026-03-05 20:41 | 2 | Update verification-before-completion with deferre | skill-verifier | PASSED |
+| 2026-03-05 20:42 | 1 | Create skeptic + quality/adequacy validator agents | agent-creator | PASSED |
+| 2026-03-05 20:42 | 3 | Add checkpoint recovery to subagent-driven-develop | skill-checkpoint | PASSED |
+| 2026-03-05 20:44 | 4 | Upgrade interview YAML + PIPELINE-v3 QA split | template-updater | PASSED |
+| 2026-03-05 20:44 | 5 | agent-creator | main | PASSED |
+| 2026-03-05 20:44 | 6 | skill-verifier | main | PASSED |
+| 2026-03-05 20:44 | 7 | skill-checkpoint | main | PASSED |
+| 2026-03-05 20:44 | 8 | template-updater | main | PASSED |
+| 2026-03-05 20:48 | 9 | sync-batch | main | PASSED |
+| 2026-03-11 13:20 | 2 | Add evaluation firewall principle | firewall-agent | PASSED |
+| 2026-03-11 13:20 | 1 | Create experiment-loop skill | skill-creator | PASSED |
+| 2026-03-11 13:20 | 2 | Add evaluation firewall principle | firewall-agent | PASSED |
+| 2026-03-11 13:21 | 1 | Create experiment-loop skill | skill-creator | PASSED |
+| 2026-03-11 13:21 | 5 | skill-creator | skill-creator | PASSED |
+| 2026-03-11 13:21 | 7 | safety-agent | safety-agent | PASSED |
+| 2026-03-11 13:21 | 3 | Add unlimited mode to self-completion | safety-agent | PASSED |
+| 2026-03-11 13:21 | 4 | Create results board for agent coordination | board-agent | PASSED |
+| 2026-03-11 13:22 | 4 | Create results board for agent coordination | board-agent | PASSED |
+| 2026-03-11 13:22 | 8 | board-agent | board-agent | PASSED |
+| 2026-03-11 13:22 | 2 | Add evaluation firewall principle | main | PASSED |
+| 2026-03-11 13:22 | 6 | firewall-agent | main | PASSED |
+| 2026-03-12 12:08 | 6 | coder-md-updater | coder-md-updater | PASSED |
+| 2026-03-12 12:08 | 1 | Update coder.md вЂ” add logging step | coder-md-updater | PASSED |
+| 2026-03-12 12:09 | 7 | verification-updater | verification-updater | PASSED |
+| 2026-03-12 12:09 | 2 | Update verification-before-completion вЂ” add logg | verification-updater | PASSED |
+| 2026-03-12 12:09 | 10 | template-updater | template-updater | PASSED |
+| 2026-03-12 12:09 | 5 | Update teammate-prompt-template вЂ” add logging to | template-updater | PASSED |
+| 2026-03-12 12:09 | 8 | qa-updater | qa-updater | PASSED |
+| 2026-03-12 12:09 | 4 | Update CLAUDE.md вЂ” add LOGGING constraint and tr | claude-md-updater | PASSED |
+| 2026-03-12 12:09 | 9 | claude-md-updater | claude-md-updater | BLOCKED | PYTHON SYNTAX ERRORS: |
+| 2026-03-12 12:10 | 3 | Update qa-validation-loop вЂ” add logging review | main | PASSED |
+| 2026-03-12 12:29 | 2 | sync-batch-2 | sync-batch-2 | PASSED |
+| 2026-03-12 12:29 | 1 | sync-batch-1 | sync-batch-1 | PASSED |
+| 2026-03-12 12:30 | 3 | sync-batch-3 | sync-batch-3 | PASSED |
+| 2026-03-13 17:43 | 1 | РџСЂРѕРІРµСЂРєР° РѕРєСЂСѓР¶РµРЅРёСЏ | main | PASSED |
+| 2026-03-13 17:44 | 2 | РћРїСЂРµРґРµР»РµРЅРёРµ С‚РёРїР° РїСЂРѕРµРєС‚Р° | main | PASSED |
+| 2026-03-13 17:44 | 3 | РљРѕРїРёСЂРѕРІР°РЅРёРµ С€Р°Р±Р»РѕРЅР° | main | PASSED |
+| 2026-03-13 18:34 | 4 | Р РµРіРёСЃС‚СЂР°С†РёСЏ РїСЂРѕРµРєС‚Р° | main | PASSED |
+| 2026-03-13 18:40 | 7 | РЎРѕР·РґР°С‚СЊ GitHub Actions workflows | main | PASSED |
+| 2026-03-13 18:40 | 8 | РЎРѕР·РґР°С‚СЊ systemd service С„Р°Р№Р» | main | PASSED |
+| 2026-03-13 18:41 | 9 | РќР°СЃС‚СЂРѕРёС‚СЊ GitHub secrets | main | PASSED |
+| 2026-03-13 18:42 | 10 | РќР°СЃС‚СЂРѕРёС‚СЊ СЃРµСЂРІРµСЂ | main | PASSED |
+| 2026-03-13 18:44 | 11 | РљРѕРјРјРёС‚ Рё push РІСЃРµРіРѕ | main | PASSED |
+| 2026-03-17 14:50 | 1 | Analyze best-practice docs: commands, settings, sk | researcher-1 | PASSED |
+| 2026-03-17 14:52 | 2 | Analyze implementation guides and development work | researcher-2 | PASSED |
+| 2026-03-17 14:52 | 3 | Analyze orchestration workflow, agent-teams exampl | researcher-3 | PASSED |
+| 2026-03-17 14:55 | 4 | Analyze .claude directory structure: agents, comma | researcher-4 | PASSED |
+| 2026-03-17 14:57 | 5 | Analyze our current system for comparison baseline | researcher-4 | PASSED |
+| 2026-03-17 15:18 | 1 | Feature 1: Agent Memory directory + templates | main | PASSED |
+| 2026-03-17 15:18 | 2 | Feature 2: Per-Phase Fresh Session Verification | main | PASSED |
+| 2026-03-17 15:19 | 5 | Feature 5: Skill Examples Template + Organic Growt | impl-5-skill-examples | PASSED |
+| 2026-03-17 15:19 | 4 | Feature 4: Self-Evolving Agent Pattern + Skill Con | impl-4-self-evolving | PASSED |
+| 2026-03-17 15:20 | 3 | Feature 3: Auto-Research Phase in Pipeline | main | PASSED |

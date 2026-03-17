@@ -1,28 +1,16 @@
 ---
 name: ao-fleet-spawn
 description: |
-  Spawn and manage parallel agent sessions across multiple projects via Agent Orchestrator CLI.
-  Use when a pipeline phase has Mode: AO_FLEET, or when executing the same task across multiple bot projects.
-  Wraps: ao spawn, ao batch-spawn, ao session ls, ao session kill, ao session cleanup.
-  Does NOT apply for single-project parallelism (use AGENT_TEAMS/TeamCreate instead).
-  Does NOT apply for sequential single-project tasks (use SOLO mode).
+  Spawn parallel agent sessions across MULTIPLE projects/repositories via Agent Orchestrator (ao) CLI.
+  Use when: Mode: AO_FLEET in pipeline, task targets all bots / multiple repos, cross-project sync, multi-repo migration, "все боты", fleet operations.
+  Do NOT use for: single-project parallelism (use TeamCreate), single-project full-context agents (use ao-hybrid-spawn), deployment, or git operations.
 roles: [fleet-orchestrator]
 ---
 
-## Philosophy
+# AO Fleet Spawn
+
+## Overview
 Fleet operations dispatch independent Claude Code sessions to separate project directories. Each session runs autonomously with its own context, CLAUDE.md, and pipeline. The orchestrator monitors status and collects results.
-
-## Critical Constraints
-**never:**
-- Spawn fleet sessions without verifying `ao status` first (config must load)
-- Mix AO_FLEET with AGENT_TEAMS in the same phase (choose one)
-- Spawn sessions for projects not in `~/.agent-orchestrator.yaml`
-
-**always:**
-- Verify `ao status` loads before first spawn
-- Monitor sessions with `ao session ls` after spawning
-- Kill sessions with `ao session kill` when done (prevent zombie processes)
-- Clean up with `ao session cleanup` after fleet operation completes
 
 ## Prerequisites
 - `ao` CLI installed globally (`C:\Bots\agent-orchestrator`, npm link)
@@ -45,14 +33,7 @@ ao spawn <project-id> --agent codex      # override agent type
 ```
 
 ### 3. Multi-Project Fleet Spawn
-For fleet-wide operations, spawn sessions for each target project:
 ```bash
-# Sequential spawn (with monitoring)
-for project in call-rate-bot clients-legal-bot conference-bot; do
-  ao spawn "$project"
-done
-
-# Or use a loop with task context
 for project in call-rate-bot clients-legal-bot conference-bot; do
   ao spawn "$project" "sync-template-v2"
 done
@@ -63,7 +44,6 @@ done
 ao session ls                            # all sessions across all projects
 ao session ls -p call-rate-bot           # filter by project
 ```
-
 Session statuses: `spawning` -> `working` -> `pr_open` -> `merged` / `killed`
 
 ### 5. Send Commands to Running Sessions
@@ -76,7 +56,7 @@ ao send <session-id> -f path/to/prompt.txt  # send file contents
 After sessions complete, check each project's work/ directory for results:
 ```bash
 for project_path in "C:/Bots/Migrator bots/Call Rate bot" ...; do
-  cat "$project_path/work/PIPELINE.md"  # check pipeline status
+  cat "$project_path/work/PIPELINE.md"
 done
 ```
 
@@ -87,7 +67,7 @@ ao session cleanup                       # auto-clean completed sessions
 ao session cleanup -p call-rate-bot      # clean specific project
 ```
 
-## When to Use AO_FLEET vs AGENT_TEAMS
+## AO_FLEET vs AGENT_TEAMS
 
 | Criteria | AO_FLEET | AGENT_TEAMS |
 |----------|----------|-------------|
@@ -98,8 +78,8 @@ ao session cleanup -p call-rate-bot      # clean specific project
 | Scale | 2-100+ projects | 2-10 subagents |
 | Use case | Fleet sync, multi-repo deploy | Feature implementation, QA |
 
-## Red Flags
-- Using AO_FLEET for single-project work (use AGENT_TEAMS)
-- Not monitoring sessions after spawn (sessions may fail silently)
-- Leaving sessions running after task completes (zombie processes)
-- Spawning without checking `ao status` first
+## Common Mistakes
+- **Not running `ao status` before spawning** -- config may be broken or stale sessions lingering
+- **Using AO_FLEET for single-project work** -- use AGENT_TEAMS instead, much lighter
+- **Not monitoring sessions after spawn** -- sessions may fail silently without notification
+- **Leaving sessions running after task completes** -- causes zombie processes and resource leaks

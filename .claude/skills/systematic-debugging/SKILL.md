@@ -1,7 +1,12 @@
 ---
 name: systematic-debugging
-version: 1.0.0
-description: Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes - four-phase framework (root cause investigation, pattern analysis, hypothesis testing, implementation) that ensures understanding before attempting solutions
+description: >
+  Four-phase debugging framework: root cause investigation, pattern analysis,
+  hypothesis testing, fix implementation. Use when encountering bugs, test failures,
+  unexpected behavior, build failures, or performance regressions that need investigation.
+  Use especially when previous fix attempts failed, the issue reproduces inconsistently,
+  or the root cause is not understood. Do NOT use for simple typos, known config changes,
+  tool errors (use error-recovery), writing error-handling code, or test authoring.
 roles: [reproducer, analyzer, fixer]
 ---
 
@@ -244,7 +249,7 @@ If you catch yourself thinking:
 
 **When you see these:** STOP. Return to Phase 1.
 
-## Common Rationalizations
+## Common Mistakes
 
 | Excuse | Reality |
 |--------|---------|

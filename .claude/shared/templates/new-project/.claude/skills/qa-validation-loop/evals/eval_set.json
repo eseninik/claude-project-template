@@ -1,0 +1,53 @@
+{
+  "skill": "qa-validation-loop",
+  "eval_date": "2026-03-05",
+  "queries": [
+    {"query": "run QA on this implementation", "should_trigger": true, "reason": "explicit QA trigger"},
+    {"query": "QA validation needed after implement phase", "should_trigger": true, "reason": "post-implement QA"},
+    {"query": "spawn reviewer and fixer agents for quality check", "should_trigger": true, "reason": "core mechanism description"},
+    {"query": "run the QA validation loop", "should_trigger": true, "reason": "skill name trigger"},
+    {"query": "need a quality gate before moving to test phase", "should_trigger": true, "reason": "quality gate between phases"},
+    {"query": "implementation done, need QA review cycle", "should_trigger": true, "reason": "post-implement review cycle"},
+    {"query": "check code quality with reviewer agent", "should_trigger": true, "reason": "reviewer agent trigger"},
+    {"query": "risk-proportional quality review", "should_trigger": true, "reason": "core concept keyword"},
+    {"query": "QA after this code wave", "should_trigger": true, "reason": "code wave trigger"},
+    {"query": "validate implementation against acceptance criteria", "should_trigger": true, "reason": "criteria validation"},
+    {"query": "review my code", "should_trigger": false, "reason": "generic code review, not QA loop"},
+    {"query": "run tests", "should_trigger": false, "reason": "test execution, not QA review"},
+    {"query": "fix this bug", "should_trigger": false, "reason": "debugging, not QA"},
+    {"query": "do a security audit", "should_trigger": false, "reason": "security-specific, not general QA"},
+    {"query": "check for code style issues", "should_trigger": false, "reason": "linting, not QA loop"},
+    {"query": "run the expert panel", "should_trigger": false, "reason": "expert panel, different skill"},
+    {"query": "write unit tests for this", "should_trigger": false, "reason": "test writing, not QA review"},
+    {"query": "merge and deploy", "should_trigger": false, "reason": "deployment, not QA"},
+    {"query": "refactor this code", "should_trigger": false, "reason": "refactoring, not QA"},
+    {"query": "analyze code complexity", "should_trigger": false, "reason": "analysis, not QA loop"}
+  ],
+  "scores_before": {
+    "discovery": 8,
+    "clarity": 8,
+    "efficiency": 8,
+    "robustness": 7,
+    "completeness": 8
+  },
+  "metrics_before": {
+    "precision": 0.8,
+    "recall": 1.0,
+    "f1": 0.89
+  },
+  "scores_after": {
+    "discovery": 8,
+    "clarity": 9,
+    "efficiency": 8,
+    "robustness": 9,
+    "completeness": 8
+  },
+  "metrics_after": {
+    "precision": 0.9,
+    "recall": 1.0,
+    "f1": 0.95
+  },
+  "optimized": true,
+  "description_before": "Risk-proportional QA cycle with Reviewer and Fixer agents, depth adapts to task complexity. Use after IMPLEMENT phase, after code waves, or when user says 'run QA'. Do NOT use as a substitute for expert panel or test execution (TEST phase).",
+  "description_after": "Risk-proportional QA cycle with Reviewer and Fixer agents, depth adapts to task complexity. Use after IMPLEMENT phase, after code waves, or when user says 'run QA'. Do NOT use for generic code review, running tests, debugging, expert panel, or security-only audits."
+}

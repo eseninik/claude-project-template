@@ -29,6 +29,17 @@ If total skill content exceeds ~1,500 lines, include only the Protocol/Steps sec
 ### {skill-2} (if needed)
 {Read and paste the FULL content of .claude/skills/{skill-2}/SKILL.md here}
 
+## Agent Memory (if available)
+
+Check if `.claude/agent-memory/{agent-type}/MEMORY.md` exists for this agent's type.
+If yes, inject the first 200 lines into the prompt below Required Skills.
+
+### Agent Memory
+{Paste first 200 lines of .claude/agent-memory/{agent-type}/MEMORY.md}
+
+Agent memory contains project-specific learnings accumulated across sessions.
+The agent should READ this at start and UPDATE it in their handoff block if they learned something new.
+
 ## Memory Context
 {Injected from typed memory — patterns, gotchas, relevant codebase map entries}
 
@@ -37,6 +48,13 @@ If total skill content exceeds ~1,500 lines, include only the Protocol/Steps sec
 - Verify each acceptance criterion with evidence (VERIFY/RESULT format)
 - If any check fails → fix first, do NOT claim done
 - Update work/attempt-history.json if retry
+- Verify logging coverage: every new function has entry/exit logs, every catch block logs errors (ref: .claude/guides/logging-standards.md)
+
+## Results Board
+Before starting your task, check if `work/results-board.md` exists. If yes:
+- Read it for context on what other agents have tried
+- Note any failed approaches related to your task — do NOT repeat them
+- After completing your task, append your result entry to the board
 
 ## Handoff Output (MANDATORY when your task is done)
 
@@ -67,6 +85,15 @@ Next Phase Input: [what the next agent/phase needs to know]
 
 ## Constraints
 {technical constraints, compatibility requirements}
+
+## Read-Only Files (Evaluation Firewall)
+{List files the implementer CANNOT modify. Default list below — add project-specific files.}
+- All test files (test_*, *.test.*, *.spec.*)
+- Acceptance criteria files (user-spec.md, task descriptions)
+- Evaluation/benchmark scripts
+- CI/CD pipeline configurations
+
+If you need to modify any read-only file, STOP and ask the team lead first.
 ```
 
 ---
@@ -133,6 +160,7 @@ For complex agent roles, use dedicated prompt files from `.claude/prompts/`:
 
 ### Minimum Requirements
 - ANY teammate that writes/modifies code → `verification-before-completion`
+- ANY teammate that writes/modifies code → must add structured logging per `.claude/guides/logging-standards.md`
 
 ### Role-Based Skills (from TEAM ROLE SKILLS MAPPING in CLAUDE.md)
 
@@ -210,6 +238,7 @@ Load from: work/attempt-history.json (if exists)
 - Generic "use best practices" вместо конкретных скиллов — бесполезно
 - Назначение скиллов без проверки по TEAM ROLE SKILLS MAPPING — неправильный выбор
 - Пропуск verification-before-completion для implementer роли — основная ошибка
+- Код без логирования в новых функциях — основная причина слепой отладки в продакшне
 
 ---
 

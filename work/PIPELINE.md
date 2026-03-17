@@ -1,84 +1,96 @@
-# Pipeline: spawn-agent.py + Full Flow Automation
+# Pipeline: Best Practice Integration (5 Features)
 
 - Status: PIPELINE_COMPLETE
-- Phase: SYNC
-- Mode: INTERACTIVE
+- Phase: COMPLETE
+- Mode: AGENT_TEAMS
 
-> Build spawn-agent.py with auto-type detection. Iterate until full flow is automatic.
+> 5 features from claude-code-best-practice analysis. All touch different files — fully parallel.
+> No SPEC/PLAN needed — features designed and approved in discussion.
+
+---
+
+## Features
+
+1. **Agent Memory** — `.claude/agent-memory/` directory with templates
+2. **Per-Phase Fresh Session Verification** — Update pipeline template + verification skill
+3. **Auto-Research Phase** — Lightweight RPI (2-3 agents) auto-triggered in pipeline
+4. **Self-Evolving Agent Pattern** — Skills improve from usage + Skill Conductor gate
+5. **Skill Examples** — examples.md template + organic growth via self-evolving
 
 ---
 
 ## Phases
 
 ### Phase: IMPLEMENT
-- Status: PASS
+- Status: DONE
 - Mode: AGENT_TEAMS
-- Attempts: 0 of 1
-- On PASS: -> TEST
+- Attempts: 1 of 2
+- On PASS: -> QA_REVIEW
 - On FAIL: -> STOP
-- Gate: spawn-agent.py works, CLAUDE.md updated, template synced
+- Gate: all 5 features implemented, files exist, no syntax errors
 - Gate Type: AUTO
-- Inputs: generate-prompt.py, registry.md, teammate-prompt-template.md
-- Outputs: spawn-agent.py, updated CLAUDE.md, updated template
+- Inputs: feature specs from discussion, existing skill/pipeline files
+- Outputs: new/modified files for all 5 features
 - Checkpoint: pipeline-checkpoint-IMPLEMENT
 
-### Phase: TEST
-- Status: PASS
-- Mode: AGENT_TEAMS
-- Attempts: 0 of 2
-- On PASS: -> EVALUATE
-- On FAIL: -> IMPLEMENT (fix issues)
-- Gate: 4+ test scenarios pass with correct type detection and skill embedding
-- Gate Type: AUTO
-- Inputs: spawn-agent.py, skill files
-- Outputs: work/test-results/spawn-agent-tests.md
-- Checkpoint: pipeline-checkpoint-TEST
-
-### Phase: EVALUATE
-- Status: PASS
-- Mode: SOLO
-- Attempts: 0 of 3
-- On PASS: -> SYNC
-- On FAIL: -> ITERATE
-- Gate: Answer to "does everything work automatically?" is YES
-- Gate Type: AUTO
-- Inputs: Test results, full flow analysis
-- Outputs: work/automation-evaluation.md
-- Checkpoint: pipeline-checkpoint-EVALUATE
-
-### Phase: ITERATE
+### Phase: QA_REVIEW
 - Status: PENDING
 - Mode: AGENT_TEAMS
-- Attempts: 0 of 3
-- On PASS: -> EVALUATE
-- On FAIL: -> STOP
-- Gate: All identified gaps fixed
+- Attempts: 0 of 2
+- On PASS: -> SYNC
+- On REWORK: -> FIX
+- Gate: no CRITICAL issues in qa-review-report.md
 - Gate Type: AUTO
-- Inputs: work/automation-evaluation.md
-- Outputs: Fixed scripts/docs
-- Checkpoint: pipeline-checkpoint-ITERATE
+- Inputs: implemented features
+- Outputs: work/qa-review-report.md
+
+### Phase: FIX
+- Status: PENDING
+- Mode: SOLO
+- Attempts: 0 of 3
+- On PASS: -> QA_REVIEW
+- On BLOCKED: -> STOP
+- Gate: all QA issues resolved
+- Gate Type: AUTO
 
 ### Phase: SYNC
-- Status: PASS
+- Status: DONE
 - Mode: AGENT_TEAMS
 - Attempts: 0 of 1
-- On PASS: -> COMPLETE
-- On FAIL: -> STOP
-- Gate: Template + 8 bots synced
+- On PASS: -> VERIFY
+- On BLOCKED: -> STOP
+- Gate: new-project template mirrors main .claude/
 - Gate Type: AUTO
-- Inputs: All modified files
-- Outputs: Synced projects
-- Checkpoint: pipeline-checkpoint-SYNC
+- Inputs: all modified/new files
+- Outputs: synced template files
+
+### Phase: VERIFY  <- CURRENT
+- Status: DONE
+- Mode: SOLO
+- Attempts: 0 of 1
+- On PASS: -> COMPLETE
+- On FAIL: -> FIX
+- Gate: all features work, files exist with substantive content
+- Gate Type: AUTO
+- Outputs: verification report
+
+### Phase: COMPLETE
+- Status: PENDING
+- Mode: SOLO
+- On PASS: -> DONE
+- Gate: memory updated, git committed
 
 ---
 
 ## Decisions
 
-- [DESIGN] spawn-agent.py imports generate-prompt.py as module — no code duplication
-- [DESIGN] Keyword-based type detection with confidence scoring (0-100%)
-- [DESIGN] Supports both English and Russian keywords
-- [DESIGN] --type override available when auto-detection is insufficient
-- [DESIGN] EVALUATE phase uses checklist: "is everything automatic?" — loops back to ITERATE if NO
+- [DISCUSS] All 5 features approved by user in interactive discussion
+- [DISCUSS] rules/ directory — REJECTED (agents ignore non-CLAUDE.md files, compliance ~10-20%)
+- [DISCUSS] Autocompact 50% — REJECTED (not needed with 1M context, 95% is optimal)
+- [DISCUSS] Cross-model Codex — REJECTED (we use only Claude)
+- [DISCUSS] Self-evolving needs Skill Conductor as quality gate
+- [DISCUSS] Per-phase verification uses fresh AO sessions, not subagents
+- [DISCUSS] Skill examples grow organically via self-evolving, not pre-filled
 
 ---
 
@@ -86,6 +98,6 @@
 
 1. **Start of session / after compaction:** Re-read this file. Find `<- CURRENT`. Resume from that phase.
 2. **Phase execution:** Read phase Inputs. Execute. Produce Outputs. Run Gate check.
-3. **Gate verdicts:** PASS (advance), CONCERNS (log + advance), FAIL (go to On FAIL or STOP).
-4. **Agent Teams:** If Mode = AGENT_TEAMS, use TeamCreate.
-5. **After each phase:** Update this file (move `<- CURRENT`, set Status). Git commit with checkpoint tag.
+3. **Gate verdicts:** PASS (advance), REWORK (go to On REWORK), FAIL (go to On FAIL or STOP).
+4. **Agent Teams:** If Mode = AGENT_TEAMS, use TeamCreate. Build prompts with Required Skills section.
+5. **After each phase:** Update this file (move `<- CURRENT`). Update memory. Git commit.

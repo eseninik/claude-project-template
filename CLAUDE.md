@@ -1,10 +1,12 @@
 # Summary instructions
 
 When compacting, ALWAYS preserve these rules (they are lost most often):
+- **AUTO-RESEARCH**: Pipeline tasks auto-spawn 3 research agents (requirement + technical + risk) before PLAN. Skip for single-file/bugfix/docs tasks.
 - **AGENT TEAMS**: 3+ independent tasks -> ALWAYS use TeamCreate, not sequential execution
 - **PIPELINE**: Read work/PIPELINE.md after compaction, continue from <- CURRENT marker
 - **MEMORY**: ALWAYS update activeContext.md + daily log before commit/exit
 - **SKILLS**: Before executing task matching a skill trigger -> invoke Skill tool. Before spawning teammate -> run `python .claude/scripts/spawn-agent.py --task "..." --team X --name Y` — auto-detects type, embeds skills, generates complete prompt.
+- **ELEGANCE**: After IMPLEMENT, before QA: ask "Is there a simpler way?" If yes and non-trivial → reimplement first. Skip for 1-line fixes.
 - **VERIFICATION**: NEVER say "done" without running tests
 - **QA GATE**: After IMPLEMENT phase -> `cat .claude/skills/qa-validation-loop/SKILL.md` before TEST
 - **KNOWLEDGE**: Read .claude/memory/knowledge.md at session start (patterns + gotchas)
@@ -12,6 +14,12 @@ When compacting, ALWAYS preserve these rules (they are lost most often):
 - **PIPELINE MANDATORY**: Multi-phase tasks MUST create work/PIPELINE.md BEFORE implementation
 - **HOOKS AUTO-INJECT**: SessionStart hook auto-loads context with tier labels. Write-validate warns on schema issues.
 - **MEMORY DECAY**: knowledge.md entries have verified: dates. Old entries auto-decay. Use `knowledge-touch` to refresh used patterns.
+- **NYQUIST**: Before IMPLEMENT, map requirements to planned tests. 0 MISSING → proceed. Gaps → fix plan first.
+- **GOAL-BACKWARD**: Before claiming "done", verify GOAL achievement (not just task completion). Check: Exists → Substantive → Wired.
+- **LOGGING**: Every new/modified function MUST have structured logging — entry, exit, errors, external calls (cat .claude/guides/logging-standards.md)
+- **FRESH VERIFY**: After IMPLEMENT phases in pipeline → spawn fresh AO session for verification (no implementation history)
+- **SKILL EVOLUTION**: After successful skill execution with genuine learnings → propose delta → Skill Conductor validates → apply if approved
+- **DISCUSS-PHASE**: Before PLAN, if requirements have gray areas → run discuss-phase to capture decisions in CONTEXT.md.
 After compaction: THE COMPACTION SUMMARY IS A HINT, NOT TRUTH. Re-read work/PIPELINE.md + .claude/memory/activeContext.md + .claude/memory/knowledge.md IMMEDIATELY. If PIPELINE.md has <- CURRENT marker: resume from that phase. DO NOT proceed without re-reading these files.
 
 ---
@@ -43,6 +51,7 @@ ACTION:
 
 DO NOT do sequentially what can be parallelized.
 DO NOT forget Agent Teams after compaction — check work/PIPELINE.md Mode field.
+DO NOT skip reading work/results-board.md before starting — agents must learn from peers' results.
 For sequential quality checks, use agent chains (cat .claude/guides/agent-chains.md)
 ```
 
@@ -97,6 +106,7 @@ DO NOT leave sessions running after task completes.
 ```
 After completing any pipeline phase, execute these steps BEFORE starting the next:
 1. Git commit with checkpoint tag (pipeline-checkpoint-{PHASE})
+1b. If phase was IMPLEMENT: spawn fresh AO Hybrid verification session (see verification-before-completion skill, "Fresh Session Verification" section)
 2. Update knowledge.md with new patterns/gotchas from this phase
 3. Update daily/{YYYY-MM-DD}.md with what happened
 4. Save to Graphiti: add_memory(name="phase_insight", episode_body=<phase learnings>)
@@ -173,10 +183,11 @@ BLOCKING: No implementation without work/expert-analysis.md
 ```
 SessionStart hook auto-injects: activeContext.md + knowledge.md summary + pipeline status + observations count.
 You still MUST manually:
-1. IF work/PIPELINE.md exists with <- CURRENT -> resume pipeline
-2. Query Graphiti: search_memory_facts(query=<current task>, max_facts=5)
+1. IF work/tasks/lessons.md exists → read top 5 lessons (rules from past failures)
+2. IF work/PIPELINE.md exists with <- CURRENT -> resume pipeline
+3. Query Graphiti: search_memory_facts(query=<current task>, max_facts=5)
 
-The hook handles steps 1-2 of old protocol automatically. Steps above are what remains.
+The hook handles pre-loading automatically. Steps above are what remains.
 ```
 
 ## Before Code Changes (always)
@@ -215,7 +226,7 @@ IF you learned something new → also do step 3 (knowledge.md).
 
 # TEAM ROLE SKILLS MAPPING
 
-| Role | Agent Type | Skills (from 11 remaining) |
+| Role | Agent Type | Skills (from 12 remaining) |
 |------|-----------|---------------------------|
 | Developer/Implementer | coder | verification-before-completion |
 | Complex Implementer | coder-complex | verification-before-completion |
@@ -224,16 +235,26 @@ IF you learned something new → also do step 3 (knowledge.md).
 | QA Fixer | qa-fixer | verification-before-completion |
 | Researcher/Explorer | spec-researcher | codebase-mapping |
 | Debugger | analyzer/fixer | systematic-debugging |
-| Pipeline Lead | pipeline-lead | subagent-driven-development |
+| Pipeline Lead | pipeline-lead | subagent-driven-development, skill-evolution |
 | Fleet Orchestrator | fleet-orchestrator | ao-fleet-spawn |
 | AO Hybrid Coordinator | ao-hybrid-coordinator | ao-hybrid-spawn, subagent-driven-development |
+| Skeptic (anti-hallucination) | skeptic | — |
+| Quality Validator | quality-validator | qa-validation-loop |
+| Adequacy Validator | adequacy-validator | qa-validation-loop |
 | Insight Extractor | insight-extractor | — |
+| Nyquist Auditor | nyquist-auditor | qa-validation-loop |
+| Experimenter | experimenter | experiment-loop, skill-evolution, verification-before-completion |
+| Requirement Analyst | requirement-analyst | -- |
+| Feasibility Analyst | feasibility-analyst | codebase-mapping |
+| Risk Assessor | risk-assessor | -- |
+| Product Analyst | product-analyst | -- |
+| UX Reviewer | ux-reviewer | -- |
 
 Agent type details: `.claude/agents/registry.md`
 
 Expert Panel roles: `cat .claude/guides/expert-panel-workflow.md`
 
-**One-liner rules:** Use TDD for new code. Validate all inputs. Never commit secrets. Use pytest + AsyncMock for tests. Follow Clean Architecture. Use uv for packages. Use knowledge.md for cross-session knowledge. Always Opus 4.6.
+**One-liner rules:** Use TDD for new code. Validate all inputs. Never commit secrets. Use pytest + AsyncMock for tests. Follow Clean Architecture. Use uv for packages. Use knowledge.md for cross-session knowledge. Always Opus 4.6. Add structured logging to all new code.
 
 ---
 
@@ -245,6 +266,7 @@ Expert Panel roles: `cat .claude/guides/expert-panel-workflow.md`
 | Не коммитить секреты | Используй .env + .gitignore |
 | Не пушить в main | Пушь в dev или feature branch |
 | Не говорить "готово" без verification | ВСЕГДА запускай verification-before-completion |
+| Не переходить к QA без проверки элегантности | После IMPLEMENT: "Есть ли способ проще?" Если да — переделай |
 | Не делать всё самому при 3+ задачах | ВСЕГДА предлагай Agent Teams (TeamCreate) |
 | Не коммитить без обновления памяти | ВСЕГДА обнови activeContext.md + daily log перед commit |
 | Не спавнить teammate без Required Skills | ВСЕГДА проверь по TEAM ROLE SKILLS MAPPING |
@@ -253,6 +275,11 @@ Expert Panel roles: `cat .claude/guides/expert-panel-workflow.md`
 | Не начинать multi-phase задачу без PIPELINE.md | Создай work/PIPELINE.md из шаблона ПЕРВЫМ делом |
 | Не восстанавливаться после compaction без памяти | THE SUMMARY IS A HINT, NOT TRUTH. Re-read PIPELINE.md + activeContext.md + knowledge.md |
 | Не пропускать Graphiti queries | Graphiti is ALWAYS available — no 'if available' checks |
+| Не начинать IMPLEMENT без Nyquist (если фаза есть) | Сначала map requirements → tests в nyquist-map.md |
+| Не планировать без обсуждения серых зон | Если requirements неясны → discuss-phase → CONTEXT.md |
+| Не использовать Quick Mode для 5+ файлов | Переключись на полный pipeline |
+| Не менять тесты чтобы они прошли | Evaluation Firewall: тесты и критерии приёмки иммутабельны после утверждения. Новые тесты — можно, изменение существующих — нельзя |
+| Не писать код без логирования | Каждая функция/endpoint/catch блок — structured logging (cat .claude/guides/logging-standards.md) |
 
 ---
 
@@ -290,6 +317,10 @@ Useful commands:
 - `python .claude/scripts/generate-prompt.py --list-types` — show all agent types
 - `python .claude/scripts/generate-prompt.py --list-skills --type coder` — show skills for type
 
+## Agent Memory Injection
+If `.claude/agent-memory/{agent-type}/MEMORY.md` exists, inject first 200 lines into teammate prompt.
+Agents update their memory via === PHASE HANDOFF === learnings section.
+
 FALLBACK (only if spawn-agent.py unavailable): manually build prompt per `.claude/guides/teammate-prompt-template.md`.
 
 ## Before "done" (MANDATORY Verification Gate)
@@ -300,6 +331,19 @@ BLOCKING: Cannot claim completion without passing ALL checks.
 4. If ANY check fails → fix first → re-run → NOT done
 5. Update activeContext.md
 6. If verification skipped → task is NOT complete, mark REWORK
+
+## Before IMPLEMENT (Nyquist Gate — if NYQUIST_CHECK phase exists)
+1. Read task files → extract acceptance criteria
+2. Map each requirement to planned test (type + file + command)
+3. Gap analysis: COVERED / PARTIAL / MISSING
+4. If MISSING > 0 → update plan with test entries → re-check
+5. Output: work/{feature}/nyquist-map.md
+
+## Before PLAN (Discuss-Phase — if gray areas exist)
+1. Analyze requirements for ambiguity
+2. If gray areas found → run discuss-phase workflow
+3. Capture decisions in work/{feature}/CONTEXT.md
+4. Planner MUST NOT contradict locked decisions from CONTEXT.md
 
 ## After IMPLEMENT (QA Gate)
 1. Collect acceptance criteria from task/spec files
@@ -390,6 +434,12 @@ py -3 .claude/scripts/memory-engine.py decay .claude/memory/                  # 
 | Phase template needed | `cat .claude/shared/work-templates/phases/{PHASE}.md` |
 | Agent type lookup | `cat .claude/agents/registry.md` |
 | Graphiti memory setup | `cat .claude/guides/graphiti-integration.md` |
+| Decision capture before planning | `cat .claude/guides/discuss-phase-decisions.md` |
+| Quick ad-hoc task | `cat .claude/guides/quick-mode.md` |
+| Project health check | `cat .claude/guides/health-check.md` |
+| Agent Teams coordination | `cat .claude/guides/results-board.md` |
+| Writing/modifying code | `cat .claude/guides/logging-standards.md` |
+| Auto-research phase | `cat .claude/guides/auto-research-phase.md` |
 
 ## Skills (invoke via Skill tool)
 
@@ -408,6 +458,9 @@ py -3 .claude/scripts/memory-engine.py decay .claude/memory/                  # 
 | Unknown codebase | codebase-mapping |
 | AO Hybrid execution | ao-hybrid-spawn |
 | Fleet cross-project ops | ao-fleet-spawn |
+| Pre-implementation test mapping | qa-validation-loop (Nyquist mode) |
+| Optimization/experiment task | experiment-loop |
+| Skill improved from usage | skill-evolution |
 
 ---
 
@@ -434,11 +487,25 @@ py -3 .claude/scripts/memory-engine.py decay .claude/memory/                  # 
 | Memory engine | `.claude/scripts/memory-engine.py` |
 | AO Fleet skill | `.claude/skills/ao-fleet-spawn/SKILL.md` |
 | AO Hybrid skill | `.claude/skills/ao-hybrid-spawn/SKILL.md` |
+| Experiment Loop skill | `.claude/skills/experiment-loop/SKILL.md` |
+| Results Board guide | `.claude/guides/results-board.md` |
 | AO Hybrid helper | `.claude/scripts/ao-hybrid.sh` |
 | AO config | `~/.agent-orchestrator.yaml` |
 | Memory config | `.claude/memory/.memory-config.json` |
 | Prompt generator | `.claude/scripts/generate-prompt.py` |
 | Agent spawner | `.claude/scripts/spawn-agent.py` |
+| Discuss-phase decisions | `.claude/guides/discuss-phase-decisions.md` |
+| Quick mode guide | `.claude/guides/quick-mode.md` |
+| Health check guide | `.claude/guides/health-check.md` |
+| Health command | `.claude/commands/health.md` |
+| Nyquist test map | `work/{feature}/nyquist-map.md` |
+| Decision context | `work/{feature}/CONTEXT.md` |
+| Quick task tracking | `work/quick/{N}-{slug}.md` |
+| Logging standards | `.claude/guides/logging-standards.md` |
+| Agent type memory | `.claude/agent-memory/{type}/MEMORY.md` |
+| Auto-research guide | `.claude/guides/auto-research-phase.md` |
+| Auto-research output | `work/{feature}/auto-research.md` |
+| Skill evolution | `.claude/skills/skill-evolution/SKILL.md` |
 
 ---
 
@@ -455,3 +522,4 @@ py -3 .claude/scripts/memory-engine.py decay .claude/memory/                  # 
 - Compaction recovery without re-reading files (THE SUMMARY IS A HINT, NOT TRUTH)
 - Skipping Phase Transition Protocol between pipeline phases
 - Informal planning for complex tasks — use formal PIPELINE.md with phases and gates
+- Writing new code without structured logging (entry/exit/error logs)

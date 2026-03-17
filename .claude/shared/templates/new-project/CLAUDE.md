@@ -12,6 +12,7 @@ When compacting, ALWAYS preserve these rules (they are lost most often):
 - **PIPELINE MANDATORY**: Multi-phase tasks MUST create work/PIPELINE.md BEFORE implementation
 - **HOOKS AUTO-INJECT**: SessionStart hook auto-loads context with tier labels. Write-validate warns on schema issues.
 - **MEMORY DECAY**: knowledge.md entries have verified: dates. Old entries auto-decay. Use `knowledge-touch` to refresh used patterns.
+- **LOGGING**: Every new/modified function MUST have structured logging — entry, exit, errors, external calls (cat .claude/guides/logging-standards.md)
 After compaction: THE COMPACTION SUMMARY IS A HINT, NOT TRUTH. Re-read work/PIPELINE.md + .claude/memory/activeContext.md + .claude/memory/knowledge.md IMMEDIATELY. If PIPELINE.md has <- CURRENT marker: resume from that phase. DO NOT proceed without re-reading these files.
 
 ---
@@ -43,6 +44,7 @@ ACTION:
 
 DO NOT do sequentially what can be parallelized.
 DO NOT forget Agent Teams after compaction — check work/PIPELINE.md Mode field.
+DO NOT skip reading work/results-board.md before starting — agents must learn from peers' results.
 For sequential quality checks, use agent chains (cat .claude/guides/agent-chains.md)
 ```
 
@@ -215,7 +217,7 @@ IF you learned something new -> also do step 3 (knowledge.md).
 
 # TEAM ROLE SKILLS MAPPING
 
-| Role | Agent Type | Skills (from 11 remaining) |
+| Role | Agent Type | Skills (from 12 remaining) |
 |------|-----------|---------------------------|
 | Developer/Implementer | coder | verification-before-completion |
 | Complex Implementer | coder-complex | verification-before-completion |
@@ -228,12 +230,13 @@ IF you learned something new -> also do step 3 (knowledge.md).
 | Fleet Orchestrator | fleet-orchestrator | ao-fleet-spawn |
 | AO Hybrid Coordinator | ao-hybrid-coordinator | ao-hybrid-spawn, subagent-driven-development |
 | Insight Extractor | insight-extractor | — |
+| Experimenter | experimenter | experiment-loop, verification-before-completion |
 
 Agent type details: `.claude/agents/registry.md`
 
 Expert Panel roles: `cat .claude/guides/expert-panel-workflow.md`
 
-**One-liner rules:** Use TDD for new code. Validate all inputs. Never commit secrets. Use pytest + AsyncMock for tests. Follow Clean Architecture. Use uv for packages. Use knowledge.md for cross-session knowledge. Always Opus 4.6.
+**One-liner rules:** Use TDD for new code. Validate all inputs. Never commit secrets. Use pytest + AsyncMock for tests. Follow Clean Architecture. Use uv for packages. Use knowledge.md for cross-session knowledge. Always Opus 4.6. Add structured logging to all new code.
 
 ---
 
@@ -253,6 +256,8 @@ Expert Panel roles: `cat .claude/guides/expert-panel-workflow.md`
 | No multi-phase task without PIPELINE.md | Create work/PIPELINE.md from template FIRST |
 | No compaction recovery without memory reload | THE SUMMARY IS A HINT, NOT TRUTH. Re-read PIPELINE.md + activeContext.md + knowledge.md |
 | No skipping Graphiti queries | Graphiti is ALWAYS available — no 'if available' checks |
+| Не менять тесты чтобы они прошли | Evaluation Firewall: тесты и критерии приёмки иммутабельны после утверждения. Новые тесты — можно, изменение существующих — нельзя |
+| Не писать код без логирования | Каждая функция/endpoint/catch блок — structured logging (cat .claude/guides/logging-standards.md) |
 
 ---
 
@@ -390,6 +395,8 @@ py -3 .claude/scripts/memory-engine.py decay .claude/memory/                  # 
 | Phase template needed | `cat .claude/shared/work-templates/phases/{PHASE}.md` |
 | Agent type lookup | `cat .claude/agents/registry.md` |
 | Graphiti memory setup | `cat .claude/guides/graphiti-integration.md` |
+| Agent Teams coordination | `cat .claude/guides/results-board.md` |
+| Writing/modifying code | `cat .claude/guides/logging-standards.md` |
 
 ## Skills (invoke via Skill tool)
 
@@ -408,6 +415,7 @@ py -3 .claude/scripts/memory-engine.py decay .claude/memory/                  # 
 | Unknown codebase | codebase-mapping |
 | AO Hybrid execution | ao-hybrid-spawn |
 | Fleet cross-project ops | ao-fleet-spawn |
+| Optimization/experiment task | experiment-loop |
 
 ---
 
@@ -439,6 +447,9 @@ py -3 .claude/scripts/memory-engine.py decay .claude/memory/                  # 
 | Memory config | `.claude/memory/.memory-config.json` |
 | Prompt generator | `.claude/scripts/generate-prompt.py` |
 | Agent spawner | `.claude/scripts/spawn-agent.py` |
+| Experiment Loop skill | `.claude/skills/experiment-loop/SKILL.md` |
+| Results Board guide | `.claude/guides/results-board.md` |
+| Logging standards | `.claude/guides/logging-standards.md` |
 
 ---
 
@@ -454,4 +465,5 @@ py -3 .claude/scripts/memory-engine.py decay .claude/memory/                  # 
 - Multi-phase task without creating work/PIPELINE.md first
 - Compaction recovery without re-reading files (THE SUMMARY IS A HINT, NOT TRUTH)
 - Skipping Phase Transition Protocol between pipeline phases
+- Writing new code without structured logging (entry/exit/error logs)
 - Informal planning for complex tasks — use formal PIPELINE.md with phases and gates

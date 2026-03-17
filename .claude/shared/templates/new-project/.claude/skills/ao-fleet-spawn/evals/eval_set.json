@@ -1,0 +1,30 @@
+{
+  "skill": "ao-fleet-spawn",
+  "version": "2026-03-05",
+  "queries": [
+    {"query": "sync template changes to all 8 bot projects", "should_trigger": true, "reason": "multi-project sync is core fleet use case"},
+    {"query": "run this migration across all bots", "should_trigger": true, "reason": "cross-project task execution"},
+    {"query": "spawn AO fleet for cross-repo update", "should_trigger": true, "reason": "explicit fleet keyword"},
+    {"query": "deploy config change to every bot project", "should_trigger": true, "reason": "every bot = multi-project"},
+    {"query": "ao spawn for all projects simultaneously", "should_trigger": true, "reason": "explicit AO + all projects"},
+    {"query": "execute this task across call-rate-bot and conference-bot", "should_trigger": true, "reason": "named multiple projects"},
+    {"query": "fleet mode pipeline phase", "should_trigger": true, "reason": "Mode: AO_FLEET trigger"},
+    {"query": "update CLAUDE.md in all repositories", "should_trigger": true, "reason": "multi-repo operation"},
+    {"query": "multi-repo sync operation", "should_trigger": true, "reason": "cross-repo keyword"},
+    {"query": "все боты одновременно обновить шаблон", "should_trigger": true, "reason": "Russian: all bots simultaneously"},
+    {"query": "run 5 agents in parallel on this feature", "should_trigger": false, "reason": "single project parallelism = TeamCreate"},
+    {"query": "spawn AO hybrid workers for this task", "should_trigger": false, "reason": "hybrid not fleet"},
+    {"query": "deploy to production server", "should_trigger": false, "reason": "deployment not agent spawning"},
+    {"query": "use TeamCreate for parallel subtasks", "should_trigger": false, "reason": "TeamCreate explicitly"},
+    {"query": "analyze codebase structure", "should_trigger": false, "reason": "codebase-mapping skill"},
+    {"query": "run tests across all modules", "should_trigger": false, "reason": "test execution not fleet ops"},
+    {"query": "spawn expert panel for analysis", "should_trigger": false, "reason": "expert-panel skill"},
+    {"query": "create parallel workers with worktrees", "should_trigger": false, "reason": "ao-hybrid not fleet"},
+    {"query": "git push to all remotes", "should_trigger": false, "reason": "git operation not fleet"},
+    {"query": "manage running AO sessions", "should_trigger": false, "reason": "session management not spawning"}
+  ],
+  "scores": {
+    "before": {"discovery": 8, "clarity": 8, "efficiency": 9, "robustness": 7, "completeness": 8, "f1": 0.90},
+    "after": {"discovery": 9, "clarity": 9, "efficiency": 9, "robustness": 9, "completeness": 9, "f1": 0.95}
+  }
+}

@@ -1,5 +1,5 @@
 ---
-description: Initialize project with template, git, and GitHub
+description: Initialize project with template, git, GitHub, and full CI/CD (mandatory)
 allowed-tools:
   - Bash(*)
   - Read
@@ -23,6 +23,7 @@ allowed-tools:
   {"content": "Объединение .gitignore (для old проектов)", "status": "pending", "activeForm": "Объединение .gitignore"},
   {"content": "Регистрация проекта", "status": "pending", "activeForm": "Регистрация проекта"},
   {"content": "Инициализация git и GitHub", "status": "pending", "activeForm": "Инициализация git и GitHub"},
+  {"content": "CI/CD: workflows + secrets + server setup", "status": "pending", "activeForm": "Настройка CI/CD"},
   {"content": "Итоговый отчёт", "status": "pending", "activeForm": "Формирование отчёта"}
 ]
 ```
@@ -290,13 +291,21 @@ Search for PROJECT_PATH in any `paths.mac` or `paths.vps` fields.
 
 ```bash
 if [ ! -d .git ]; then
-  git init
+  git init -b main
 fi
 
 git branch --show-current
 ```
 
-Store current branch name.
+**IMPORTANT: Branch MUST be `main`, not `master`.**
+
+If current branch is `master`, rename it:
+
+```bash
+git branch -m master main
+```
+
+Store current branch name (must be `main`).
 
 ### 7.2. Check gh CLI
 
@@ -342,10 +351,19 @@ git commit -m "Initial commit with AI-First template
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
 
-git push -u origin $(git branch --show-current)
+git push -u origin main
 ```
 
-If push fails:
+**If push fails with SSH error (Permission denied / publickey):**
+
+Switch remote to HTTPS and retry:
+```bash
+gh repo view --json url -q .url  # get HTTPS URL
+git remote set-url origin https://github.com/{owner}/{repo}.git
+git push -u origin main
+```
+
+If still fails:
 ```
 ❌ Ошибка push в GitHub.
 Проверь статус: git status
@@ -386,7 +404,299 @@ fi
 
 **Purpose:** Pipeline infrastructure enables autonomous multi-phase task execution with compaction resilience. See `.claude/guides/autonomous-pipeline.md` for full guide.
 
-## 9. Final Report
+## 9. CI/CD Setup (MANDATORY)
+
+**This step is REQUIRED for every new project. Do NOT skip.**
+
+### 9.1. Create GitHub Actions Workflows
+
+Create directories:
+```bash
+mkdir -p .github/workflows deploy
+```
+
+**Create `.github/workflows/deploy.yml`** — auto-deploy on push to main:
+
+```yaml
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to Contabo VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e
+
+            cd /root/{project-name}
+
+            export PATH="/root/.local/bin:$PATH"
+
+            echo "=== Pulling latest changes ==="
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "=== Installing dependencies ==="
+            uv sync --frozen 2>/dev/null || uv sync
+
+            echo "=== Restarting service ==="
+            systemctl restart {project-name}
+
+            echo "=== Health check ==="
+            sleep 3
+            if systemctl is-active --quiet {project-name}; then
+              echo "✅ {project-name} is running"
+            else
+              echo "❌ {project-name} failed to start"
+              journalctl -u {project-name} -n 20 --no-pager
+              exit 1
+            fi
+```
+
+Replace `{project-name}` with the actual repository name (e.g. `freelance-bot`).
+
+**Create `.github/workflows/ci.yml`** — CI on push to dev:
+
+```yaml
+name: CI
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Lint with ruff
+        run: uv run ruff check .
+
+      - name: Type check with pyright
+        run: uv run pyright
+        continue-on-error: true
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run tests
+        run: uv run pytest -v
+        continue-on-error: true
+```
+
+### 9.2. Create Systemd Service File
+
+**Create `deploy/{project-name}.service`:**
+
+```ini
+[Unit]
+Description={Project Name} - Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/{project-name}
+Environment=PATH=/root/{project-name}/.venv/bin:/root/.local/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=/root/{project-name}/.env
+ExecStart=/root/{project-name}/.venv/bin/python -m src
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 9.3. Set GitHub Secrets
+
+Read SSH connection info from `SSH_CONTABO_CONNECTION.md` in any existing bot project, or use known Contabo server details.
+
+```bash
+# Set secrets for the repo
+echo "{SERVER_IP}" | gh secret set SERVER_HOST
+echo "root" | gh secret set SERVER_USER
+gh secret set SERVER_SSH_KEY < ~/.ssh/id_ed25519
+```
+
+**Verify:**
+```bash
+gh secret list
+```
+
+Must show: `SERVER_HOST`, `SERVER_USER`, `SERVER_SSH_KEY`.
+
+### 9.4. Setup Server (Contabo VPS)
+
+**Step A: Generate deploy key on server:**
+
+```bash
+ssh -o StrictHostKeyChecking=no root@{SERVER_IP} "
+  ssh-keygen -t ed25519 -f /root/.ssh/deploy_{project-name} -N '' -C 'deploy-{project-name}'
+  cat /root/.ssh/deploy_{project-name}.pub
+"
+```
+
+**Step B: Add deploy key to GitHub:**
+
+Save the public key to a temp file and add:
+```bash
+ssh -o StrictHostKeyChecking=no root@{SERVER_IP} "cat /root/.ssh/deploy_{project-name}.pub" > /tmp/deploy_key.pub
+gh repo deploy-key add /tmp/deploy_key.pub --title "contabo-deploy"
+```
+
+**Step C: Add SSH host alias on server:**
+
+```bash
+ssh -o StrictHostKeyChecking=no root@{SERVER_IP} "
+cat >> /root/.ssh/config << 'SSHEOF'
+
+Host github-{project-name}
+    HostName github.com
+    User git
+    IdentityFile /root/.ssh/deploy_{project-name}
+    StrictHostKeyChecking no
+SSHEOF
+"
+```
+
+**Step D: Clone repo and install service:**
+
+```bash
+ssh -o StrictHostKeyChecking=no root@{SERVER_IP} "
+  set -e
+
+  # Clone using deploy key
+  GIT_SSH_COMMAND='ssh -i /root/.ssh/deploy_{project-name} -o StrictHostKeyChecking=no' \
+    git clone git@github.com:{owner}/{project-name}.git /root/{project-name}
+
+  # Set remote to use SSH alias
+  cd /root/{project-name}
+  git remote set-url origin git@github-{project-name}:{owner}/{project-name}.git
+  git config --global --add safe.directory /root/{project-name}
+
+  # Setup uv + venv
+  export PATH=\"/root/.local/bin:\$PATH\"
+  command -v uv >/dev/null 2>&1 || { curl -LsSf https://astral.sh/uv/install.sh | sh; }
+  uv venv .venv 2>/dev/null || true
+
+  # Create .env placeholder
+  cp .env.example .env 2>/dev/null || touch .env
+
+  # Install systemd service (create directly, deploy/ may not be in main yet)
+  cat > /etc/systemd/system/{project-name}.service << 'SVCEOF'
+[Unit]
+Description={Project Name} - Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/{project-name}
+Environment=PATH=/root/{project-name}/.venv/bin:/root/.local/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=/root/{project-name}/.env
+ExecStart=/root/{project-name}/.venv/bin/python -m src
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+
+  systemctl daemon-reload
+  systemctl enable {project-name}
+  echo '✅ Server setup complete'
+"
+```
+
+**Step E: Update server repo to main branch:**
+
+```bash
+ssh -o StrictHostKeyChecking=no root@{SERVER_IP} "
+  cd /root/{project-name}
+  git fetch origin
+  git checkout main 2>/dev/null || git checkout -b main origin/main
+  git branch -D master 2>/dev/null || true
+"
+```
+
+### 9.5. Commit CI/CD and Push
+
+```bash
+git add .github/workflows/ deploy/
+git commit -m "feat: add CI/CD pipeline — auto-deploy from main, CI on dev
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+
+git push origin dev
+```
+
+Then merge to main so deploy workflow is active:
+```bash
+git checkout main
+git merge dev --no-edit
+git push origin main
+git checkout dev
+```
+
+### 9.6. Verify Deploy Workflow
+
+```bash
+gh run list --limit 3
+```
+
+Deploy will fail on `uv sync` (no pyproject.toml yet) — this is EXPECTED.
+Check that SSH connection and git pull succeed in the logs:
+
+```bash
+gh run view {run-id} --log 2>&1 | tail -20
+```
+
+If SSH connection works and git pull succeeds → CI/CD is properly configured.
+
+## 10. Final Report
 
 **Get repository URL:**
 
@@ -399,17 +709,30 @@ gh repo view --json url -q .url
 ```
 ✅ Проект инициализирован!
 
-GitHub: {url}
+GitHub: {url} (private)
 Ветки: main, dev (текущая)
 
 Что создано:
-  .claude/          - контекст и настройки проекта
-  guides/           - документация
-  work/             - папка для фич и задач
-  work/STATE.md     - сохранение состояния между сессиями
-  work/PIPELINE.md  - шаблон автономного pipeline
-  .gitignore        - правила игнорирования
-  CLAUDE.md         - настройки для Claude Code
+  .claude/              - контекст и настройки проекта
+  .github/workflows/    - CI/CD (auto-deploy main, CI on dev)
+  deploy/               - systemd service для сервера
+  work/                 - папка для фич и задач
+  work/STATE.md         - сохранение состояния между сессиями
+  work/PIPELINE.md      - шаблон автономного pipeline
+  .gitignore            - правила игнорирования
+  CLAUDE.md             - настройки для Claude Code
+
+CI/CD:
+  - Push в dev → CI (ruff + pytest)
+  - Push в main → автодеплой на Contabo ({SERVER_IP})
+  - Secrets: SERVER_HOST, SERVER_USER, SERVER_SSH_KEY ✅
+  - Deploy key: contabo-deploy ✅
+  - Systemd service: {project-name}.service (enabled, ждёт код)
+  - Сервер: /root/{project-name}/ (клонирован, .env создан)
+
+Git workflow:
+  dev → коммиты и push сюда
+  main → ручной merge из dev, автодеплой на сервер
 
 Следующий шаг:
 - Запусти project-planning skill для планирования проекта
@@ -421,10 +744,16 @@ GitHub: {url}
 ```
 ✅ Проект инициализирован с миграцией!
 
-GitHub: {url}
+GitHub: {url} (private)
 Ветки: main, dev, feature/migration-ai-first (текущая)
 Old код: ./old/
 State: work/STATE.md (сохранение состояния между сессиями)
+
+CI/CD:
+  - Push в main → автодеплой на Contabo ({SERVER_IP})
+  - Push в dev → CI (ruff + pytest)
+  - Secrets: SERVER_HOST, SERVER_USER, SERVER_SSH_KEY ✅
+  - Сервер: /root/{project-name}/ (клонирован, .env создан)
 
 .gitignore:
 - Базовые правила (секреты, зависимости, build outputs)
@@ -443,5 +772,10 @@ State: work/STATE.md (сохранение состояния между сес�
 - For OLD projects: preserves history with optional commit, merges .gitignore rules
 - Simplified checks: LLM understands context without excessive validation
 - Git and GitHub initialization in one flow
+- **Branch naming: ALWAYS `main` and `dev`, NEVER `master`**
+- **Git workflow: commits on `dev` → manual merge to `main` → auto-deploy from `main`**
+- **CI/CD is MANDATORY** — every project gets deploy.yml + ci.yml + GitHub secrets + server setup
+- **Deploy pattern: `appleboy/ssh-action` → SSH to Contabo → git pull → uv sync → systemctl restart**
+- **Each project gets its own deploy key** on the server (read-only, per-repo isolation)
 - All user communication in Russian
 - Technical content (code, docs) in English
