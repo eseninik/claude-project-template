@@ -435,3 +435,8 @@ Creates `skill-name.skill` (zip with .skill extension). Verify: unzip in temp di
 | `scripts/quick_validate.py` | Quick validation for packager |
 | `scripts/package_skill.py` | Skill → .skill packager |
 | `scripts/utils.py` | Shared utilities (parse_skill_md) |
+
+## Related
+- ↔ skill-evolution — validates evolution proposals (Mode 4 REVIEW)
+- → verification-before-completion — verify skill changes
+- ← skill management tasks — CREATE/IMPROVE/VALIDATE/REVIEW/OPTIMIZE/PACKAGE

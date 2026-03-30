@@ -228,3 +228,11 @@ See `references/background-task-tracking.md` for JSON schema, dispatch/completio
 
 **Alternative:**
 - `executing-plans` -- for parallel session instead of same-session execution
+
+## Related
+- ← task-decomposition — provides task plan as input
+- → using-git-worktrees — Worktree Mode for file conflict isolation
+- → ao-hybrid-spawn — full-context alternative (AO Hybrid Mode)
+- → finishing-a-development-branch — called after implementation (Step 8)
+- → qa-validation-loop — QA after implementation waves
+- ↔ self-completion — wave-based autonomous execution

@@ -1,0 +1,635 @@
+{
+  "backup_created": "2026-03-09T15:43:09.261374",
+  "old_contact": {
+    "contact": {
+      "id": 39998625,
+      "name": "",
+      "first_name": "",
+      "last_name": "",
+      "responsible_user_id": 10246814,
+      "group_id": 0,
+      "created_by": 10246814,
+      "updated_by": 10246814,
+      "created_at": 1772187640,
+      "updated_at": 1772187640,
+      "closest_task_at": null,
+      "is_deleted": false,
+      "is_unsorted": false,
+      "custom_fields_values": [
+        {
+          "field_id": 99035,
+          "field_name": "Email",
+          "field_code": "EMAIL",
+          "field_type": "multitext",
+          "values": [
+            {
+              "value": "salimovamira24@gmail.com",
+              "enum_id": 53423,
+              "enum_code": "WORK"
+            }
+          ]
+        }
+      ],
+      "account_id": 31332594,
+      "_links": {
+        "self": {
+          "href": "https://migratoramocrm.amocrm.ru/api/v4/contacts/39998625?with=leads&page=1&limit=250"
+        }
+      },
+      "_embedded": {
+        "tags": [],
+        "leads": [
+          {
+            "id": 35850263,
+            "_links": {
+              "self": {
+                "href": "https://migratoramocrm.amocrm.ru/api/v4/leads/35850263?with=leads&page=1&limit=250"
+              }
+            }
+          }
+        ],
+        "companies": []
+      }
+    },
+    "leads": [
+      {
+        "id": 35850263,
+        "name": "ILMIRA SALIMOVA",
+        "price": 0,
+        "responsible_user_id": 10246814,
+        "group_id": 0,
+        "status_id": 69052858,
+        "pipeline_id": 7323650,
+        "loss_reason_id": null,
+        "created_by": 0,
+        "updated_by": 0,
+        "created_at": 1771516503,
+        "updated_at": 1772818944,
+        "closed_at": null,
+        "closest_task_at": 1772859944,
+        "is_deleted": false,
+        "custom_fields_values": [
+          {
+            "field_id": 1428405,
+            "field_name": "TRANID",
+            "field_code": "TRANID",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "7877476:8182902113"
+              }
+            ]
+          },
+          {
+            "field_id": 1364109,
+            "field_name": "FORMID",
+            "field_code": "FORMID",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "form1898187261"
+              }
+            ]
+          },
+          {
+            "field_id": 1364111,
+            "field_name": "REFERER",
+            "field_code": "REFERER",
+            "field_type": "url",
+            "values": [
+              {
+                "value": "https://migrator.me/online-conf"
+              }
+            ]
+          },
+          {
+            "field_id": 99051,
+            "field_name": "utm_referrer",
+            "field_code": "UTM_REFERRER",
+            "field_type": "tracking_data",
+            "values": [
+              {
+                "value": "https://migrator.me/online-conf"
+              }
+            ]
+          },
+          {
+            "field_id": 1631913,
+            "field_name": "Категория лида",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "Квал без анкеты (зовем на колл сразу -  пушим коллами 1-2-4-11)",
+                "enum_id": 4661931,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1621253,
+            "field_name": "Messenger",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "TG",
+                "enum_id": 4557403,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1612133,
+            "field_name": "NICK",
+            "field_code": "NICK",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "@salilshh"
+              }
+            ]
+          },
+          {
+            "field_id": 1654207,
+            "field_name": "ЧАСОВОЙ ПОЯС",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "GMC +0 — GMC +12",
+                "enum_id": 4701927,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1620349,
+            "field_name": "Qual Date",
+            "field_code": null,
+            "field_type": "date",
+            "values": [
+              {
+                "value": 1772139600
+              }
+            ]
+          },
+          {
+            "field_id": 101393,
+            "field_name": "Source",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "Website",
+                "enum_id": 55177,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1655011,
+            "field_name": "Что сделать, чтобы клиент купил?",
+            "field_code": null,
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "показать кейсы"
+              }
+            ]
+          },
+          {
+            "field_id": 1655009,
+            "field_name": "Подробное описание клиента",
+            "field_code": null,
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "парень айти секьюрити"
+              }
+            ]
+          },
+          {
+            "field_id": 1620351,
+            "field_name": "Meeting Date Fact",
+            "field_code": null,
+            "field_type": "date",
+            "values": [
+              {
+                "value": 1772398800
+              }
+            ]
+          },
+          {
+            "field_id": 1655003,
+            "field_name": "Запись первички ссылка",
+            "field_code": null,
+            "field_type": "url",
+            "values": [
+              {
+                "value": "https://drive.google.com/drive/folders/1UzrFSMfnsGdGgHZlyjvLAM6qof3xbVVy"
+              }
+            ]
+          },
+          {
+            "field_id": 1621645,
+            "field_name": "SS payment Date",
+            "field_code": null,
+            "field_type": "date",
+            "values": [
+              {
+                "value": 1772658000
+              }
+            ]
+          },
+          {
+            "field_id": 1648809,
+            "field_name": "Company",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "USA",
+                "enum_id": 4698711,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1638961,
+            "field_name": "Форма оплаты",
+            "field_code": null,
+            "field_type": "multiselect",
+            "values": [
+              {
+                "value": "Карта",
+                "enum_id": 4685977,
+                "enum_code": null
+              }
+            ]
+          }
+        ],
+        "score": null,
+        "account_id": 31332594,
+        "labor_cost": 0,
+        "_links": {
+          "self": {
+            "href": "https://migratoramocrm.amocrm.ru/api/v4/leads/35850263?page=1&limit=250"
+          }
+        },
+        "_embedded": {
+          "tags": [
+            {
+              "id": 17191,
+              "name": "tilda",
+              "color": null
+            }
+          ],
+          "companies": []
+        }
+      }
+    ]
+  },
+  "new_contact": {
+    "contact": {
+      "id": 39921671,
+      "name": "Ильмира",
+      "first_name": "Ильмира",
+      "last_name": "",
+      "responsible_user_id": 10172274,
+      "group_id": 0,
+      "created_by": 0,
+      "updated_by": 0,
+      "created_at": 1771516504,
+      "updated_at": 1772463571,
+      "closest_task_at": null,
+      "is_deleted": false,
+      "is_unsorted": false,
+      "custom_fields_values": [
+        {
+          "field_id": 99035,
+          "field_name": "Email",
+          "field_code": "EMAIL",
+          "field_type": "multitext",
+          "values": [
+            {
+              "value": "salimovamira24@gmail.com",
+              "enum_id": 53427,
+              "enum_code": "OTHER"
+            }
+          ]
+        },
+        {
+          "field_id": 99033,
+          "field_name": "Телефон",
+          "field_code": "PHONE",
+          "field_type": "multitext",
+          "values": [
+            {
+              "value": "+7 (996) 403-03-34",
+              "enum_id": 53421,
+              "enum_code": "OTHER"
+            }
+          ]
+        },
+        {
+          "field_id": 1654991,
+          "field_name": "Umnico socialId",
+          "field_code": "SOCIAL_ID",
+          "field_type": "text",
+          "values": [
+            {
+              "value": "user_1656688939"
+            }
+          ]
+        },
+        {
+          "field_id": 1654993,
+          "field_name": "Umnico customerID",
+          "field_code": "UCID",
+          "field_type": "text",
+          "values": [
+            {
+              "value": "68716533"
+            }
+          ]
+        },
+        {
+          "field_id": 1655001,
+          "field_name": "Логин",
+          "field_code": "LOGIN",
+          "field_type": "text",
+          "values": [
+            {
+              "value": "salilshh"
+            }
+          ]
+        }
+      ],
+      "account_id": 31332594,
+      "_links": {
+        "self": {
+          "href": "https://migratoramocrm.amocrm.ru/api/v4/contacts/39921671?with=leads&page=1&limit=250"
+        }
+      },
+      "_embedded": {
+        "tags": [
+          {
+            "id": 134327,
+            "name": "tilda",
+            "color": null
+          }
+        ],
+        "leads": [
+          {
+            "id": 35850263,
+            "_links": {
+              "self": {
+                "href": "https://migratoramocrm.amocrm.ru/api/v4/leads/35850263?with=leads&page=1&limit=250"
+              }
+            }
+          }
+        ],
+        "companies": []
+      }
+    },
+    "leads": [
+      {
+        "id": 35850263,
+        "name": "ILMIRA SALIMOVA",
+        "price": 0,
+        "responsible_user_id": 10246814,
+        "group_id": 0,
+        "status_id": 69052858,
+        "pipeline_id": 7323650,
+        "loss_reason_id": null,
+        "created_by": 0,
+        "updated_by": 0,
+        "created_at": 1771516503,
+        "updated_at": 1772818944,
+        "closed_at": null,
+        "closest_task_at": 1772859944,
+        "is_deleted": false,
+        "custom_fields_values": [
+          {
+            "field_id": 1428405,
+            "field_name": "TRANID",
+            "field_code": "TRANID",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "7877476:8182902113"
+              }
+            ]
+          },
+          {
+            "field_id": 1364109,
+            "field_name": "FORMID",
+            "field_code": "FORMID",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "form1898187261"
+              }
+            ]
+          },
+          {
+            "field_id": 1364111,
+            "field_name": "REFERER",
+            "field_code": "REFERER",
+            "field_type": "url",
+            "values": [
+              {
+                "value": "https://migrator.me/online-conf"
+              }
+            ]
+          },
+          {
+            "field_id": 99051,
+            "field_name": "utm_referrer",
+            "field_code": "UTM_REFERRER",
+            "field_type": "tracking_data",
+            "values": [
+              {
+                "value": "https://migrator.me/online-conf"
+              }
+            ]
+          },
+          {
+            "field_id": 1631913,
+            "field_name": "Категория лида",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "Квал без анкеты (зовем на колл сразу -  пушим коллами 1-2-4-11)",
+                "enum_id": 4661931,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1621253,
+            "field_name": "Messenger",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "TG",
+                "enum_id": 4557403,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1612133,
+            "field_name": "NICK",
+            "field_code": "NICK",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "@salilshh"
+              }
+            ]
+          },
+          {
+            "field_id": 1654207,
+            "field_name": "ЧАСОВОЙ ПОЯС",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "GMC +0 — GMC +12",
+                "enum_id": 4701927,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1620349,
+            "field_name": "Qual Date",
+            "field_code": null,
+            "field_type": "date",
+            "values": [
+              {
+                "value": 1772139600
+              }
+            ]
+          },
+          {
+            "field_id": 101393,
+            "field_name": "Source",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "Website",
+                "enum_id": 55177,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1655011,
+            "field_name": "Что сделать, чтобы клиент купил?",
+            "field_code": null,
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "показать кейсы"
+              }
+            ]
+          },
+          {
+            "field_id": 1655009,
+            "field_name": "Подробное описание клиента",
+            "field_code": null,
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "парень айти секьюрити"
+              }
+            ]
+          },
+          {
+            "field_id": 1620351,
+            "field_name": "Meeting Date Fact",
+            "field_code": null,
+            "field_type": "date",
+            "values": [
+              {
+                "value": 1772398800
+              }
+            ]
+          },
+          {
+            "field_id": 1655003,
+            "field_name": "Запись первички ссылка",
+            "field_code": null,
+            "field_type": "url",
+            "values": [
+              {
+                "value": "https://drive.google.com/drive/folders/1UzrFSMfnsGdGgHZlyjvLAM6qof3xbVVy"
+              }
+            ]
+          },
+          {
+            "field_id": 1621645,
+            "field_name": "SS payment Date",
+            "field_code": null,
+            "field_type": "date",
+            "values": [
+              {
+                "value": 1772658000
+              }
+            ]
+          },
+          {
+            "field_id": 1648809,
+            "field_name": "Company",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "USA",
+                "enum_id": 4698711,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1638961,
+            "field_name": "Форма оплаты",
+            "field_code": null,
+            "field_type": "multiselect",
+            "values": [
+              {
+                "value": "Карта",
+                "enum_id": 4685977,
+                "enum_code": null
+              }
+            ]
+          }
+        ],
+        "score": null,
+        "account_id": 31332594,
+        "labor_cost": 0,
+        "_links": {
+          "self": {
+            "href": "https://migratoramocrm.amocrm.ru/api/v4/leads/35850263?page=1&limit=250"
+          }
+        },
+        "_embedded": {
+          "tags": [
+            {
+              "id": 17191,
+              "name": "tilda",
+              "color": null
+            }
+          ],
+          "companies": []
+        }
+      }
+    ]
+  }
+}

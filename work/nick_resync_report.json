@@ -1,0 +1,110 @@
+{
+  "total_leads": 116,
+  "leads_with_nick": 78,
+  "needs_sync": 7,
+  "already_synced": 71,
+  "duplicates": 3,
+  "needs_sync_details": [
+    {
+      "lead_id": 36310309,
+      "lead_name": "Lead from: https://migrator.me/instagram#popup:cornerform2",
+      "nick": "@Ravens_99",
+      "contact_id": 40251117,
+      "created_at": 1774346387,
+      "existing_wz": "",
+      "contact_name": "Геворг"
+    },
+    {
+      "lead_id": 36301261,
+      "lead_name": "Dilia",
+      "nick": "@Nazivqi",
+      "contact_id": 40245585,
+      "created_at": 1774282531,
+      "existing_wz": "",
+      "contact_name": "Dilia"
+    },
+    {
+      "lead_id": 36288449,
+      "lead_name": "Маркарян Артур  анкета есть, встреча",
+      "nick": "@amourailes",
+      "contact_id": 40236455,
+      "created_at": 1774201260,
+      "existing_wz": "",
+      "contact_name": "spart007@inbox.ru"
+    },
+    {
+      "lead_id": 36278021,
+      "lead_name": "Антон",
+      "nick": "@toxa43758",
+      "contact_id": 40230201,
+      "created_at": 1774110601,
+      "existing_wz": "",
+      "contact_name": "Антон"
+    },
+    {
+      "lead_id": 36261883,
+      "lead_name": "Никита 2",
+      "nick": "@kns0809",
+      "contact_id": 40220261,
+      "created_at": 1774002735,
+      "existing_wz": "",
+      "contact_name": "Никита"
+    },
+    {
+      "lead_id": 36256533,
+      "lead_name": "Никита",
+      "nick": "@zorin_electrical",
+      "contact_id": 40216641,
+      "created_at": 1773980855,
+      "existing_wz": "",
+      "contact_name": "Никита"
+    },
+    {
+      "lead_id": 36256307,
+      "lead_name": "Lead from: https://migrator.me/tiktok#popup:cornerform2",
+      "nick": "XoLoStoOy",
+      "contact_id": 40216489,
+      "created_at": 1773978136,
+      "existing_wz": "",
+      "contact_name": "Асилбек"
+    }
+  ],
+  "duplicate_details": {
+    "test_123": [
+      {
+        "lead_id": 36311125,
+        "contact_id": 40251765,
+        "lead_name": "Сарафан от Мое Имя"
+      },
+      {
+        "lead_id": 36310625,
+        "contact_id": 40251399,
+        "lead_name": "Lead from: https://migrator.me/recommendation"
+      }
+    ],
+    "amourailes": [
+      {
+        "lead_id": 36288449,
+        "contact_id": 40236455,
+        "lead_name": "Маркарян Артур  анкета есть, встреча"
+      },
+      {
+        "lead_id": 36288357,
+        "contact_id": 40236407,
+        "lead_name": "Lead from: https://migrator.me/instagram?utm_source=ig&utm_medium=social&utm_content=link_in_bio&fbclid=PAZXh0bgNhZW0CMTEAc3J0YwZhcHBfaWQMMjU2MjgxMDQwNTU4AAGnbsrHg6Zt2RchhNRyx1romfkOhr8LDszUnu0IbnFjSPhycIZLbtBf97-GMlU_aem_0ObK3YaoKiojBG4rbwufRA#popup:corn"
+      }
+    ],
+    "тест": [
+      {
+        "lead_id": 36266361,
+        "contact_id": 39804431,
+        "lead_name": "Lead from: https://migrator.me/youtube_migrator"
+      },
+      {
+        "lead_id": 36266341,
+        "contact_id": 39803825,
+        "lead_name": "Lead from: https://migrator.me/kats18"
+      }
+    ]
+  }
+}

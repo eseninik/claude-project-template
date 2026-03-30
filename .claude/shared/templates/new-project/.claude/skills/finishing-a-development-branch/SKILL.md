@@ -197,3 +197,8 @@ git worktree remove <worktree-path>
 
 **Pairs with:**
 - **using-git-worktrees** - Cleans up worktree created by that skill
+
+## Related
+- ← subagent-driven-development — called after implementation complete (Step 8)
+- ← using-git-worktrees — cleans up worktree after branch decision
+- → verification-before-completion — verify before merge/PR

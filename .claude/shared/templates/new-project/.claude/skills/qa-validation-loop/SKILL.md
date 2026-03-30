@@ -267,3 +267,9 @@ Three possible outcomes:
 - Agent types from: .claude/agents/registry.md (qa-reviewer, qa-fixer)
 - Recovery tracking: work/attempt-history.json
 - Memory injection: patterns + gotchas loaded for reviewer context
+
+## Related
+- → verification-before-completion — logging and artifact checks
+- → systematic-debugging — when QA finds complex bugs
+- ← subagent-driven-development — QA after implementation waves
+- ← PIPELINE.md QA_REVIEW phase — mandatory after IMPLEMENT

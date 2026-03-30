@@ -1,0 +1,644 @@
+{
+  "backup_created": "2026-03-09T15:42:20.366853",
+  "old_contact": {
+    "contact": {
+      "id": 39995683,
+      "name": "Anna Veklich",
+      "first_name": "Anna",
+      "last_name": "Veklich",
+      "responsible_user_id": 10246814,
+      "group_id": 0,
+      "created_by": 0,
+      "updated_by": 0,
+      "created_at": 1772176466,
+      "updated_at": 1772176478,
+      "closest_task_at": null,
+      "is_deleted": false,
+      "is_unsorted": false,
+      "custom_fields_values": [
+        {
+          "field_id": 99035,
+          "field_name": "Email",
+          "field_code": "EMAIL",
+          "field_type": "multitext",
+          "values": [
+            {
+              "value": "anna.veklich@gmail.com",
+              "enum_id": 53427,
+              "enum_code": "OTHER"
+            }
+          ]
+        },
+        {
+          "field_id": 99033,
+          "field_name": "Телефон",
+          "field_code": "PHONE",
+          "field_type": "multitext",
+          "values": [
+            {
+              "value": "+49 (162) 262-6208",
+              "enum_id": 53421,
+              "enum_code": "OTHER"
+            }
+          ]
+        }
+      ],
+      "account_id": 31332594,
+      "_links": {
+        "self": {
+          "href": "https://migratoramocrm.amocrm.ru/api/v4/contacts/39995683?with=leads&page=1&limit=250"
+        }
+      },
+      "_embedded": {
+        "tags": [],
+        "leads": [
+          {
+            "id": 35955419,
+            "_links": {
+              "self": {
+                "href": "https://migratoramocrm.amocrm.ru/api/v4/leads/35955419?with=leads&page=1&limit=250"
+              }
+            }
+          }
+        ],
+        "companies": []
+      }
+    },
+    "leads": [
+      {
+        "id": 35955419,
+        "name": "Anna Veklich",
+        "price": 0,
+        "responsible_user_id": 10246814,
+        "group_id": 0,
+        "status_id": 69052858,
+        "pipeline_id": 7323650,
+        "loss_reason_id": null,
+        "created_by": 0,
+        "updated_by": 10246814,
+        "created_at": 1772176465,
+        "updated_at": 1772802423,
+        "closed_at": null,
+        "closest_task_at": 1772917140,
+        "is_deleted": false,
+        "custom_fields_values": [
+          {
+            "field_id": 1612133,
+            "field_name": "NICK",
+            "field_code": "NICK",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "@anveklich"
+              }
+            ]
+          },
+          {
+            "field_id": 1612119,
+            "field_name": "КЕМ_ВЫ_РАБОТАЕТЕ_КАКИМ_ОБРАЗОМ_ВЫ_ЗАРАБАТЫВАЕТЕ_СЕБЕ_НА_ЖИЗНЬ",
+            "field_code": "KEM_VI_RABOTAETE_KAKIM_OBRAZOM_VI_ZARABATIVAETE_SEBE_NA_ZHIZN",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Предприниматель"
+              }
+            ]
+          },
+          {
+            "field_id": 1580039,
+            "field_name": "ВАШЕ_ГРАЖДАНСТВО",
+            "field_code": "VASHE_GRAZHDANSTVO",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "РФ"
+              }
+            ]
+          },
+          {
+            "field_id": 1580041,
+            "field_name": "ВАША_ТЕКУЩАЯ_ЛОКАЦИЯ",
+            "field_code": "VASHA_TEKUSCHAYA_LOKATSIYA",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Берлин"
+              }
+            ]
+          },
+          {
+            "field_id": 1612121,
+            "field_name": "ЧТО_БЫ_ВЫ_ХОТЕЛИ_ДЕЛАТЬ_В_США",
+            "field_code": "CHTO_BI_VI_HOTELI_DELAT_V_SSHA",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Жить и работать"
+              }
+            ]
+          },
+          {
+            "field_id": 1612123,
+            "field_name": "ПЛАНИРУЕТЕ_ЛИ_ВЫ_ИММИГРИРОВАТЬ_В_США",
+            "field_code": "PLANIRUETE_LI_VI_IMMIGRIROVAT_V_SSHA",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Да"
+              }
+            ]
+          },
+          {
+            "field_id": 1648983,
+            "field_name": "OLD",
+            "field_code": "OLD",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "36"
+              }
+            ]
+          },
+          {
+            "field_id": 1612125,
+            "field_name": "КАКУЮ_КОНКРЕТНУЮ_ПОМОЩЬ_ВАМ_НЕОБХОДИМО_ОТ_НАС_ДЛЯ_ЗАВЕРШЕНИЯ_ДАННОГО_ПРОЦЕССА",
+            "field_code": "KAKUYU_KONKRETNUYU_POMOSCH_VAM_NEOBHODIMO_OT_NAS_DLYA_ZAVERSHENI",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Виза О1"
+              }
+            ]
+          },
+          {
+            "field_id": 1640197,
+            "field_name": "КАКОЙ_ВАШ_БЮДЖЕТ_В__НА_ИММИГРАЦИОННЫЕ_РАСХОДЫ_АДВОКАТ_ГОС__ПОШЛИНЫ_PR_СОПРОВОЖДЕНИЕ",
+            "field_code": "KAKOI_VASH_BYUDZHET_V__NA_IMMIGRATSIONNIE_RASHODI_ADVOKAT_GOS__P",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Сколько нужно"
+              }
+            ]
+          },
+          {
+            "field_id": 1612129,
+            "field_name": "ЕСТЬ_ЛИ_У_ВАС_КОНКРЕТНЫЙ_СРОК_К_КОТОРОМУ_НУЖНО_ЭТО_ВЫПОЛНИТЬ",
+            "field_code": "EST_LI_U_VAS_KONKRETNII_SROK_K_KOTOROMU_NUZHNO_ETO_VIPOLNIT",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Июль 2026"
+              }
+            ]
+          },
+          {
+            "field_id": 1612131,
+            "field_name": "ЕСТЬ_ЛИ_ЕЩЕ_КАКАЯ-ЛИБО_ИНФОРМАЦИЯ_НА_ВАШ_ВЗГЛЯД_ВАЖНАЯ_ДЛЯ_НАС",
+            "field_code": "EST_LI_ESCHE_KAKAYALIBO_INFORMATSIYA_NA_VASH_VZGLYAD_VAZHNAYA_DL",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Нет"
+              }
+            ]
+          },
+          {
+            "field_id": 1428405,
+            "field_name": "TRANID",
+            "field_code": "TRANID",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "7877476:8201593742"
+              }
+            ]
+          },
+          {
+            "field_id": 99047,
+            "field_name": "utm_source",
+            "field_code": "UTM_SOURCE",
+            "field_type": "tracking_data",
+            "values": [
+              {
+                "value": "ig"
+              }
+            ]
+          },
+          {
+            "field_id": 99043,
+            "field_name": "utm_medium",
+            "field_code": "UTM_MEDIUM",
+            "field_type": "tracking_data",
+            "values": [
+              {
+                "value": "social"
+              }
+            ]
+          },
+          {
+            "field_id": 99041,
+            "field_name": "utm_content",
+            "field_code": "UTM_CONTENT",
+            "field_type": "tracking_data",
+            "values": [
+              {
+                "value": "link_in_bio"
+              }
+            ]
+          },
+          {
+            "field_id": 99069,
+            "field_name": "_ym_uid",
+            "field_code": "_YM_UID",
+            "field_type": "tracking_data",
+            "values": [
+              {
+                "value": "1772176324996491875"
+              }
+            ]
+          },
+          {
+            "field_id": 99077,
+            "field_name": "fbclid",
+            "field_code": "FBCLID",
+            "field_type": "tracking_data",
+            "values": [
+              {
+                "value": "PAZXh0bgNhZW0CMTEAc3J0YwZhcHBfaWQPMTI0MDI0NTc0Mjg3NDE0AAGnkxna9V8Ing7JXhy2JigQSLxqdPwkCUGjLc1Cnp66T4LstL5MCrR2VznxzGs_aem_j7rhxKcSu7klpp3s0rjGoQ"
+              }
+            ]
+          },
+          {
+            "field_id": 1364107,
+            "field_name": "FORMNAME",
+            "field_code": "FORMNAME",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "instagram"
+              }
+            ]
+          },
+          {
+            "field_id": 1364109,
+            "field_name": "FORMID",
+            "field_code": "FORMID",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "form923664199"
+              }
+            ]
+          },
+          {
+            "field_id": 1364111,
+            "field_name": "REFERER",
+            "field_code": "REFERER",
+            "field_type": "url",
+            "values": [
+              {
+                "value": "https://migrator.me/instagram?utm_source=ig&utm_medium=social&utm_content=link_in_bio&fbclid=PAZXh0bgNhZW0CMTEAc3J0YwZhcHBfaWQPMTI0MDI0NTc0Mjg3NDE0AAGnkxna9V8Ing7JXhy2JigQSLxqdPwkCUGjLc1Cnp66T4LstL5MCrR2VznxzGs_aem_j7rhxKcSu7klpp3s0rjGoQ#popup%3Acornerform2"
+              }
+            ]
+          },
+          {
+            "field_id": 99051,
+            "field_name": "utm_referrer",
+            "field_code": "UTM_REFERRER",
+            "field_type": "tracking_data",
+            "values": [
+              {
+                "value": "https://migrator.me/instagram?utm_source=ig&utm_medium=social&utm_content=link_in_bio&fbclid=PAZXh0bgNhZW0CMTEAc3J0YwZhcHBfaWQPMTI0MDI0NTc0Mjg3NDE0AAGnkxna9V8Ing7JXhy2JigQSLxqdPwkCUGjLc1Cnp66T4LstL5MCrR2VznxzGs_aem_j7rhxKcSu7klpp3s0rjGoQ#popup%3Acornerform2"
+              }
+            ]
+          },
+          {
+            "field_id": 1631913,
+            "field_name": "Категория лида",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "Квал без анкеты (зовем на колл сразу -  пушим коллами 1-2-4-11)",
+                "enum_id": 4661931,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1621253,
+            "field_name": "Messenger",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "TG",
+                "enum_id": 4557403,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1654207,
+            "field_name": "ЧАСОВОЙ ПОЯС",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "GMC +0 — GMC +12",
+                "enum_id": 4701927,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1620349,
+            "field_name": "Qual Date",
+            "field_code": null,
+            "field_type": "date",
+            "values": [
+              {
+                "value": 1772139600
+              }
+            ]
+          },
+          {
+            "field_id": 1652747,
+            "field_name": "BK_R",
+            "field_code": null,
+            "field_type": "numeric",
+            "values": [
+              {
+                "value": "1"
+              }
+            ]
+          },
+          {
+            "field_id": 1655011,
+            "field_name": "Что сделать, чтобы клиент купил?",
+            "field_code": null,
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "показать роад мэп и экспертность"
+              }
+            ]
+          },
+          {
+            "field_id": 1655009,
+            "field_name": "Подробное описание клиента",
+            "field_code": null,
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "ии-маркетолог"
+              }
+            ]
+          },
+          {
+            "field_id": 1620351,
+            "field_name": "Meeting Date Fact",
+            "field_code": null,
+            "field_type": "date",
+            "values": [
+              {
+                "value": 1772398800
+              }
+            ]
+          },
+          {
+            "field_id": 1655003,
+            "field_name": "Запись первички ссылка",
+            "field_code": null,
+            "field_type": "url",
+            "values": [
+              {
+                "value": "https://drive.google.com/file/d/1l3QGMGGWBQhPGphi37z2ZuHNaasQhaMX/view?usp=drive_link"
+              }
+            ]
+          },
+          {
+            "field_id": 1621645,
+            "field_name": "SS payment Date",
+            "field_code": null,
+            "field_type": "date",
+            "values": [
+              {
+                "value": 1772398800
+              }
+            ]
+          },
+          {
+            "field_id": 1648809,
+            "field_name": "Company",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "USA",
+                "enum_id": 4698711,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1638961,
+            "field_name": "Форма оплаты",
+            "field_code": null,
+            "field_type": "multiselect",
+            "values": [
+              {
+                "value": "Карта",
+                "enum_id": 4685977,
+                "enum_code": null
+              }
+            ]
+          }
+        ],
+        "score": null,
+        "account_id": 31332594,
+        "labor_cost": 0,
+        "_links": {
+          "self": {
+            "href": "https://migratoramocrm.amocrm.ru/api/v4/leads/35955419?page=1&limit=250"
+          }
+        },
+        "_embedded": {
+          "tags": [
+            {
+              "id": 17191,
+              "name": "tilda",
+              "color": null
+            }
+          ],
+          "companies": []
+        }
+      }
+    ]
+  },
+  "new_contact": {
+    "contact": {
+      "id": 40028715,
+      "name": "Anna Veklich",
+      "first_name": "Anna",
+      "last_name": "Veklich",
+      "responsible_user_id": 11572810,
+      "group_id": 504250,
+      "created_by": 0,
+      "updated_by": 0,
+      "created_at": 1772459369,
+      "updated_at": 1772475937,
+      "closest_task_at": null,
+      "is_deleted": false,
+      "is_unsorted": false,
+      "custom_fields_values": [
+        {
+          "field_id": 1654991,
+          "field_name": "Umnico socialId",
+          "field_code": "SOCIAL_ID",
+          "field_type": "text",
+          "values": [
+            {
+              "value": "user_34704992"
+            }
+          ]
+        },
+        {
+          "field_id": 1654993,
+          "field_name": "Umnico customerID",
+          "field_code": "UCID",
+          "field_type": "text",
+          "values": [
+            {
+              "value": "68714331"
+            }
+          ]
+        },
+        {
+          "field_id": 99033,
+          "field_name": "Телефон",
+          "field_code": "PHONE",
+          "field_type": "multitext",
+          "values": [
+            {
+              "value": "+79602706298",
+              "enum_id": 53411,
+              "enum_code": "WORK"
+            }
+          ]
+        },
+        {
+          "field_id": 1655001,
+          "field_name": "Логин",
+          "field_code": "LOGIN",
+          "field_type": "text",
+          "values": [
+            {
+              "value": "anveklich"
+            }
+          ]
+        },
+        {
+          "field_id": 1654997,
+          "field_name": "Профиль",
+          "field_code": "UMNICO_PROFILE",
+          "field_type": "url",
+          "values": [
+            {
+              "value": "https://t.me/anveklich"
+            }
+          ]
+        },
+        {
+          "field_id": 1654995,
+          "field_name": "Аватар",
+          "field_code": "AVATAR",
+          "field_type": "text",
+          "values": [
+            {
+              "value": "https://storage.googleapis.com/download/storage/v1/b/umnico-files-user-storage/o/149844%2Ftelegram%2Favatars%2Fbb415860f0b271cbf7094842b8416d52.jpeg?generation=1772459366393328&alt=media"
+            }
+          ]
+        }
+      ],
+      "account_id": 31332594,
+      "_links": {
+        "self": {
+          "href": "https://migratoramocrm.amocrm.ru/api/v4/contacts/40028715?with=leads&page=1&limit=250"
+        }
+      },
+      "_embedded": {
+        "tags": [],
+        "leads": [
+          {
+            "id": 36005125,
+            "_links": {
+              "self": {
+                "href": "https://migratoramocrm.amocrm.ru/api/v4/leads/36005125?with=leads&page=1&limit=250"
+              }
+            }
+          }
+        ],
+        "companies": []
+      }
+    },
+    "leads": [
+      {
+        "id": 36005125,
+        "name": "Сделка #36005125",
+        "price": 0,
+        "responsible_user_id": 11572810,
+        "group_id": 504250,
+        "status_id": 143,
+        "pipeline_id": 7323650,
+        "loss_reason_id": null,
+        "created_by": 0,
+        "updated_by": 11202258,
+        "created_at": 1772475923,
+        "updated_at": 1772815392,
+        "closed_at": 1772488514,
+        "closest_task_at": null,
+        "is_deleted": false,
+        "custom_fields_values": [
+          {
+            "field_id": 1631379,
+            "field_name": "Причина отказа",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "Not a lead",
+                "enum_id": 4661357,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1655007,
+            "field_name": "Подробная причина отказа",
+            "field_code": null,
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "."
+              }
+            ]
+          }
+        ],
+        "score": null,
+        "account_id": 31332594,
+        "labor_cost": 0,
+        "_links": {
+          "self": {
+            "href": "https://migratoramocrm.amocrm.ru/api/v4/leads/36005125?page=1&limit=250"
+          }
+        },
+        "_embedded": {
+          "tags": [],
+          "companies": []
+        }
+      }
+    ]
+  }
+}

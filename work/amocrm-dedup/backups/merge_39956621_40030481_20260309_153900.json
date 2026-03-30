@@ -1,0 +1,539 @@
+{
+  "backup_created": "2026-03-09T15:40:18.508986",
+  "old_contact": {
+    "contact": {
+      "id": 39956621,
+      "name": "Armine",
+      "first_name": "Armine",
+      "last_name": "",
+      "responsible_user_id": 10246814,
+      "group_id": 0,
+      "created_by": 0,
+      "updated_by": 0,
+      "created_at": 1771918832,
+      "updated_at": 1771918848,
+      "closest_task_at": null,
+      "is_deleted": false,
+      "is_unsorted": false,
+      "custom_fields_values": [
+        {
+          "field_id": 99033,
+          "field_name": "Телефон",
+          "field_code": "PHONE",
+          "field_type": "multitext",
+          "values": [
+            {
+              "value": "+1 (747) 272-5527",
+              "enum_id": 53421,
+              "enum_code": "OTHER"
+            }
+          ]
+        },
+        {
+          "field_id": 99035,
+          "field_name": "Email",
+          "field_code": "EMAIL",
+          "field_type": "multitext",
+          "values": [
+            {
+              "value": "armine1abgaryan@gmail.com",
+              "enum_id": 53427,
+              "enum_code": "OTHER"
+            }
+          ]
+        }
+      ],
+      "account_id": 31332594,
+      "_links": {
+        "self": {
+          "href": "https://migratoramocrm.amocrm.ru/api/v4/contacts/39956621?with=leads&page=1&limit=250"
+        }
+      },
+      "_embedded": {
+        "tags": [],
+        "leads": [
+          {
+            "id": 35903615,
+            "_links": {
+              "self": {
+                "href": "https://migratoramocrm.amocrm.ru/api/v4/leads/35903615?with=leads&page=1&limit=250"
+              }
+            }
+          }
+        ],
+        "companies": []
+      }
+    },
+    "leads": [
+      {
+        "id": 35903615,
+        "name": "Armine",
+        "price": 0,
+        "responsible_user_id": 10246814,
+        "group_id": 0,
+        "status_id": 143,
+        "pipeline_id": 7323650,
+        "loss_reason_id": null,
+        "created_by": 0,
+        "updated_by": 10246814,
+        "created_at": 1771918832,
+        "updated_at": 1772527140,
+        "closed_at": 1772097031,
+        "closest_task_at": null,
+        "is_deleted": false,
+        "custom_fields_values": [
+          {
+            "field_id": 1580039,
+            "field_name": "ВАШЕ_ГРАЖДАНСТВО",
+            "field_code": "VASHE_GRAZHDANSTVO",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Armenia"
+              }
+            ]
+          },
+          {
+            "field_id": 1580041,
+            "field_name": "ВАША_ТЕКУЩАЯ_ЛОКАЦИЯ",
+            "field_code": "VASHA_TEKUSCHAYA_LOKATSIYA",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "USA"
+              }
+            ]
+          },
+          {
+            "field_id": 1580043,
+            "field_name": "ЕСТЬ_ЛИ_У_ВАС_СЕЙЧАС_КАКАЯ-ТО_ВИЗА_ИЛИ_ЛЕГАЛЬНЫЙ_СТАТУС_В_США",
+            "field_code": "EST_LI_U_VAS_SEICHAS_KAKAYATO_VIZA_ILI_LEGALNII_STATUS_V_SSHA",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Polytical assylum case"
+              }
+            ]
+          },
+          {
+            "field_id": 1580045,
+            "field_name": "КАКОЙ_ВАРИАНТ_ИММИГРАЦИИЛЕГАЛИЗАЦИИ_ВЫ_РАССМАТРИВАЕТЕ",
+            "field_code": "KAKOI_VARIANT_IMMIGRATSIILEGALIZATSII_VI_RASSMATRIVAETE",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Виза талантов (бизнес, наука, спорт, творчество, технологии и тд)"
+              }
+            ]
+          },
+          {
+            "field_id": 1580047,
+            "field_name": "ЕСТЬ_ЛИ_У_ВАС_БЛИЗКИЕ_РОДСТВЕННИКИ_В_США_МАТЬ_ОТЕЦ_СЫН_ДОЧКА_БРАТ_СЕСТРА____",
+            "field_code": "EST_LI_U_VAS_BLIZKIE_RODSTVENNIKI_V_SSHA_MAT_OTETS_SIN_DOCHKA_BR",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Нет"
+              }
+            ]
+          },
+          {
+            "field_id": 1580049,
+            "field_name": "С_КЕМ_ВЫ_СОБИРАЕТЕСЬ_ПЕРЕЕХАТЬЛЕГАЛИЗОВАТЬСЯ_В_США_ЖЕНА_МУЖ_ДЕТИ____",
+            "field_code": "S_KEM_VI_SOBIRAETES_PEREEHATLEGALIZOVATSYA_V_SSHA_ZHENA_MUZH_DET",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Муж и дети"
+              }
+            ]
+          },
+          {
+            "field_id": 1587957,
+            "field_name": "Нарушали ли вы иммиграционные законы США в прошлом?",
+            "field_code": null,
+            "field_type": "text",
+            "values": [
+              {
+                "value": "Нет"
+              }
+            ]
+          },
+          {
+            "field_id": 1580053,
+            "field_name": "ЕСТЬ_ЛИ_У_ВАС_СУДИМОСТИ_НА_ТЕРРИТОРИИ_США_ИЛИ_ЗА_ПРЕДЕЛАМИ_США",
+            "field_code": "EST_LI_U_VAS_SUDIMOSTI_NA_TERRITORII_SSHA_ILI_ZA_PREDELAMI_SSHA",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Нет"
+              }
+            ]
+          },
+          {
+            "field_id": 1580055,
+            "field_name": "ХОТИТЕ_ЛИ_ВЫ_НАНЯТЬ_ЛИЦЕНЗИРОВАННОГО_АДВОКАТА_В_США",
+            "field_code": "HOTITE_LI_VI_NANYAT_LITSENZIROVANNOGO_ADVOKATA_V_SSHA",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Да"
+              }
+            ]
+          },
+          {
+            "field_id": 1580057,
+            "field_name": "УСЛУГИ_ЛИЦЕНЗИРОВАННОГО_АДВОКАТА_В_США_ПО_ИММИГРАЦИИ_СТОЯТ_ОТ_10_000_ЕСТЬ_РАССРОЧКА_И_ГАРАНТИЯ_РЕЗУЛЬТАТА_В_ДОГОВОРЕ__ВЫ_РАСПОЛАГАЕТЕ_ТАКОЙ_СУММОЙ_НА_РАБОТУ_АДВОКАТА",
+            "field_code": "USLUGI_LITSENZIROVANNOGO_ADVOKATA_V_SSHA_PO_IMMIGRATSII_STOYAT_O",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Да"
+              }
+            ]
+          },
+          {
+            "field_id": 1580059,
+            "field_name": "КОГДА_ВЫ_ПЛАНИРУЕТЕ_НАЧАТЬ_РАБОТАТЬ_С_АДВОКАТОМ_",
+            "field_code": "KOGDA_VI_PLANIRUETE_NACHAT_RABOTAT_S_ADVOKATOM_",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "After consultation"
+              }
+            ]
+          },
+          {
+            "field_id": 1587973,
+            "field_name": "Ваши комментарии и вопросы (опционально)",
+            "field_code": null,
+            "field_type": "text",
+            "values": [
+              {
+                "value": "Interested in Eb-2 NIW, but we live in USA 4 years already! Has pending asylum case but no dates for interview or in court"
+              }
+            ]
+          },
+          {
+            "field_id": 1428405,
+            "field_name": "TRANID",
+            "field_code": "TRANID",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "7877476:8193055432"
+              }
+            ]
+          },
+          {
+            "field_id": 99069,
+            "field_name": "_ym_uid",
+            "field_code": "_YM_UID",
+            "field_type": "tracking_data",
+            "values": [
+              {
+                "value": "1771918402148916909"
+              }
+            ]
+          },
+          {
+            "field_id": 1364107,
+            "field_name": "FORMNAME",
+            "field_code": "FORMNAME",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Запись на консультацию с главной страницы"
+              }
+            ]
+          },
+          {
+            "field_id": 1364109,
+            "field_name": "FORMID",
+            "field_code": "FORMID",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "form698574638"
+              }
+            ]
+          },
+          {
+            "field_id": 1364111,
+            "field_name": "REFERER",
+            "field_code": "REFERER",
+            "field_type": "url",
+            "values": [
+              {
+                "value": "https://migrator.me/formpost"
+              }
+            ]
+          },
+          {
+            "field_id": 99051,
+            "field_name": "utm_referrer",
+            "field_code": "UTM_REFERRER",
+            "field_type": "tracking_data",
+            "values": [
+              {
+                "value": "https://migrator.me/formpost"
+              }
+            ]
+          },
+          {
+            "field_id": 1631913,
+            "field_name": "Категория лида",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "Почти квал (отправляем анкету - пушим коллами 1-2-4-11)",
+                "enum_id": 4661929,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1621253,
+            "field_name": "Messenger",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "TG",
+                "enum_id": 4557403,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1620349,
+            "field_name": "Qual Date",
+            "field_code": null,
+            "field_type": "date",
+            "values": [
+              {
+                "value": 1771966800
+              }
+            ]
+          },
+          {
+            "field_id": 1631379,
+            "field_name": "Причина отказа",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "ХТ + Мексика",
+                "enum_id": 4661361,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1652747,
+            "field_name": "BK_R",
+            "field_code": null,
+            "field_type": "numeric",
+            "values": [
+              {
+                "value": "0"
+              }
+            ]
+          },
+          {
+            "field_id": 1612133,
+            "field_name": "NICK",
+            "field_code": "NICK",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "armin_cali"
+              }
+            ]
+          },
+          {
+            "field_id": 1655007,
+            "field_name": "Подробная причина отказа",
+            "field_code": null,
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "-"
+              }
+            ]
+          }
+        ],
+        "score": null,
+        "account_id": 31332594,
+        "labor_cost": 0,
+        "_links": {
+          "self": {
+            "href": "https://migratoramocrm.amocrm.ru/api/v4/leads/35903615?page=1&limit=250"
+          }
+        },
+        "_embedded": {
+          "tags": [
+            {
+              "id": 17191,
+              "name": "tilda",
+              "color": null
+            }
+          ],
+          "companies": []
+        }
+      }
+    ]
+  },
+  "new_contact": {
+    "contact": {
+      "id": 40030481,
+      "name": "Armine Abgaryan",
+      "first_name": "Armine",
+      "last_name": "Abgaryan",
+      "responsible_user_id": 10246814,
+      "group_id": 0,
+      "created_by": 0,
+      "updated_by": 0,
+      "created_at": 1772474704,
+      "updated_at": 1772474715,
+      "closest_task_at": null,
+      "is_deleted": false,
+      "is_unsorted": false,
+      "custom_fields_values": [
+        {
+          "field_id": 1654991,
+          "field_name": "Umnico socialId",
+          "field_code": "SOCIAL_ID",
+          "field_type": "text",
+          "values": [
+            {
+              "value": "user_870099287"
+            }
+          ]
+        },
+        {
+          "field_id": 1654993,
+          "field_name": "Umnico customerID",
+          "field_code": "UCID",
+          "field_type": "text",
+          "values": [
+            {
+              "value": "68721738"
+            }
+          ]
+        },
+        {
+          "field_id": 1655001,
+          "field_name": "Логин",
+          "field_code": "LOGIN",
+          "field_type": "text",
+          "values": [
+            {
+              "value": "armin_cali"
+            }
+          ]
+        },
+        {
+          "field_id": 1654997,
+          "field_name": "Профиль",
+          "field_code": "UMNICO_PROFILE",
+          "field_type": "url",
+          "values": [
+            {
+              "value": "https://t.me/armin_cali"
+            }
+          ]
+        },
+        {
+          "field_id": 1654995,
+          "field_name": "Аватар",
+          "field_code": "AVATAR",
+          "field_type": "text",
+          "values": [
+            {
+              "value": "https://storage.googleapis.com/download/storage/v1/b/umnico-files-user-storage/o/149844%2Ftelegram%2Favatars%2F37449623ca46fb25bb423a65c41bd9ca.jpeg?generation=1772474701623791&alt=media"
+            }
+          ]
+        }
+      ],
+      "account_id": 31332594,
+      "_links": {
+        "self": {
+          "href": "https://migratoramocrm.amocrm.ru/api/v4/contacts/40030481?with=leads&page=1&limit=250"
+        }
+      },
+      "_embedded": {
+        "tags": [],
+        "leads": [
+          {
+            "id": 36004975,
+            "_links": {
+              "self": {
+                "href": "https://migratoramocrm.amocrm.ru/api/v4/leads/36004975?with=leads&page=1&limit=250"
+              }
+            }
+          }
+        ],
+        "companies": []
+      }
+    },
+    "leads": [
+      {
+        "id": 36004975,
+        "name": "Сделка #36004975",
+        "price": 0,
+        "responsible_user_id": 10246814,
+        "group_id": 0,
+        "status_id": 143,
+        "pipeline_id": 7323650,
+        "loss_reason_id": null,
+        "created_by": 0,
+        "updated_by": 10246814,
+        "created_at": 1772474700,
+        "updated_at": 1772476095,
+        "closed_at": 1772476094,
+        "closest_task_at": null,
+        "is_deleted": false,
+        "custom_fields_values": [
+          {
+            "field_id": 1631379,
+            "field_name": "Причина отказа",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "Not a lead",
+                "enum_id": 4661357,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1655007,
+            "field_name": "Подробная причина отказа",
+            "field_code": null,
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "дубль"
+              }
+            ]
+          }
+        ],
+        "score": null,
+        "account_id": 31332594,
+        "labor_cost": 0,
+        "_links": {
+          "self": {
+            "href": "https://migratoramocrm.amocrm.ru/api/v4/leads/36004975?page=1&limit=250"
+          }
+        },
+        "_embedded": {
+          "tags": [],
+          "companies": []
+        }
+      }
+    ]
+  }
+}

@@ -314,3 +314,9 @@ C. No plan (this skill):
 When uncertain: ask the user. Sequential is always the safe fallback.
 
 See `references/examples.md` for worked examples at each confidence level.
+
+## Related
+- → subagent-driven-development — executes the decomposed tasks
+- → using-git-worktrees — parallel execution in isolated worktrees
+- ← tech-spec-planning — tech spec feeds task breakdown
+- ← complex tasks — triggered by need to split/structure work

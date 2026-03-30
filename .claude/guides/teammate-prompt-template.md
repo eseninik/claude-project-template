@@ -53,6 +53,7 @@ The agent should READ this at start and UPDATE it in their handoff block if they
 - If any check fails → fix first, do NOT claim done
 - Update work/attempt-history.json if retry
 - Verify logging coverage: every new function has entry/exit logs, every catch block logs errors (ref: .claude/guides/logging-standards.md)
+- After completing a skill-based task, check the `## Related` section at the bottom of the SKILL.md for next steps or connected skills to invoke
 
 ## Results Board
 Before starting your task, check if `work/results-board.md` exists. If yes:

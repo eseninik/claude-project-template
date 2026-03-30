@@ -1,0 +1,457 @@
+{
+  "backup_created": "2026-03-09T15:41:44.261093",
+  "old_contact": {
+    "contact": {
+      "id": 39974941,
+      "name": "Екатерина Варникова",
+      "first_name": "Екатерина",
+      "last_name": "Варникова",
+      "responsible_user_id": 10172274,
+      "group_id": 0,
+      "created_by": 0,
+      "updated_by": 0,
+      "created_at": 1772048815,
+      "updated_at": 1772048815,
+      "closest_task_at": null,
+      "is_deleted": false,
+      "is_unsorted": false,
+      "custom_fields_values": [
+        {
+          "field_id": 99035,
+          "field_name": "Email",
+          "field_code": "EMAIL",
+          "field_type": "multitext",
+          "values": [
+            {
+              "value": "ekaterina-varnikova@yandex.ru",
+              "enum_id": 53427,
+              "enum_code": "OTHER"
+            }
+          ]
+        },
+        {
+          "field_id": 99033,
+          "field_name": "Телефон",
+          "field_code": "PHONE",
+          "field_type": "multitext",
+          "values": [
+            {
+              "value": "+7 (951) 743-31-15",
+              "enum_id": 53421,
+              "enum_code": "OTHER"
+            }
+          ]
+        }
+      ],
+      "account_id": 31332594,
+      "_links": {
+        "self": {
+          "href": "https://migratoramocrm.amocrm.ru/api/v4/contacts/39974941?with=leads&page=1&limit=250"
+        }
+      },
+      "_embedded": {
+        "tags": [
+          {
+            "id": 134327,
+            "name": "tilda",
+            "color": null
+          }
+        ],
+        "leads": [
+          {
+            "id": 35929049,
+            "_links": {
+              "self": {
+                "href": "https://migratoramocrm.amocrm.ru/api/v4/leads/35929049?with=leads&page=1&limit=250"
+              }
+            }
+          }
+        ],
+        "companies": []
+      }
+    },
+    "leads": [
+      {
+        "id": 35929049,
+        "name": "Варникова Екатерина",
+        "price": 0,
+        "responsible_user_id": 10246814,
+        "group_id": 0,
+        "status_id": 60973506,
+        "pipeline_id": 7323650,
+        "loss_reason_id": null,
+        "created_by": 0,
+        "updated_by": 10246814,
+        "created_at": 1772048815,
+        "updated_at": 1772799051,
+        "closed_at": null,
+        "closest_task_at": 1773089940,
+        "is_deleted": false,
+        "custom_fields_values": [
+          {
+            "field_id": 1428405,
+            "field_name": "TRANID",
+            "field_code": "TRANID",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "7877476:8197992762"
+              }
+            ]
+          },
+          {
+            "field_id": 99047,
+            "field_name": "utm_source",
+            "field_code": "UTM_SOURCE",
+            "field_type": "tracking_data",
+            "values": [
+              {
+                "value": "ig"
+              }
+            ]
+          },
+          {
+            "field_id": 99043,
+            "field_name": "utm_medium",
+            "field_code": "UTM_MEDIUM",
+            "field_type": "tracking_data",
+            "values": [
+              {
+                "value": "social"
+              }
+            ]
+          },
+          {
+            "field_id": 99041,
+            "field_name": "utm_content",
+            "field_code": "UTM_CONTENT",
+            "field_type": "tracking_data",
+            "values": [
+              {
+                "value": "link_in_bio"
+              }
+            ]
+          },
+          {
+            "field_id": 99077,
+            "field_name": "fbclid",
+            "field_code": "FBCLID",
+            "field_type": "tracking_data",
+            "values": [
+              {
+                "value": "PAZXh0bgNhZW0CMTEAc3J0YwZhcHBfaWQPMTI0MDI0NTc0Mjg3NDE0AAGnEgYzEit-EDpSn4O26275Znsnliq1l3M2hK5zLvDJ6CMtZs3m3xgiQew-BmE_aem_vbGlbhwzIe5vLMSgXIHWJA"
+              }
+            ]
+          },
+          {
+            "field_id": 1364109,
+            "field_name": "FORMID",
+            "field_code": "FORMID",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "form1898187261"
+              }
+            ]
+          },
+          {
+            "field_id": 1364111,
+            "field_name": "REFERER",
+            "field_code": "REFERER",
+            "field_type": "url",
+            "values": [
+              {
+                "value": "https://migrator.me/online-conf?utm_source=ig&utm_medium=social&utm_content=link_in_bio&fbclid=PAZXh0bgNhZW0CMTEAc3J0YwZhcHBfaWQPMTI0MDI0NTc0Mjg3NDE0AAGnEgYzEit-EDpSn4O26275Znsnliq1l3M2hK5zLvDJ6CMtZs3m3xgiQew-BmE_aem_vbGlbhwzIe5vLMSgXIHWJA"
+              }
+            ]
+          },
+          {
+            "field_id": 99051,
+            "field_name": "utm_referrer",
+            "field_code": "UTM_REFERRER",
+            "field_type": "tracking_data",
+            "values": [
+              {
+                "value": "https://migrator.me/online-conf?utm_source=ig&utm_medium=social&utm_content=link_in_bio&fbclid=PAZXh0bgNhZW0CMTEAc3J0YwZhcHBfaWQPMTI0MDI0NTc0Mjg3NDE0AAGnEgYzEit-EDpSn4O26275Znsnliq1l3M2hK5zLvDJ6CMtZs3m3xgiQew-BmE_aem_vbGlbhwzIe5vLMSgXIHWJA"
+              }
+            ]
+          },
+          {
+            "field_id": 1621253,
+            "field_name": "Messenger",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "SMS",
+                "enum_id": 4557411,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1631913,
+            "field_name": "Категория лида",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "Квал без анкеты (зовем на колл сразу -  пушим коллами 1-2-4-11)",
+                "enum_id": 4661931,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1652747,
+            "field_name": "BK_R",
+            "field_code": null,
+            "field_type": "numeric",
+            "values": [
+              {
+                "value": "0"
+              }
+            ]
+          },
+          {
+            "field_id": 1655011,
+            "field_name": "Что сделать, чтобы клиент купил?",
+            "field_code": null,
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "не было встречи, не знаю"
+              }
+            ]
+          },
+          {
+            "field_id": 1620349,
+            "field_name": "Qual Date",
+            "field_code": null,
+            "field_type": "date",
+            "values": [
+              {
+                "value": 1772398800
+              }
+            ]
+          },
+          {
+            "field_id": 1612133,
+            "field_name": "NICK",
+            "field_code": "NICK",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "@V_S_K_D_V"
+              }
+            ]
+          },
+          {
+            "field_id": 1654207,
+            "field_name": "ЧАСОВОЙ ПОЯС",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "GMC +0 — GMC +12",
+                "enum_id": 4701927,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1655009,
+            "field_name": "Подробное описание клиента",
+            "field_code": null,
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "предприниматели"
+              }
+            ]
+          },
+          {
+            "field_id": 1620351,
+            "field_name": "Meeting Date Fact",
+            "field_code": null,
+            "field_type": "date",
+            "values": [
+              {
+                "value": 1772658000
+              }
+            ]
+          },
+          {
+            "field_id": 1655003,
+            "field_name": "Запись первички ссылка",
+            "field_code": null,
+            "field_type": "url",
+            "values": [
+              {
+                "value": "https://drive.google.com/drive/folders/1UzrFSMfnsGdGgHZlyjvLAM6qof3xbVVy"
+              }
+            ]
+          }
+        ],
+        "score": null,
+        "account_id": 31332594,
+        "labor_cost": 0,
+        "_links": {
+          "self": {
+            "href": "https://migratoramocrm.amocrm.ru/api/v4/leads/35929049?page=1&limit=250"
+          }
+        },
+        "_embedded": {
+          "tags": [
+            {
+              "id": 17191,
+              "name": "tilda",
+              "color": null
+            }
+          ],
+          "companies": []
+        }
+      }
+    ]
+  },
+  "new_contact": {
+    "contact": {
+      "id": 40030147,
+      "name": "Екатерина",
+      "first_name": "Екатерина",
+      "last_name": "",
+      "responsible_user_id": 11572810,
+      "group_id": 504250,
+      "created_by": 0,
+      "updated_by": 0,
+      "created_at": 1772471406,
+      "updated_at": 1772471531,
+      "closest_task_at": null,
+      "is_deleted": false,
+      "is_unsorted": false,
+      "custom_fields_values": [
+        {
+          "field_id": 1654991,
+          "field_name": "Umnico socialId",
+          "field_code": "SOCIAL_ID",
+          "field_type": "text",
+          "values": [
+            {
+              "value": "user_5273041337"
+            }
+          ]
+        },
+        {
+          "field_id": 1654993,
+          "field_name": "Umnico customerID",
+          "field_code": "UCID",
+          "field_type": "text",
+          "values": [
+            {
+              "value": "68720084"
+            }
+          ]
+        },
+        {
+          "field_id": 1655001,
+          "field_name": "Логин",
+          "field_code": "LOGIN",
+          "field_type": "text",
+          "values": [
+            {
+              "value": "V_S_K_D_V"
+            }
+          ]
+        },
+        {
+          "field_id": 1654997,
+          "field_name": "Профиль",
+          "field_code": "UMNICO_PROFILE",
+          "field_type": "url",
+          "values": [
+            {
+              "value": "https://t.me/V_S_K_D_V"
+            }
+          ]
+        }
+      ],
+      "account_id": 31332594,
+      "_links": {
+        "self": {
+          "href": "https://migratoramocrm.amocrm.ru/api/v4/contacts/40030147?with=leads&page=1&limit=250"
+        }
+      },
+      "_embedded": {
+        "tags": [],
+        "leads": [
+          {
+            "id": 36004559,
+            "_links": {
+              "self": {
+                "href": "https://migratoramocrm.amocrm.ru/api/v4/leads/36004559?with=leads&page=1&limit=250"
+              }
+            }
+          }
+        ],
+        "companies": []
+      }
+    },
+    "leads": [
+      {
+        "id": 36004559,
+        "name": "Сделка #36004559",
+        "price": 0,
+        "responsible_user_id": 11572810,
+        "group_id": 504250,
+        "status_id": 143,
+        "pipeline_id": 7323650,
+        "loss_reason_id": null,
+        "created_by": 0,
+        "updated_by": 11202258,
+        "created_at": 1772471519,
+        "updated_at": 1772618904,
+        "closed_at": 1772488550,
+        "closest_task_at": null,
+        "is_deleted": false,
+        "custom_fields_values": [
+          {
+            "field_id": 1631379,
+            "field_name": "Причина отказа",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "Not a lead",
+                "enum_id": 4661357,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1655007,
+            "field_name": "Подробная причина отказа",
+            "field_code": null,
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "."
+              }
+            ]
+          }
+        ],
+        "score": null,
+        "account_id": 31332594,
+        "labor_cost": 0,
+        "_links": {
+          "self": {
+            "href": "https://migratoramocrm.amocrm.ru/api/v4/leads/36004559?page=1&limit=250"
+          }
+        },
+        "_embedded": {
+          "tags": [],
+          "companies": []
+        }
+      }
+    ]
+  }
+}

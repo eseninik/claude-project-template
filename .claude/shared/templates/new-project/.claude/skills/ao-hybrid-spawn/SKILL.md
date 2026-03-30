@@ -116,3 +116,9 @@ Kills remaining sessions, removes worktrees, cleans `work/ao-sessions.json`.
 - Teammate prompt template: `.claude/guides/teammate-prompt-template.md`
 - Worktree merge protocol: `.claude/skills/subagent-driven-development/references/worktree-mode.md`
 - AO config: `~/.agent-orchestrator.yaml`
+
+## Related
+- ↔ ao-fleet-spawn — multi-project alternative (AO across repos)
+- → using-git-worktrees — worktree isolation used by spawned sessions
+- → subagent-driven-development — references worktree-mode.md
+- ← autonomous pipeline — triggered by Mode: AO_HYBRID in PIPELINE.md

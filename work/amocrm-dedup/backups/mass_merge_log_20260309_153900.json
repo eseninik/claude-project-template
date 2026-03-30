@@ -1,0 +1,1402 @@
+{
+  "timestamp": "20260309_153900",
+  "total": 73,
+  "results": {
+    "ok": 73,
+    "failed": 0,
+    "partial": 0
+  },
+  "entries": [
+    {
+      "pair": {
+        "old_contact_id": 29398297,
+        "new_contact_id": 40066847,
+        "username": "alexandrekonon",
+        "old_name": "Джон",
+        "new_name": "Александр Конон",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 29398297,
+      "new_id": 40066847,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 4",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 31509689,
+        "new_contact_id": 40070557,
+        "username": "yaryhaad",
+        "old_name": "Андрей",
+        "new_name": "Andrey Yaryha",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 31509689,
+      "new_id": 40070557,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 33100809,
+        "new_contact_id": 40072831,
+        "username": "digitalregina",
+        "old_name": "Регина",
+        "new_name": "Regina",
+        "old_lead_count": 3,
+        "new_lead_count": 1
+      },
+      "old_id": 33100809,
+      "new_id": 40072831,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 34295875,
+        "new_contact_id": 40041179,
+        "username": "zhama_a",
+        "old_name": "Жамийла",
+        "new_name": "Zhama",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 34295875,
+      "new_id": 40041179,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 37864607,
+        "new_contact_id": 40063215,
+        "username": "ashurovakmal",
+        "old_name": "Акмал",
+        "new_name": "Akmal Ashurov",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 37864607,
+      "new_id": 40063215,
+      "steps": [
+        "fields: copied 4"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 37812797,
+        "new_contact_id": 40043695,
+        "username": "taniablade",
+        "old_name": "Татьяна",
+        "new_name": "Tania Melnikova",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 37812797,
+      "new_id": 40043695,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39917275,
+        "new_contact_id": 40043011,
+        "username": "languageswithdiana",
+        "old_name": "David Hovhannisyan",
+        "new_name": "Languages",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 39917275,
+      "new_id": 40043011,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 38549151,
+        "new_contact_id": 40074759,
+        "username": "nikolaysakhno",
+        "old_name": "Николай",
+        "new_name": "Николай",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 38549151,
+      "new_id": 40074759,
+      "steps": [
+        "fields: copied 5"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39970313,
+        "new_contact_id": 40068351,
+        "username": "regina_safina1",
+        "old_name": "Регина Сафина",
+        "new_name": "Регина",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 39970313,
+      "new_id": 40068351,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 38875867,
+        "new_contact_id": 40100619,
+        "username": "boman76",
+        "old_name": "Максим Николаевич",
+        "new_name": "Maksim",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 38875867,
+      "new_id": 40100619,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39731897,
+        "new_contact_id": 40043509,
+        "username": "chinara_world1",
+        "old_name": "Чинара",
+        "new_name": "Chinara",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 39731897,
+      "new_id": 40043509,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 4",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 35565601,
+        "new_contact_id": 40028785,
+        "username": "lukoninvv",
+        "old_name": "Vladislav Lukonin",
+        "new_name": "Vladislav",
+        "old_lead_count": 2,
+        "new_lead_count": 1
+      },
+      "old_id": 35565601,
+      "new_id": 40028785,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 4",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39977381,
+        "new_contact_id": 40028873,
+        "username": "vall9999",
+        "old_name": "Валентина",
+        "new_name": "Валентина Кондакова",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 39977381,
+      "new_id": 40028873,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 4",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39952097,
+        "new_contact_id": 40030219,
+        "username": "pavelov92",
+        "old_name": "Pavel",
+        "new_name": "Pavel Ovcharov",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 39952097,
+      "new_id": 40030219,
+      "steps": [
+        "fields: copied 4"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39956621,
+        "new_contact_id": 40030481,
+        "username": "armin_cali",
+        "old_name": "Armine",
+        "new_name": "Armine Abgaryan",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 39956621,
+      "new_id": 40030481,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40015409,
+        "new_contact_id": 40036221,
+        "username": "archayin",
+        "old_name": "Максим",
+        "new_name": "Максим A-Corp",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 40015409,
+      "new_id": 40036221,
+      "steps": [
+        "fields: copied 4"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40006031,
+        "new_contact_id": 40026703,
+        "username": "maximus14101982",
+        "old_name": "Максим",
+        "new_name": "Максим Гладышев",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40006031,
+      "new_id": 40026703,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39944361,
+        "new_contact_id": 40030197,
+        "username": "surnovsam",
+        "old_name": "Семен",
+        "new_name": "Семен Сурнов",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 39944361,
+      "new_id": 40030197,
+      "steps": [
+        "fields: copied 5"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39953067,
+        "new_contact_id": 40030063,
+        "username": "vas_nikol",
+        "old_name": "Николай",
+        "new_name": "Николай Васильев",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 39953067,
+      "new_id": 40030063,
+      "steps": [
+        "fields: copied 5"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39931267,
+        "new_contact_id": 39931095,
+        "username": "mc_knyaz",
+        "old_name": "Мария",
+        "new_name": "Мария",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 39931267,
+      "new_id": 39931095,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 3",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40011757,
+        "new_contact_id": 40036779,
+        "username": "pippipuppu",
+        "old_name": "Александра",
+        "new_name": "Alexa Ostrovskii",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40011757,
+      "new_id": 40036779,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39963079,
+        "new_contact_id": 40030173,
+        "username": "lakubinochka",
+        "old_name": "Евгения",
+        "new_name": "Evgenia",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 39963079,
+      "new_id": 40030173,
+      "steps": [
+        "fields: copied 5"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40002355,
+        "new_contact_id": 40030039,
+        "username": "truckdriver08",
+        "old_name": "Виктор",
+        "new_name": "(-: VітR :-)",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40002355,
+      "new_id": 40030039,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 4",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40014811,
+        "new_contact_id": 40036827,
+        "username": "secretagenns",
+        "old_name": "Polina",
+        "new_name": "тайная агентка",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 40014811,
+      "new_id": 40036827,
+      "steps": [
+        "fields: copied 5"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40018909,
+        "new_contact_id": 40036955,
+        "username": "aangelishas",
+        "old_name": "Ангелина",
+        "new_name": "Ангелина",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40018909,
+      "new_id": 40036955,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39992115,
+        "new_contact_id": 40064025,
+        "username": "hovakii",
+        "old_name": "Ольга",
+        "new_name": "",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 39992115,
+      "new_id": 40064025,
+      "steps": [
+        "fields: copied 4"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39975113,
+        "new_contact_id": 40030071,
+        "username": "alex_yarikk",
+        "old_name": "Alex",
+        "new_name": "Allex",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 39975113,
+      "new_id": 40030071,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39964793,
+        "new_contact_id": 40029175,
+        "username": "viktoriia_slv",
+        "old_name": "Viktoriia Selivanova",
+        "new_name": "Viktoriia",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 39964793,
+      "new_id": 40029175,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 4",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40019043,
+        "new_contact_id": 40036963,
+        "username": "o_l_l_e_g",
+        "old_name": "Олег",
+        "new_name": "Олег",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40019043,
+      "new_id": 40036963,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39974941,
+        "new_contact_id": 40030147,
+        "username": "v_s_k_d_v",
+        "old_name": "Екатерина Варникова",
+        "new_name": "Екатерина",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 39974941,
+      "new_id": 40030147,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 4",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 30572425,
+        "new_contact_id": 40042479,
+        "username": "alexstav19",
+        "old_name": "Alexander",
+        "new_name": "Alex",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 30572425,
+      "new_id": 40042479,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 4",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40011631,
+        "new_contact_id": 40067303,
+        "username": "alexunke",
+        "old_name": "Александр",
+        "new_name": "Александр Юнк",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40011631,
+      "new_id": 40067303,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40007109,
+        "new_contact_id": 40036739,
+        "username": "mfsheff",
+        "old_name": "Анвар",
+        "new_name": "sheff.chutsky",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 40007109,
+      "new_id": 40036739,
+      "steps": [
+        "fields: copied 5"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39508487,
+        "new_contact_id": 39455261,
+        "username": "dementy182",
+        "old_name": "Сергей",
+        "new_name": "Sergei Popov",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 39508487,
+      "new_id": 39455261,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 3",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39964083,
+        "new_contact_id": 40087053,
+        "username": "kwek2012",
+        "old_name": "Дмитрий Куликов",
+        "new_name": "Kwek",
+        "old_lead_count": 2,
+        "new_lead_count": 1
+      },
+      "old_id": 39964083,
+      "new_id": 40087053,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 4",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39970677,
+        "new_contact_id": 40037643,
+        "username": "varya_tattoo",
+        "old_name": "Варвара",
+        "new_name": "Varya Romanchyk",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 39970677,
+      "new_id": 40037643,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39995683,
+        "new_contact_id": 40028715,
+        "username": "anveklich",
+        "old_name": "Anna Veklich",
+        "new_name": "Anna Veklich",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 39995683,
+      "new_id": 40028715,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39913731,
+        "new_contact_id": 40064949,
+        "username": "smihds",
+        "old_name": "Арина",
+        "new_name": "Arina",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 39913731,
+      "new_id": 40064949,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40075119,
+        "new_contact_id": 40078803,
+        "username": "kiikov_marat",
+        "old_name": "Марат",
+        "new_name": "Marat_Kiikov",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40075119,
+      "new_id": 40078803,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 4",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39568795,
+        "new_contact_id": 40068537,
+        "username": "irrinaa04",
+        "old_name": "Ирина",
+        "new_name": "Ирина",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 39568795,
+      "new_id": 40068537,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40008321,
+        "new_contact_id": 40041501,
+        "username": "monchenk",
+        "old_name": "Александр",
+        "new_name": "Александр",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 40008321,
+      "new_id": 40041501,
+      "steps": [
+        "fields: copied 2"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39963827,
+        "new_contact_id": 40064041,
+        "username": "mona_ras",
+        "old_name": "Mahri Rasulova",
+        "new_name": "Mona",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 39963827,
+      "new_id": 40064041,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 4",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40011815,
+        "new_contact_id": 40036759,
+        "username": "gasanovvvvvv",
+        "old_name": "Курбан",
+        "new_name": "K",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 40011815,
+      "new_id": 40036759,
+      "steps": [
+        "fields: copied 4"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39790545,
+        "new_contact_id": 40074817,
+        "username": "derevo1567",
+        "old_name": "Аяз",
+        "new_name": "D",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 39790545,
+      "new_id": 40074817,
+      "steps": [
+        "fields: copied 5"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39769825,
+        "new_contact_id": 40064235,
+        "username": "fuckyall667",
+        "old_name": "Тимофей",
+        "new_name": "⁶⁶⁷",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 39769825,
+      "new_id": 40064235,
+      "steps": [
+        "fields: copied 5"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39788371,
+        "new_contact_id": 40074799,
+        "username": "dmjop",
+        "old_name": "Islam Ramilyev",
+        "new_name": "DMJ",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 39788371,
+      "new_id": 40074799,
+      "steps": [
+        "fields: copied 4"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 39998625,
+        "new_contact_id": 39921671,
+        "username": "salilshh",
+        "old_name": "",
+        "new_name": "Ильмира",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 39998625,
+      "new_id": 39921671,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 4",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40019677,
+        "new_contact_id": 40028863,
+        "username": "r_ilnitskyi",
+        "old_name": "Roman Ilnitskyi",
+        "new_name": "Роман Ильницкий",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40019677,
+      "new_id": 40028863,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 4",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40020003,
+        "new_contact_id": 40036951,
+        "username": "i_mposter",
+        "old_name": "Александр",
+        "new_name": "Александр",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 40020003,
+      "new_id": 40036951,
+      "steps": [
+        "fields: copied 4"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40029891,
+        "new_contact_id": 40030013,
+        "username": "wkarpen",
+        "old_name": "Владимир",
+        "new_name": "Владимир Карпенко",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40029891,
+      "new_id": 40030013,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 4",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40030983,
+        "new_contact_id": 40036431,
+        "username": "interiorhause",
+        "old_name": "журабек толибжанович муродилла",
+        "new_name": "Ник",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40030983,
+      "new_id": 40036431,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 4",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40031323,
+        "new_contact_id": 40036429,
+        "username": "riverstoun",
+        "old_name": "Ihor Berehovyi",
+        "new_name": "ШАЙБА",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40031323,
+      "new_id": 40036429,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 1",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40031353,
+        "new_contact_id": 40036419,
+        "username": "elena_nail_herasymenko",
+        "old_name": "Елена",
+        "new_name": "Elena Herasymenko",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40031353,
+      "new_id": 40036419,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40031361,
+        "new_contact_id": 40036409,
+        "username": "cheedozs",
+        "old_name": "Никита",
+        "new_name": "Никита",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 40031361,
+      "new_id": 40036409,
+      "steps": [
+        "fields: copied 4"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40032473,
+        "new_contact_id": 40036393,
+        "username": "smichjr",
+        "old_name": "Виктор",
+        "new_name": "Smich",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40032473,
+      "new_id": 40036393,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40032187,
+        "new_contact_id": 40040961,
+        "username": "pankin610",
+        "old_name": "Pavel Sankin",
+        "new_name": "Pavel Sankin",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40032187,
+      "new_id": 40040961,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 4",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40036915,
+        "new_contact_id": 40036925,
+        "username": "snak_san",
+        "old_name": "Роман Ведерников",
+        "new_name": "Snakkk",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40036915,
+      "new_id": 40036925,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40042015,
+        "new_contact_id": 40042073,
+        "username": "annamrazz",
+        "old_name": "Анна",
+        "new_name": "Anna Mrazz",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40042015,
+      "new_id": 40042073,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40043193,
+        "new_contact_id": 40063159,
+        "username": "pawthedrummer",
+        "old_name": "Артем",
+        "new_name": "Artem",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 40043193,
+      "new_id": 40063159,
+      "steps": [
+        "fields: copied 5"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40043555,
+        "new_contact_id": 40063167,
+        "username": "vladislav_glazyrin",
+        "old_name": "Владислав",
+        "new_name": "Влад",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40043555,
+      "new_id": 40063167,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40064005,
+        "new_contact_id": 40064145,
+        "username": "patimat",
+        "old_name": "Патимат Нурмагомедова",
+        "new_name": "Патимат Сулейманова",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 40064005,
+      "new_id": 40064145,
+      "steps": [
+        "fields: copied 4"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40066715,
+        "new_contact_id": 40066929,
+        "username": "kabanyevava",
+        "old_name": "Анна",
+        "new_name": "А .",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40066715,
+      "new_id": 40066929,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 4",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40067573,
+        "new_contact_id": 40067857,
+        "username": "reyna_kris",
+        "old_name": "Кристина",
+        "new_name": "Kris Shavlo",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40067573,
+      "new_id": 40067857,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40067853,
+        "new_contact_id": 40067869,
+        "username": "alex_del_al",
+        "old_name": "Баранов Александр Владимирович",
+        "new_name": "Александр Гросс",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 40067853,
+      "new_id": 40067869,
+      "steps": [
+        "fields: copied 2"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40069549,
+        "new_contact_id": 40072607,
+        "username": "krikrasnaya",
+        "old_name": "Екатерина",
+        "new_name": "Ekaterina Bychkova",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40069549,
+      "new_id": 40072607,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40071621,
+        "new_contact_id": 40072643,
+        "username": "petrinich",
+        "old_name": "Наталья",
+        "new_name": "Natalia Petrinich",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40071621,
+      "new_id": 40072643,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40072177,
+        "new_contact_id": 40072629,
+        "username": "shoma41",
+        "old_name": "Сорбон",
+        "new_name": "Шамиль Миралиев",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 40072177,
+      "new_id": 40072629,
+      "steps": [
+        "fields: copied 5"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40074357,
+        "new_contact_id": 40074841,
+        "username": "sergey_kraab",
+        "old_name": "Сергей Пугачев",
+        "new_name": "Сергей Kraab",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40074357,
+      "new_id": 40074841,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40085051,
+        "new_contact_id": 40086303,
+        "username": "aylaratayeva",
+        "old_name": "Айлар",
+        "new_name": "Aylar",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40085051,
+      "new_id": 40086303,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 5",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40083119,
+        "new_contact_id": 40086293,
+        "username": "qwer1234gs",
+        "old_name": "юри",
+        "new_name": "Юра",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40083119,
+      "new_id": 40086293,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 4",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40080275,
+        "new_contact_id": 40086283,
+        "username": "malikbugaev",
+        "old_name": "Малик",
+        "new_name": "Malik",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 40080275,
+      "new_id": 40086283,
+      "steps": [
+        "fields: copied 4"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40076089,
+        "new_contact_id": 40078843,
+        "username": "m_emp",
+        "old_name": "Andrey",
+        "new_name": "M",
+        "old_lead_count": 1,
+        "new_lead_count": 1
+      },
+      "old_id": 40076089,
+      "new_id": 40078843,
+      "steps": [
+        "link: 1 leads",
+        "fields: copied 4",
+        "close: 1/1 leads",
+        "unlink: OK"
+      ],
+      "status": "OK"
+    },
+    {
+      "pair": {
+        "old_contact_id": 40069477,
+        "new_contact_id": 40072599,
+        "username": "nurovmagamed",
+        "old_name": "Muhammad",
+        "new_name": "М",
+        "old_lead_count": 1,
+        "new_lead_count": 0
+      },
+      "old_id": 40069477,
+      "new_id": 40072599,
+      "steps": [
+        "fields: copied 1"
+      ],
+      "status": "OK"
+    }
+  ]
+}

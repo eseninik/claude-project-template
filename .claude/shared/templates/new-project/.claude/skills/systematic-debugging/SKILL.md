@@ -300,3 +300,9 @@ From debugging sessions:
 - Random fixes approach: 2-3 hours of thrashing
 - First-time fix rate: 95% vs 40%
 - New bugs introduced: Near zero vs common
+
+## Related
+- ← error-recovery — escalated when recovery alone insufficient
+- ← qa-validation-loop — when QA finds complex bugs
+- ← expert-panel — Risk Assessor role uses debugging framework
+- → verification-before-completion — verify fix resolves root cause

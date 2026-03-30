@@ -115,3 +115,8 @@ Both accumulate knowledge, but at different granularity.
 - **Skipping Conductor** — direct edits bypass quality control and cause skill degradation
 - **Bloating SKILL.md** — if approaching 500 lines, move details to reference.md
 - **Changing description** — description optimization is Conductor Mode 5 only
+
+## Related
+- → skill-conductor — validates proposed changes (Mode 4 REVIEW gate)
+- ← experiment-loop — triggers evolution after successful experiments
+- ← successful skill execution — proposes improvements from real usage

@@ -211,3 +211,8 @@ INVOKE skill: experiment-loop
 | `<threshold_met>` | Metric reached target value |
 | `<safety_stop>` | Context pressure or other safety valve |
 | `<stagnation>` | 5 consecutive non-improvements |
+
+## Related
+- → skill-evolution — after successful experiment, propose skill improvements
+- → verification-before-completion — verify experiment results
+- ← PIPELINE.md EXPERIMENT phase — optional pipeline phase

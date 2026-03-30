@@ -1,0 +1,395 @@
+{
+  "backup_created": "2026-03-09T15:41:07.880668",
+  "old_contact": {
+    "contact": {
+      "id": 40014811,
+      "name": "Polina",
+      "first_name": "Polina",
+      "last_name": "",
+      "responsible_user_id": 10246814,
+      "group_id": 0,
+      "created_by": 0,
+      "updated_by": 0,
+      "created_at": 1772356474,
+      "updated_at": 1772356481,
+      "closest_task_at": null,
+      "is_deleted": false,
+      "is_unsorted": false,
+      "custom_fields_values": [
+        {
+          "field_id": 99035,
+          "field_name": "Email",
+          "field_code": "EMAIL",
+          "field_type": "multitext",
+          "values": [
+            {
+              "value": "linamaf@mail.ru",
+              "enum_id": 53427,
+              "enum_code": "OTHER"
+            }
+          ]
+        },
+        {
+          "field_id": 99033,
+          "field_name": "Телефон",
+          "field_code": "PHONE",
+          "field_type": "multitext",
+          "values": [
+            {
+              "value": "+7 (932) 421-19-95",
+              "enum_id": 53421,
+              "enum_code": "OTHER"
+            }
+          ]
+        }
+      ],
+      "account_id": 31332594,
+      "_links": {
+        "self": {
+          "href": "https://migratoramocrm.amocrm.ru/api/v4/contacts/40014811?with=leads&page=1&limit=250"
+        }
+      },
+      "_embedded": {
+        "tags": [],
+        "leads": [
+          {
+            "id": 35982973,
+            "_links": {
+              "self": {
+                "href": "https://migratoramocrm.amocrm.ru/api/v4/leads/35982973?with=leads&page=1&limit=250"
+              }
+            }
+          }
+        ],
+        "companies": []
+      }
+    },
+    "leads": [
+      {
+        "id": 35982973,
+        "name": "Polina",
+        "price": 0,
+        "responsible_user_id": 10246814,
+        "group_id": 0,
+        "status_id": 83979054,
+        "pipeline_id": 7323650,
+        "loss_reason_id": null,
+        "created_by": 0,
+        "updated_by": 10246814,
+        "created_at": 1772356473,
+        "updated_at": 1772730920,
+        "closed_at": null,
+        "closest_task_at": 1772917140,
+        "is_deleted": false,
+        "custom_fields_values": [
+          {
+            "field_id": 1612133,
+            "field_name": "NICK",
+            "field_code": "NICK",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "@secretagenns"
+              }
+            ]
+          },
+          {
+            "field_id": 1612169,
+            "field_name": "WHATS_YOUR_OCCUPATION_WHAT_DO_YOU_DO_FOR_A_LIVING",
+            "field_code": "WHATS_YOUR_OCCUPATION_WHAT_DO_YOU_DO_FOR_A_LIVING",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "I'm in high school, my dad is a cool bus driver, and my mom works at an event venue."
+              }
+            ]
+          },
+          {
+            "field_id": 1612171,
+            "field_name": "WHAT_DO_YOU_WANT_TO_DO_IN_THE_US",
+            "field_code": "WHAT_DO_YOU_WANT_TO_DO_IN_THE_US",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "This is my dream, I want to live here and get citizenship, convince my parents to move, and I will learn English."
+              }
+            ]
+          },
+          {
+            "field_id": 1612173,
+            "field_name": "ARE_YOU_LOOKING_TO_IMMIGRATE_TO_THE_US",
+            "field_code": "ARE_YOU_LOOKING_TO_IMMIGRATE_TO_THE_US",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Yes"
+              }
+            ]
+          },
+          {
+            "field_id": 1648983,
+            "field_name": "OLD",
+            "field_code": "OLD",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "17."
+              }
+            ]
+          },
+          {
+            "field_id": 1612175,
+            "field_name": "WHAT_SPECIFIC_ASSISTANCE_DO_YOU_REQUIRE_FROM_US_TO_FACILITATE_THIS_PROCESS",
+            "field_code": "WHAT_SPECIFIC_ASSISTANCE_DO_YOU_REQUIRE_FROM_US_TO_FACILITATE_TH",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "I would like my parents to let me go to America, because they won't move because they don't know the language, they're too old, and so on. I would move with my boyfriend. I would go to college and work part-time."
+              }
+            ]
+          },
+          {
+            "field_id": 1648985,
+            "field_name": "WHAT_IS_YOUR_BUDGET_IN__FOR_IMMIGRATION_EXPENSES_LAWYER_GOVERNMENT_FEES_PR_SUPPORT",
+            "field_code": "WHAT_IS_YOUR_BUDGET_IN__FOR_IMMIGRATION_EXPENSES_LAWYER_GOVERNME",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "I don't know... I think it's very expensive and there's a lot of paperwork involved, about 350,000 rubles. ! не долларов"
+              }
+            ]
+          },
+          {
+            "field_id": 1612179,
+            "field_name": "DO_YOU_HAVE_A_SPECIFIC_DEADLINE_IN_MIND",
+            "field_code": "DO_YOU_HAVE_A_SPECIFIC_DEADLINE_IN_MIND",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Yes, I would like to go there after graduating from high school"
+              }
+            ]
+          },
+          {
+            "field_id": 1612181,
+            "field_name": "IS_THERE_ANY_ADDITIONAL_INFORMATION_YOU_BELIEVE_IS_IMPORTANT_FOR_US_TO_BE_AWARE_OF",
+            "field_code": "IS_THERE_ANY_ADDITIONAL_INFORMATION_YOU_BELIEVE_IS_IMPORTANT_FOR",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Will it be possible to transfer from a Russian university to an American institute?"
+              }
+            ]
+          },
+          {
+            "field_id": 1428405,
+            "field_name": "TRANID",
+            "field_code": "TRANID",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "7877476:8206730622"
+              }
+            ]
+          },
+          {
+            "field_id": 99069,
+            "field_name": "_ym_uid",
+            "field_code": "_YM_UID",
+            "field_type": "tracking_data",
+            "values": [
+              {
+                "value": "1772355600466031033"
+              }
+            ]
+          },
+          {
+            "field_id": 1364107,
+            "field_name": "FORMNAME",
+            "field_code": "FORMNAME",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "Заявки с Английской версии сайта"
+              }
+            ]
+          },
+          {
+            "field_id": 1364109,
+            "field_name": "FORMID",
+            "field_code": "FORMID",
+            "field_type": "textarea",
+            "values": [
+              {
+                "value": "form733400257"
+              }
+            ]
+          },
+          {
+            "field_id": 1364111,
+            "field_name": "REFERER",
+            "field_code": "REFERER",
+            "field_type": "url",
+            "values": [
+              {
+                "value": "https://migrator.me/?ysclid=mm7irda419397112481"
+              }
+            ]
+          },
+          {
+            "field_id": 99051,
+            "field_name": "utm_referrer",
+            "field_code": "UTM_REFERRER",
+            "field_type": "tracking_data",
+            "values": [
+              {
+                "value": "https://migrator.me/?ysclid=mm7irda419397112481"
+              }
+            ]
+          },
+          {
+            "field_id": 1631913,
+            "field_name": "Категория лида",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "Почти квал (отправляем анкету - пушим коллами 1-2-4-11)",
+                "enum_id": 4661929,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1621253,
+            "field_name": "Messenger",
+            "field_code": null,
+            "field_type": "select",
+            "values": [
+              {
+                "value": "SMS",
+                "enum_id": 4557411,
+                "enum_code": null
+              }
+            ]
+          },
+          {
+            "field_id": 1652747,
+            "field_name": "BK_R",
+            "field_code": null,
+            "field_type": "numeric",
+            "values": [
+              {
+                "value": "0"
+              }
+            ]
+          }
+        ],
+        "score": null,
+        "account_id": 31332594,
+        "labor_cost": 0,
+        "_links": {
+          "self": {
+            "href": "https://migratoramocrm.amocrm.ru/api/v4/leads/35982973?page=1&limit=250"
+          }
+        },
+        "_embedded": {
+          "tags": [
+            {
+              "id": 17191,
+              "name": "tilda",
+              "color": null
+            }
+          ],
+          "companies": []
+        }
+      }
+    ]
+  },
+  "new_contact": {
+    "contact": {
+      "id": 40036827,
+      "name": "тайная агентка",
+      "first_name": "",
+      "last_name": "",
+      "responsible_user_id": 11202258,
+      "group_id": 0,
+      "created_by": 0,
+      "updated_by": 0,
+      "created_at": 1772532323,
+      "updated_at": 1772532323,
+      "closest_task_at": null,
+      "is_deleted": false,
+      "is_unsorted": false,
+      "custom_fields_values": [
+        {
+          "field_id": 1654991,
+          "field_name": "Umnico socialId",
+          "field_code": "SOCIAL_ID",
+          "field_type": "text",
+          "values": [
+            {
+              "value": "user_963146289"
+            }
+          ]
+        },
+        {
+          "field_id": 1654993,
+          "field_name": "Umnico customerID",
+          "field_code": "UCID",
+          "field_type": "text",
+          "values": [
+            {
+              "value": "68741040"
+            }
+          ]
+        },
+        {
+          "field_id": 1655001,
+          "field_name": "Логин",
+          "field_code": "LOGIN",
+          "field_type": "text",
+          "values": [
+            {
+              "value": "secretagenns"
+            }
+          ]
+        },
+        {
+          "field_id": 1654997,
+          "field_name": "Профиль",
+          "field_code": "UMNICO_PROFILE",
+          "field_type": "url",
+          "values": [
+            {
+              "value": "https://t.me/secretagenns"
+            }
+          ]
+        },
+        {
+          "field_id": 1654995,
+          "field_name": "Аватар",
+          "field_code": "AVATAR",
+          "field_type": "text",
+          "values": [
+            {
+              "value": "https://storage.googleapis.com/download/storage/v1/b/umnico-files-user-storage/o/149844%2Ftelegram%2Favatars%2F102f9e3daf6c26cba1033ccd495042ce.jpeg?generation=1772532320694469&alt=media"
+            }
+          ]
+        }
+      ],
+      "account_id": 31332594,
+      "_links": {
+        "self": {
+          "href": "https://migratoramocrm.amocrm.ru/api/v4/contacts/40036827?with=leads&page=1&limit=250"
+        }
+      },
+      "_embedded": {
+        "tags": [],
+        "leads": [],
+        "companies": []
+      }
+    },
+    "leads": []
+  }
+}

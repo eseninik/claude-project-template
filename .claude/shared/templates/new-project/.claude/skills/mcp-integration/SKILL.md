@@ -145,3 +145,7 @@ curl -fsSL https://raw.githubusercontent.com/philschmid/mcp-cli/main/install.sh 
 - If mcp-cli is not installed, inform the user and provide installation command
 - If a server returns empty results, try rephrasing the query or using a different server
 - If config file is missing, guide the user to create it at `~/.config/mcp/mcp_servers.json`
+
+## Related
+- ← tasks requiring external data — web search, scraping, docs lookup
+- (standalone — no direct skill dependencies)

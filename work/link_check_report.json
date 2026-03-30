@@ -1,0 +1,1105 @@
+{
+  "timestamp": "2026-03-27T14:26:52.851801+00:00",
+  "pipeline": "Воронка (7323650)",
+  "total_deals": 104,
+  "summary": {
+    "pervichka": {
+      "OK_FILE": 37,
+      "FOLDER": 7,
+      "EMPTY": 11,
+      "GDRIVE_OTHER": 0,
+      "OTHER_URL": 49
+    },
+    "ss": {
+      "OK_FILE": 10,
+      "FOLDER": 4,
+      "EMPTY": 68,
+      "GDRIVE_OTHER": 0,
+      "OTHER_URL": 22
+    }
+  },
+  "problems_count": 79,
+  "problems": [
+    {
+      "id": 35456603,
+      "name": "Aleksandra Lukyanova",
+      "status": "FM Done",
+      "pervichka": "EMPTY",
+      "pervichka_url": "",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: EMPTY"
+      ]
+    },
+    {
+      "id": 36160935,
+      "name": "Ефим",
+      "status": "FM Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://."
+      ]
+    },
+    {
+      "id": 36210623,
+      "name": "Анастасия",
+      "status": "FM Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://."
+      ]
+    },
+    {
+      "id": 35205727,
+      "name": "Дмитрий",
+      "status": "FM Done",
+      "pervichka": "EMPTY",
+      "pervichka_url": "",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: EMPTY"
+      ]
+    },
+    {
+      "id": 36288973,
+      "name": "Denis Kup",
+      "status": "FM Done",
+      "pervichka": "FOLDER",
+      "pervichka_url": "https://drive.google.com/drive/folders/1ew6l9Tr8XC1uI16aL735rCdOSJFXMxyE",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: FOLDER",
+        "  URL: https://drive.google.com/drive/folders/1ew6l9Tr8XC1uI16aL735rCdOSJFXMxyE"
+      ]
+    },
+    {
+      "id": 36257177,
+      "name": "Лавр Куприянов  анкета получена , втсреча",
+      "status": "FM Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://."
+      ]
+    },
+    {
+      "id": 36201947,
+      "name": "Светлана",
+      "status": "FM Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://."
+      ]
+    },
+    {
+      "id": 36263023,
+      "name": "Дмитрий",
+      "status": "FM Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "https://migratoramocrm.amocrm.ru/leads/detail/36263023?tab_id=leads_28671699486941&t=1774465978.229&tid=149471217",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: https://migratoramocrm.amocrm.ru/leads/detail/36263023?tab_id=leads_28671699486941&t=1774465978.229&tid=149471217"
+      ]
+    },
+    {
+      "id": 35915221,
+      "name": "Viktoriia Selivanova",
+      "status": "FM Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://-",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://-"
+      ]
+    },
+    {
+      "id": 36116495,
+      "name": "Станислав",
+      "status": "FM Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://-",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://-"
+      ]
+    },
+    {
+      "id": 36147043,
+      "name": "Sergiy Sokolovsky",
+      "status": "SS Paid",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://.",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36205651,
+      "name": "Анастасия",
+      "status": "SS Paid",
+      "pervichka": "OK_FILE",
+      "pervichka_url": "https://drive.google.com/file/d/1QZ-atN-HGMTm34nLAzR-KwbCh_Hob9mX/view?usp=drive_link",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36226619,
+      "name": "Sosnovyi Kirill",
+      "status": "SS Paid",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://.",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36107991,
+      "name": "Shabaev Bekkhan",
+      "status": "SS Paid",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://.",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 35973259,
+      "name": "Александр",
+      "status": "SS Paid",
+      "pervichka": "FOLDER",
+      "pervichka_url": "https://drive.google.com/drive/folders/1ew6l9Tr8XC1uI16aL735rCdOSJFXMxyE",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: FOLDER",
+        "  URL: https://drive.google.com/drive/folders/1ew6l9Tr8XC1uI16aL735rCdOSJFXMxyE",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36314319,
+      "name": "Lead from: https://migrator.me/tg",
+      "status": "SS Paid",
+      "pervichka": "FOLDER",
+      "pervichka_url": "https://drive.google.com/drive/folders/1ew6l9Tr8XC1uI16aL735rCdOSJFXMxyE",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: FOLDER",
+        "  URL: https://drive.google.com/drive/folders/1ew6l9Tr8XC1uI16aL735rCdOSJFXMxyE",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 34657031,
+      "name": "David Kitiashvili",
+      "status": "SS Paid",
+      "pervichka": "OK_FILE",
+      "pervichka_url": "https://drive.google.com/file/d/1RjP7SkZdx-yygMeCsQLJFKSmaZfpTvby/view?usp=drive_link",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36222273,
+      "name": "Semen Okruzhnov",
+      "status": "SS Paid",
+      "pervichka": "OK_FILE",
+      "pervichka_url": "https://drive.google.com/file/d/1hwPokhmUZHlSBbcnuvFhH1ZA_b2rLNmm/view?usp=drive_link",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36174279,
+      "name": "Mygovych Oleksii",
+      "status": "SS Paid",
+      "pervichka": "OK_FILE",
+      "pervichka_url": "https://drive.google.com/file/d/1nxpu6iaJ8XBjgj_pdQgkboxQ2tBlQwF2/view?usp=drive_link",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36289331,
+      "name": "Aleksey Malyshev  назначить встречу",
+      "status": "SS Paid",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://-",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://-",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36289091,
+      "name": "Виктор",
+      "status": "SS Paid",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://-",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://-",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 35924235,
+      "name": "Larisa Kozaeva",
+      "status": "SS Paid",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://.",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 35481713,
+      "name": "Igor Meskovskis",
+      "status": "SS Paid",
+      "pervichka": "EMPTY",
+      "pervichka_url": "",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: EMPTY",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36165501,
+      "name": "Ismayil Atakishiyev",
+      "status": "SS Paid",
+      "pervichka": "FOLDER",
+      "pervichka_url": "https://drive.google.com/drive/folders/1ew6l9Tr8XC1uI16aL735rCdOSJFXMxyE",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: FOLDER",
+        "  URL: https://drive.google.com/drive/folders/1ew6l9Tr8XC1uI16aL735rCdOSJFXMxyE",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 35017491,
+      "name": "Pavel",
+      "status": "SS Paid",
+      "pervichka": "EMPTY",
+      "pervichka_url": "",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: EMPTY",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36288797,
+      "name": "Илья",
+      "status": "SS Paid",
+      "pervichka": "OK_FILE",
+      "pervichka_url": "https://drive.google.com/file/d/1rTWdS93p0ygSbFvjz455nUt_pqJMi5L8/view?usp=drive_link",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36194933,
+      "name": "Анна",
+      "status": "SS Paid",
+      "pervichka": "FOLDER",
+      "pervichka_url": "https://drive.google.com/drive/folders/1ew6l9Tr8XC1uI16aL735rCdOSJFXMxyE",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: FOLDER",
+        "  URL: https://drive.google.com/drive/folders/1ew6l9Tr8XC1uI16aL735rCdOSJFXMxyE",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36252287,
+      "name": "Шуматов Михаил 1111",
+      "status": "SS Paid",
+      "pervichka": "OK_FILE",
+      "pervichka_url": "https://drive.google.com/file/d/1ABqCzu2Nd9oTRTmcvXRNneGEDt5B4hSo/view?usp=drive_link",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36185153,
+      "name": "OLEG KUZMIN",
+      "status": "SS Paid",
+      "pervichka": "OK_FILE",
+      "pervichka_url": "https://drive.google.com/file/d/1r3gMneAb3x562wBt3wfLheMHGkLlL0tq/view?usp=drive_link",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36050085,
+      "name": "Aleksey Kolesnikov",
+      "status": "SS Paid",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://-",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://-",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36095891,
+      "name": "Konstantin Savin",
+      "status": "SS Paid",
+      "pervichka": "OK_FILE",
+      "pervichka_url": "https://drive.google.com/file/d/1x4nwDuIoxZza5UWg_en5z4azUuxeCUg1/view?usp=drive_link",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 35941995,
+      "name": "Galina Demianova",
+      "status": "SS Paid",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://-",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://-",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36281049,
+      "name": "Regina Loginova",
+      "status": "SS Paid",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://.",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36093461,
+      "name": "Hrachya Muradyan",
+      "status": "SS Paid",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://.",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36284581,
+      "name": "Ekaterina and Nikita",
+      "status": "SS Paid",
+      "pervichka": "OK_FILE",
+      "pervichka_url": "https://drive.google.com/file/d/1a9I9D7hWlRuj8DxjmOkNUVtcy8x9u5WT/view?usp=drive_link",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 33278399,
+      "name": "Vitalijus",
+      "status": "SS Paid",
+      "pervichka": "EMPTY",
+      "pervichka_url": "",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: EMPTY",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 35770005,
+      "name": "Igor Vinokurov",
+      "status": "SS Paid",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://не записывала",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://не записывала",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36057695,
+      "name": "Sergei Pugachev",
+      "status": "SS Paid",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://нет записи",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://нет записи",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36131137,
+      "name": "Oleksandr Savchenkov",
+      "status": "SS Paid",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://-не было встречи, он купил без встречи",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://-не было встречи, он купил без встречи",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 35929259,
+      "name": "Oleksandr Gutsul",
+      "status": "SS Paid",
+      "pervichka": "OK_FILE",
+      "pervichka_url": "https://drive.google.com/file/d/1aZBE2gl3E0LrIhhvFJ6_-byFkGrzUAmM/view?usp=drive_link",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 36137071,
+      "name": "Dzezhyts Alesia",
+      "status": "SS Paid",
+      "pervichka": "OK_FILE",
+      "pervichka_url": "http://drive.google.com/file/d/1KPAEy7bKOw4hCoceCDn-I_ecLnE72j9n/view?usp=drive_link",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 23010175,
+      "name": "Sergey Tselikov",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://-",
+      "ss": "OTHER_URL",
+      "ss_url": "http://-",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://-",
+        "СС: OTHER_URL",
+        "  URL: http://-"
+      ]
+    },
+    {
+      "id": 36013185,
+      "name": "ArtemPochtar",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://-",
+      "ss": "OTHER_URL",
+      "ss_url": "http://-",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://-",
+        "СС: OTHER_URL",
+        "  URL: http://-"
+      ]
+    },
+    {
+      "id": 35736005,
+      "name": "Inkarov Daniyar",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http:///",
+      "ss": "OTHER_URL",
+      "ss_url": "http://.",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http:///",
+        "СС: OTHER_URL",
+        "  URL: http://."
+      ]
+    },
+    {
+      "id": 35783213,
+      "name": "Taras Kosarev",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "OTHER_URL",
+      "ss_url": "http://.",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://.",
+        "СС: OTHER_URL",
+        "  URL: http://."
+      ]
+    },
+    {
+      "id": 35796075,
+      "name": "Kirill",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "OTHER_URL",
+      "ss_url": "http://.",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://.",
+        "СС: OTHER_URL",
+        "  URL: http://."
+      ]
+    },
+    {
+      "id": 27729861,
+      "name": "Larisa Kravtsova",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://-",
+      "ss": "OTHER_URL",
+      "ss_url": "http://-",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://-",
+        "СС: OTHER_URL",
+        "  URL: http://-"
+      ]
+    },
+    {
+      "id": 35850263,
+      "name": "Stepan Klepikov",
+      "status": "SS Done",
+      "pervichka": "FOLDER",
+      "pervichka_url": "https://drive.google.com/drive/folders/1UzrFSMfnsGdGgHZlyjvLAM6qof3xbVVy",
+      "ss": "OK_FILE",
+      "ss_url": "https://drive.google.com/file/d/1gL9_akxeYVi3C2FIZQ33IoFzQcqO6tF1/view?usp=drive_link",
+      "details": [
+        "Первичка: FOLDER",
+        "  URL: https://drive.google.com/drive/folders/1UzrFSMfnsGdGgHZlyjvLAM6qof3xbVVy"
+      ]
+    },
+    {
+      "id": 35931029,
+      "name": "Igor Palkin",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "OTHER_URL",
+      "ss_url": "http://.",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://.",
+        "СС: OTHER_URL",
+        "  URL: http://."
+      ]
+    },
+    {
+      "id": 35923709,
+      "name": "Natalia",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://-",
+      "ss": "OK_FILE",
+      "ss_url": "https://drive.google.com/file/d/1VdWupmnGNLLLJip4nh7zIZ-jQtmKrS8U/view?usp=drive_link",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://-"
+      ]
+    },
+    {
+      "id": 35932135,
+      "name": "Irina Shurkina",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://=",
+      "ss": "FOLDER",
+      "ss_url": "https://drive.google.com/drive/folders/1GFpmviDMyvCtjJhie4HpjxCnhLbzt0wU",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://=",
+        "СС: FOLDER",
+        "  URL: https://drive.google.com/drive/folders/1GFpmviDMyvCtjJhie4HpjxCnhLbzt0wU"
+      ]
+    },
+    {
+      "id": 35241959,
+      "name": "Nikita Losenko",
+      "status": "SS Done",
+      "pervichka": "EMPTY",
+      "pervichka_url": "",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: EMPTY",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 35635207,
+      "name": "Denis Samuilov",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://-",
+      "ss": "OK_FILE",
+      "ss_url": "https://drive.google.com/file/d/1Izebrt6G0MZgjUEkExay4kvt5xTmK7GS/view?usp=drive_link",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://-"
+      ]
+    },
+    {
+      "id": 36161585,
+      "name": "David ( Ivan ) Golani ( Severov )",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http:///",
+      "ss": "OTHER_URL",
+      "ss_url": "http:///",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http:///",
+        "СС: OTHER_URL",
+        "  URL: http:///"
+      ]
+    },
+    {
+      "id": 35957903,
+      "name": "Lenar Akbarov",
+      "status": "SS Done",
+      "pervichka": "FOLDER",
+      "pervichka_url": "https://drive.google.com/drive/folders/1UzrFSMfnsGdGgHZlyjvLAM6qof3xbVVy",
+      "ss": "OK_FILE",
+      "ss_url": "https://drive.google.com/file/d/1t4F8Vs67MA1TNorukXcAvnh--jRpIaoQ/view?usp=drive_link",
+      "details": [
+        "Первичка: FOLDER",
+        "  URL: https://drive.google.com/drive/folders/1UzrFSMfnsGdGgHZlyjvLAM6qof3xbVVy"
+      ]
+    },
+    {
+      "id": 35981011,
+      "name": "Ilia Golovin",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://-",
+      "ss": "OK_FILE",
+      "ss_url": "https://drive.google.com/file/d/1-AKN9uI2t9tv_l0IlGNjKLROU1wgtiym/view?usp=drive_link",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://-"
+      ]
+    },
+    {
+      "id": 35861747,
+      "name": "Olga Minelli",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://-",
+      "ss": "FOLDER",
+      "ss_url": "https://drive.google.com/drive/folders/1GFpmviDMyvCtjJhie4HpjxCnhLbzt0wU",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://-",
+        "СС: FOLDER",
+        "  URL: https://drive.google.com/drive/folders/1GFpmviDMyvCtjJhie4HpjxCnhLbzt0wU"
+      ]
+    },
+    {
+      "id": 36004349,
+      "name": "Aleksandr Grol",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "OTHER_URL",
+      "ss_url": "http://.",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://.",
+        "СС: OTHER_URL",
+        "  URL: http://."
+      ]
+    },
+    {
+      "id": 34662335,
+      "name": "Ramiz Ismailov",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "OTHER_URL",
+      "ss_url": "http://.",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://.",
+        "СС: OTHER_URL",
+        "  URL: http://."
+      ]
+    },
+    {
+      "id": 36227201,
+      "name": "Arsenov Vasilii",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "OTHER_URL",
+      "ss_url": "http://.",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://.",
+        "СС: OTHER_URL",
+        "  URL: http://."
+      ]
+    },
+    {
+      "id": 36211877,
+      "name": "Maksim Danilov",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "OTHER_URL",
+      "ss_url": "http://.",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://.",
+        "СС: OTHER_URL",
+        "  URL: http://."
+      ]
+    },
+    {
+      "id": 36173075,
+      "name": "Леонид Гусев",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://-",
+      "ss": "OK_FILE",
+      "ss_url": "https://drive.google.com/file/d/1vsb4awP0aLEOTjmfExs_8DJ7MbfaaAJ-/view?usp=drive_link",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://-"
+      ]
+    },
+    {
+      "id": 35257877,
+      "name": "Yaroslav Zaikin",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://Встреча была в январе",
+      "ss": "FOLDER",
+      "ss_url": "https://drive.google.com/drive/folders/1huDcpAtZXGG6GBQONqxHfjjx-TsoiXEw",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://Встреча была в январе",
+        "СС: FOLDER",
+        "  URL: https://drive.google.com/drive/folders/1huDcpAtZXGG6GBQONqxHfjjx-TsoiXEw"
+      ]
+    },
+    {
+      "id": 35809057,
+      "name": "Aleksandr Voevodin",
+      "status": "SS Done",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://-",
+      "ss": "FOLDER",
+      "ss_url": "https://drive.google.com/drive/folders/1huDcpAtZXGG6GBQONqxHfjjx-TsoiXEw",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://-",
+        "СС: FOLDER",
+        "  URL: https://drive.google.com/drive/folders/1huDcpAtZXGG6GBQONqxHfjjx-TsoiXEw"
+      ]
+    },
+    {
+      "id": 35818357,
+      "name": "Ivan Malakhov",
+      "status": "SS Done",
+      "pervichka": "OK_FILE",
+      "pervichka_url": "https://drive.google.com/file/d/10i--Q-TVcwENIBMgs59FLvBjKgLO6v5e/view?usp=drive_link",
+      "ss": "OTHER_URL",
+      "ss_url": "http://заполнить",
+      "details": [
+        "СС: OTHER_URL",
+        "  URL: http://заполнить"
+      ]
+    },
+    {
+      "id": 34060713,
+      "name": "Iskandar Anvarov/ сарафан. Arsentii Lazarev",
+      "status": "Pre-paid (2 нед+)",
+      "pervichka": "EMPTY",
+      "pervichka_url": "",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: EMPTY",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 32314483,
+      "name": "Hlib Skrypnikov",
+      "status": "Pre-paid (2 нед+)",
+      "pervichka": "EMPTY",
+      "pervichka_url": "",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: EMPTY",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 35166317,
+      "name": "KRYGIN NIKOLAY",
+      "status": "Pre-paid (2 нед+)",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "OTHER_URL",
+      "ss_url": "http://.",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://.",
+        "СС: OTHER_URL",
+        "  URL: http://."
+      ]
+    },
+    {
+      "id": 36003319,
+      "name": "Abykayev Rymgali",
+      "status": "Pre-paid (2 нед+)",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http:///",
+      "ss": "OTHER_URL",
+      "ss_url": "http://.",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http:///",
+        "СС: OTHER_URL",
+        "  URL: http://."
+      ]
+    },
+    {
+      "id": 34729507,
+      "name": "Vladimir Soloviev",
+      "status": "Pre-paid (2 нед+)",
+      "pervichka": "EMPTY",
+      "pervichka_url": "",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: EMPTY",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 35990295,
+      "name": "KIRILL MAZUR",
+      "status": "Pre-paid (2 нед+)",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "OTHER_URL",
+      "ss_url": "http://.",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://.",
+        "СС: OTHER_URL",
+        "  URL: http://."
+      ]
+    },
+    {
+      "id": 35315657,
+      "name": "Sergei Popov",
+      "status": "Pre-paid (2 нед+)",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://-",
+      "ss": "OTHER_URL",
+      "ss_url": "http://-",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://-",
+        "СС: OTHER_URL",
+        "  URL: http://-"
+      ]
+    },
+    {
+      "id": 33788791,
+      "name": "Lidiia Samarina",
+      "status": "Pre-paid (2 нед+)",
+      "pervichka": "EMPTY",
+      "pervichka_url": "",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: EMPTY",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 35645057,
+      "name": "Vlad Havrilyk - Сарафан от Zavrelovskyi Oleh",
+      "status": "Pre-paid (идет на фулл)",
+      "pervichka": "EMPTY",
+      "pervichka_url": "",
+      "ss": "EMPTY",
+      "ss_url": "",
+      "details": [
+        "Первичка: EMPTY",
+        "СС: EMPTY"
+      ]
+    },
+    {
+      "id": 32929591,
+      "name": "Demyd Istomin",
+      "status": "Pre-paid (идет на фулл)",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "OTHER_URL",
+      "ss_url": "http://.",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://.",
+        "СС: OTHER_URL",
+        "  URL: http://."
+      ]
+    },
+    {
+      "id": 35846887,
+      "name": "Mikhail Markov",
+      "status": "Pre-paid (идет на фулл)",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://-",
+      "ss": "OTHER_URL",
+      "ss_url": "http://-",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://-",
+        "СС: OTHER_URL",
+        "  URL: http://-"
+      ]
+    },
+    {
+      "id": 35841985,
+      "name": "Vladislav Korostylev",
+      "status": "Pre-paid (идет на фулл)",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "OTHER_URL",
+      "ss_url": "http://.",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://.",
+        "СС: OTHER_URL",
+        "  URL: http://."
+      ]
+    },
+    {
+      "id": 36052037,
+      "name": "Golda  Shabshai",
+      "status": "Pre-paid (идет на фулл)",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://.",
+      "ss": "OTHER_URL",
+      "ss_url": "http://.",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://.",
+        "СС: OTHER_URL",
+        "  URL: http://."
+      ]
+    },
+    {
+      "id": 35541243,
+      "name": "Zhenis Kusmanov",
+      "status": "Pre-paid (идет на фулл)",
+      "pervichka": "OTHER_URL",
+      "pervichka_url": "http://приложить",
+      "ss": "OTHER_URL",
+      "ss_url": "http://приложить",
+      "details": [
+        "Первичка: OTHER_URL",
+        "  URL: http://приложить",
+        "СС: OTHER_URL",
+        "  URL: http://приложить"
+      ]
+    }
+  ]
+}

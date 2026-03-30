@@ -1,0 +1,12 @@
+services:
+  dedup-service:
+    build: .
+    container_name: amocrm-dedup
+    restart: unless-stopped
+    ports:
+      - "8585:8585"
+    volumes:
+      - ./tokens.json:/app/tokens.json
+      - ./.env:/app/.env
+    environment:
+      - TZ=Europe/Moscow

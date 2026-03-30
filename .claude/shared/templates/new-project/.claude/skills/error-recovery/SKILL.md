@@ -419,3 +419,8 @@ ESCALATE(reason):
   "escalated": false
 }
 ```
+
+## Related
+- → systematic-debugging — escalate when recovery alone insufficient
+- ← tool failures — triggered by Edit/Bash/Write errors
+- ↔ verification-before-completion — both handle failure states

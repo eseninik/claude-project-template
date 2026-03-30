@@ -39,3 +39,8 @@ Understand the territory before making changes. Mapping first prevents accidenta
 - **Skipping dependency analysis** -- hidden dependencies cause cascading breakage
 - **Mapping only top-level structure** -- module internals and cross-module dependencies matter too
 - **Not identifying test infrastructure** -- knowing how to run tests is critical for verification
+
+## Related
+- ← expert-panel — Researcher/Architect roles use this skill
+- ← project-planning — project understanding phase
+- ← tech-spec-planning — architecture context gathering

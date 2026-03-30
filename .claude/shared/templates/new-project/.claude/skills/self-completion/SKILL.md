@@ -236,3 +236,8 @@ Stop self-completion when:
 3. **Ignoring context limits** — monitor and stop before overflow
 4. **Not reporting progress** — user should see each task start/complete
 5. **Running without clear todo items** — each todo must be atomic and completable
+
+## Related
+- → subagent-driven-development — wave-based execution of tasks
+- ← pending task list — auto-continues through remaining items
+- ← PIPELINE.md — autonomous phase execution

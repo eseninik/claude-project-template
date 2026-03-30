@@ -128,11 +128,14 @@
 - Workaround: use `gh api` to read files directly from GitHub (base64 decode)
 - Faster and more reliable for analysis tasks
 
-### Bash Hooks Unreliable on Windows (2026-02-13, updated 2026-02-22, verified: 2026-02-22)
-- 5 bash-based hooks were removed (statusLine, UserPromptSubmit, SessionStart, pre-commit, post-commit)
-- Reason: .cmd wrappers cause ENOENT with spawn, anti-deadlock bugs, shell incompatibilities
-- **Exception**: PreCompact hook re-added as single Python script (2026-02-22) — Python works cross-platform
-- Rule: keep hooks SIMPLE (one Python file, stdlib only, always exit 0)
+### Windows Hooks Work via Python (2026-02-13, updated 2026-03-19, verified: 2026-03-19)
+- **CORRECTED**: Hooks DO work on Windows when invoked via `py -3` (Python), NOT via bash scripts
+- Original issue (2026-02-13): 5 bash-based hooks (.sh/.cmd) failed — ENOENT with spawn, anti-deadlock bugs
+- **Root cause was bash, not hooks**: `.cmd` wrappers + shell incompatibilities, NOT the Claude Code hook system itself
+- **Proven working** (2026-03-19): PreToolUse hook with `py -3` — triggers, receives JSON, can REWRITE commands
+- All hook events work: SessionStart, PreCompact, TaskCompleted, PostToolUse, PostToolUseFailure, PreToolUse
+- PreToolUse rewrite format: `{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "allow", "updatedInput": {"command": "..."}}}`
+- Rule: ALL hooks must use `py -3 script.py`, NEVER bash scripts on Windows
 
 ### Hook Scripts Must Not Contain Their Own Detection Targets (2026-02-23, verified: 2026-02-23)
 - Merge conflict checker script contained literal `<<<<<<<` strings as check targets

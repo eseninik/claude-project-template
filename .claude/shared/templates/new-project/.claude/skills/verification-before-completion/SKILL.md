@@ -362,3 +362,10 @@ This is non-negotiable.
 - No sensitive data in logs (passwords, tokens, PII)
 
 If new code lacks logging → it is NOT done. Add logging first.
+
+## Related
+- ← qa-validation-loop — logging and artifact verification
+- ← finishing-a-development-branch — verify before merge/PR
+- ← systematic-debugging — verify fix resolves root cause
+- ← experiment-loop — verify experiment results
+- ↔ error-recovery — both handle failure verification

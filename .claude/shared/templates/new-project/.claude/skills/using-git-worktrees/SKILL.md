@@ -419,3 +419,9 @@ When session-resumption detects stale worktrees, it should:
 **Pairs with:**
 - **finishing-a-development-branch** - REQUIRED for cleanup after work complete
 - **executing-plans** or **subagent-driven-development** - Work happens in this worktree
+
+## Related
+- ← subagent-driven-development — Worktree Mode uses this skill
+- ← ao-hybrid-spawn — AO sessions use worktree isolation
+- → finishing-a-development-branch — clean up worktree after merge
+- ← task-decomposition — parallel execution in worktrees

@@ -72,3 +72,8 @@ Use Auto-Research for most tasks. Escalate to Expert Panel when:
 - Security-critical features
 - Breaking changes or migrations
 - User explicitly requests deep analysis
+
+## Related
+- → codebase-mapping — used by Researcher/Architect expert roles
+- → systematic-debugging — used by Risk Assessor expert role
+- ← task requiring multi-perspective analysis before implementation

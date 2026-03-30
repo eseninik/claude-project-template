@@ -83,3 +83,8 @@ ao session cleanup -p call-rate-bot      # clean specific project
 - **Using AO_FLEET for single-project work** -- use AGENT_TEAMS instead, much lighter
 - **Not monitoring sessions after spawn** -- sessions may fail silently without notification
 - **Leaving sessions running after task completes** -- causes zombie processes and resource leaks
+
+## Related
+- ↔ ao-hybrid-spawn — single-project alternative (AO within one repo)
+- → subagent-driven-development — same-session parallelism alternative (TeamCreate)
+- ← autonomous pipeline — triggered by Mode: AO_FLEET in PIPELINE.md

@@ -35,13 +35,13 @@
 
 ---
 
-## Removed Decisions
+## Revised Decisions
 
-| ID | Title | Removed | Reason |
-|----|-------|---------|--------|
-| 003 | Git hooks для автообновления | 2026-02-13 | Hooks removed — unreliable on Windows |
-| 005 | Context Recovery Hook System | 2026-02-13 | Hooks removed |
-| 007 | Pyramid Backup System | 2026-02-13 | Hooks removed |
+| ID | Title | Date | Status | Note |
+|----|-------|------|--------|------|
+| 003 | Git hooks для автообновления | 2026-02-13 | Revised 2026-03-19 | Original bash hooks removed. Python hooks proven working on Windows. Git pre-commit hooks still not used (not needed). |
+| 005 | Context Recovery Hook System | 2026-02-13 | Revised 2026-03-19 | Re-implemented as Python hooks: SessionStart (session-orient.py), PreCompact (pre-compact-save.py) |
+| 007 | Pyramid Backup System | 2026-02-13 | Removed | Concept superseded by activeContext.md + knowledge.md + Graphiti |
 
 ---
 
