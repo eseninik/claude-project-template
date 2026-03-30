@@ -71,6 +71,47 @@ QA depth should match task risk -- trivial tasks need minimal checks, critical t
 | Missing timing on slow operations | **MINOR** |
 | Missing DEBUG logs for data transformations | **MINOR** |
 
+## Cross-Model Verification (Codex)
+
+**When:** After Claude QA reviewer completes, before final QA verdict.
+**Why:** Different AI model catches confirmation bias — classes of errors that same-model review systematically misses.
+
+### When to Invoke
+- High-risk changes: auth, payments, migrations, security, public API
+- Large changes: 5+ files across modules
+- Complex refactoring: architectural changes
+
+### When to Skip
+- Docs/CSS/config-only changes
+- Small fixes < 50 lines with existing test coverage
+- Codex CLI not available (graceful degradation)
+
+### How to Invoke
+```bash
+codex exec \
+  "Review all uncommitted changes. Focus on correctness, security, performance, test coverage. Use AGENTS.md rubric." \
+  --model gpt-5.3-codex \
+  --sandbox read-only \
+  --ask-for-approval never \
+  --output-schema .codex/review-schema.json \
+  -o .codex/reviews/latest.json
+```
+
+### Mapping Codex Findings to QA Severity
+
+| Codex Severity | QA Severity | Action |
+|---------------|-------------|--------|
+| BLOCKER | **CRITICAL** | Must fix before approval |
+| IMPORTANT | **IMPORTANT** | Should fix, verify if valid |
+| NIT | MINOR | Optional, fix if genuine improvement |
+
+### Conflict Resolution (Claude QA vs Codex)
+1. **Reproducible issue** (failing test, obvious bug) → CRITICAL regardless of which model found it
+2. **Style/approach disagreement** → defer to AGENTS.md/CLAUDE.md rules as norm
+3. **Security disagreement** → err on caution, escalate to security-auditor agent
+4. **Same issue disputed after 2 rounds** → BLOCKED, escalate to human
+5. **Lint/format disputes** → deterministic tools decide (prettier, eslint, black, ruff)
+
 ## Runtime Configuration
 
 Before executing, check `.claude/ops/config.yaml`:

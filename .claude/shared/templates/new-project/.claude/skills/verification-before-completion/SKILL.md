@@ -56,6 +56,7 @@ Skip any step = lying, not verifying
 | Agent completed | VCS diff shows changes | Agent reports "success" |
 | Requirements met | Line-by-line checklist | Tests passing |
 | Has logging | Logger calls in new/modified functions | Code compiles without logs, "will add later" |
+| Cross-model verified | Codex review pass OR bypass criteria met | Claude-only review, "Codex not needed" |
 
 ## Red Flags - STOP
 
@@ -67,6 +68,7 @@ Skip any step = lying, not verifying
 - Thinking "just this once"
 - Tired and wanting work over
 - **ANY wording implying success without having run verification**
+- Skipping Codex review on high-risk changes (auth, payments, migrations, security)
 
 ## Fresh Session Verification
 
@@ -133,6 +135,35 @@ After ALL pipeline phases complete, before COMPLETE:
 - "Fresh eyes" catch what "zamylenny vzglyad" (blurred vision) misses
 - No confirmation bias — fresh session doesn't know what you intended
 - Catches integration issues between phases (phase 2 broke phase 1)
+
+## Cross-Model Verification
+
+For high-risk changes, verification should include cross-model review via Codex CLI.
+
+### Required When
+- Auth, payments, cryptography, or security code changed
+- Database migrations added
+- Public API contracts modified
+- 5+ files changed across modules
+
+### Not Required When (Bypass Criteria)
+- Changes < 50 lines, docs/CSS/config only
+- Existing tests fully cover changes and pass
+- Codex CLI not installed (graceful degradation)
+
+### How to Check
+```bash
+# Run Codex review
+codex exec "Review uncommitted changes for correctness and security." \
+  --model gpt-5.3-codex --sandbox read-only --ask-for-approval never \
+  --output-schema .codex/review-schema.json -o .codex/reviews/latest.json
+
+# Verify result
+jq '.verdict.status' .codex/reviews/latest.json  # should be "pass"
+```
+
+If Codex returns `fail` with BLOCKERs → fix issues first, re-verify.
+If Codex is unavailable → note "Codex review skipped (not installed)" and proceed with Claude-only verification.
 
 ## Common Mistakes
 

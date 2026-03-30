@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py -3 .claude/hooks/pre-compact-save.py",
+            "command": "python3 .claude/hooks/pre-compact-save.py",
             "timeout": 60
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py -3 .claude/hooks/task-completed-gate.py",
+            "command": "python3 .claude/hooks/task-completed-gate.py",
             "timeout": 30
           }
         ]
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py -3 .claude/hooks/tool-failure-logger.py",
+            "command": "python3 .claude/hooks/tool-failure-logger.py",
             "timeout": 10
           }
         ]
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py -3 .claude/hooks/session-orient.py",
+            "command": "python3 .claude/hooks/session-orient.py",
             "timeout": 10
           }
         ]
@@ -51,8 +51,20 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py -3 .claude/hooks/write-validate.py",
+            "command": "python3 .claude/hooks/write-validate.py",
             "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/codex-review.sh",
+            "timeout": 300
           }
         ]
       }

@@ -53,6 +53,7 @@ The agent should READ this at start and UPDATE it in their handoff block if they
 - If any check fails → fix first, do NOT claim done
 - Update work/attempt-history.json if retry
 - Verify logging coverage: every new function has entry/exit logs, every catch block logs errors (ref: .claude/guides/logging-standards.md)
+- For high-risk tasks (auth, payments, migrations, security): run Codex cross-model review before claiming done. Use `cross-model-review` skill or run `codex exec` directly (ref: .claude/guides/codex-integration.md)
 - After completing a skill-based task, check the `## Related` section at the bottom of the SKILL.md for next steps or connected skills to invoke
 
 ## Results Board
@@ -96,6 +97,7 @@ Next Phase Input: [what the next agent/phase needs to know]
 - All test files (test_*, *.test.*, *.spec.*)
 - Acceptance criteria files (user-spec.md, task descriptions)
 - Evaluation/benchmark scripts
+- Codex review results (.codex/reviews/*.json) — reviewer cannot modify review output
 - CI/CD pipeline configurations
 
 If you need to modify any read-only file, STOP and ask the team lead first.

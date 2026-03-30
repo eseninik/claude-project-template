@@ -213,3 +213,7 @@
 | 2026-03-17 15:19 | 4 | Feature 4: Self-Evolving Agent Pattern + Skill Con | impl-4-self-evolving | PASSED |
 | 2026-03-17 15:20 | 3 | Feature 3: Auto-Research Phase in Pipeline | main | PASSED |
 | 2026-03-23 10:15 | 1 | Create PIPELINE.md for skill-graphs implementation | main | PASSED |
+| 2026-03-30 13:27 | 3 | T3: Update QA and Verification skills with Codex i | qa-agent | PASSED |
+| 2026-03-30 13:28 | 1 | T1: Create core Codex infrastructure files | infra-agent | PASSED |
+| 2026-03-30 13:39 | 2 | T2: Create cross-model-review SKILL.md + update IN | skill-agent | PASSED |
+| 2026-03-30 13:39 | 4 | T4: Update system config (settings.json, CLAUDE.md | config-agent | PASSED |
