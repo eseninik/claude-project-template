@@ -228,6 +228,29 @@ Coordinate multi-phase autonomous pipelines.
    - `patterns`: key patterns from activeContext.md
    - `full`: full activeContext.md + relevant ADRs
 
+## Build Error Resolvers
+
+Language-specific agents for diagnosing and fixing build/compile/dependency errors.
+
+| Type | Tools | Skills | Thinking | Context | Memory | MCP |
+|------|-------|--------|----------|---------|--------|-----|
+| `generic-build-resolver` | full | error-recovery, systematic-debugging | deep | full | full | none |
+| `python-build-resolver` | full | error-recovery, systematic-debugging | standard | standard | patterns | none |
+| `typescript-build-resolver` | full | error-recovery, systematic-debugging | standard | standard | patterns | none |
+| `go-build-resolver` | full | error-recovery, systematic-debugging | standard | standard | patterns | none |
+| `rust-build-resolver` | full | error-recovery, systematic-debugging | standard | standard | patterns | none |
+
+**Notes:**
+- `generic-build-resolver` auto-detects language from error output, then applies language-specific strategies
+- `python-build-resolver` handles: pip/uv/poetry dependency errors, import errors, venv issues, wheel build failures
+- `typescript-build-resolver` handles: tsc errors, webpack/esbuild/vite build failures, npm dependency conflicts, type errors
+- `go-build-resolver` handles: go build errors, go mod tidy, CGO linking errors, missing packages
+- `rust-build-resolver` handles: cargo build errors, borrow checker issues, linker errors, feature flag conflicts
+- All resolvers follow: read error → form hypotheses → test most likely → fix root cause → verify
+- Reference language rules: `cat .claude/guides/language-rules/{language}.md`
+
+---
+
 ### Adding a New Agent Type
 
 1. Add entry to the appropriate category table (all 6 properties required)

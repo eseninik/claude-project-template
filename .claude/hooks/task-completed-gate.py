@@ -131,6 +131,15 @@ def log_completion(cwd: Path, data: dict, blocked: bool, reason: str = "") -> No
 
 
 def main():
+    # Hook profile gate
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from hook_base import should_run
+        if not should_run("task-completed-gate"):
+            sys.exit(0)
+    except ImportError:
+        pass
+
     try:
         raw = sys.stdin.read()
         if not raw.strip():

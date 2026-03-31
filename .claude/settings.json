@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/pre-compact-save.py",
+            "command": "py -3 .claude/hooks/pre-compact-save.py",
             "timeout": 60
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/task-completed-gate.py",
+            "command": "py -3 .claude/hooks/task-completed-gate.py",
             "timeout": 30
           }
         ]
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/tool-failure-logger.py",
+            "command": "py -3 .claude/hooks/tool-failure-logger.py",
             "timeout": 10
           }
         ]
@@ -39,32 +39,44 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/session-orient.py",
+            "command": "py -3 .claude/hooks/session-orient.py",
             "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py -3 .claude/hooks/codex-parallel.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py -3 .claude/hooks/config-protection.py",
+            "timeout": 5
           }
         ]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "Write",
+        "matcher": "Write|Edit",
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/write-validate.py",
+            "command": "py -3 .claude/hooks/write-validate.py",
             "timeout": 5
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash .claude/hooks/codex-review.sh",
-            "timeout": 300
           }
         ]
       }

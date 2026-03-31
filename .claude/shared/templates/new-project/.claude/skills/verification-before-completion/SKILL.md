@@ -155,8 +155,8 @@ For high-risk changes, verification should include cross-model review via Codex 
 ```bash
 # Run Codex review
 codex exec "Review uncommitted changes for correctness and security." \
-  --model gpt-5.3-codex --sandbox read-only --ask-for-approval never \
-  --output-schema .codex/review-schema.json -o .codex/reviews/latest.json
+  -m gpt-5.4 --sandbox read-only --full-auto \
+  --output-schema .codex/review-schema.json -o .codex/reviews/latest.json --ephemeral
 
 # Verify result
 jq '.verdict.status' .codex/reviews/latest.json  # should be "pass"

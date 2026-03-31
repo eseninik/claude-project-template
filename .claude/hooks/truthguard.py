@@ -338,6 +338,15 @@ def post_write(data: dict):
 # ================================================================
 
 def main():
+    # Hook profile gate
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from hook_base import should_run
+        if not should_run("truthguard"):
+            sys.exit(0)
+    except ImportError:
+        pass
+
     try:
         raw = sys.stdin.read()
         if not raw.strip():

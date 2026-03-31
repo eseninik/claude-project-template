@@ -5,7 +5,10 @@ Always exit 0 — never block session start.
 """
 
 import json
+import os
 import re
+import shutil
+import subprocess
 import sys
 from datetime import date
 from pathlib import Path
@@ -151,7 +154,122 @@ def section_workspace_tree(cwd: Path) -> str:
     return f"--- Workspace ---\n{listing}\n---"
 
 
+def codex_warmup(cwd: Path):
+    """Launch Codex warm-up in background so first UserPromptSubmit has opinion ready.
+
+    Reads project context, sends it to Codex gpt-5.4 with a generic
+    'review project state' prompt. Opinion is written to
+    .codex/reviews/parallel-opinion.md — same file that codex-parallel.py uses.
+    """
+    # Check if codex is available
+    codex_bin = shutil.which("codex")
+    if not codex_bin:
+        npm_codex = Path.home() / "AppData" / "Roaming" / "npm" / "codex.cmd"
+        if npm_codex.exists():
+            codex_bin = str(npm_codex)
+        else:
+            return
+
+    reviews_dir = cwd / ".codex" / "reviews"
+    reviews_dir.mkdir(parents=True, exist_ok=True)
+    opinion_file = reviews_dir / "parallel-opinion.md"
+    prompt_file = reviews_dir / "_prompt.txt"
+    params_file = reviews_dir / "_params.json"
+
+    # Build context from project files
+    context_parts = []
+    claude_md = cwd / "CLAUDE.md"
+    if claude_md.exists():
+        try:
+            context_parts.append(claude_md.read_text(encoding="utf-8")[:300])
+        except Exception:
+            pass
+
+    ctx_file = cwd / ".claude" / "memory" / "activeContext.md"
+    if ctx_file.exists():
+        try:
+            content = ctx_file.read_text(encoding="utf-8")
+            if "## Current Focus" in content:
+                context_parts.append(content.split("## Current Focus")[1][:600])
+        except Exception:
+            pass
+
+    prompt = (
+        "Session starting. Review the project state and give 3-5 observations: "
+        "potential issues, things to watch out for, or suggestions for the current work. "
+        "Be specific to this project.\n\n"
+        f"Context:\n{'  '.join(context_parts)}"
+    )
+    prompt_file.write_text(prompt, encoding="utf-8")
+
+    params = {
+        "codex_bin": codex_bin,
+        "effort": "low",
+        "project_dir": str(cwd),
+        "prompt_file": str(prompt_file),
+        "opinion_file": str(opinion_file),
+        "log_file": str(reviews_dir / "_wrapper.log"),
+    }
+    params_file.write_text(json.dumps(params, ensure_ascii=False), encoding="utf-8")
+
+    # Use the same wrapper as codex-parallel.py — create if not exists
+    wrapper_file = reviews_dir / "_parallel_wrapper.py"
+    if not wrapper_file.exists():
+        wrapper_file.write_text(r'''#!/usr/bin/env python3
+import json, subprocess, sys, pathlib
+if sys.platform == "win32":
+    for s in [sys.stdin, sys.stdout, sys.stderr]:
+        s.reconfigure(encoding="utf-8", errors="replace")
+params_path = pathlib.Path(sys.argv[1])
+params = json.loads(params_path.read_text(encoding="utf-8"))
+prompt = pathlib.Path(params["prompt_file"]).read_text(encoding="utf-8")
+opinion_path = pathlib.Path(params["opinion_file"])
+log_path = pathlib.Path(params["log_file"])
+args = [params["codex_bin"], "exec", "-", "-m", "gpt-5.4",
+        "-c", f"reasoning.effort={params['effort']}",
+        "--full-auto", "--ephemeral",
+        "-o", str(opinion_path)]
+try:
+    result = subprocess.run(args, input=prompt, stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
+        timeout=180, cwd=params["project_dir"])
+    if result.returncode != 0:
+        log_path.write_text(f"Codex failed (exit {result.returncode})\n{result.stderr[:500]}", encoding="utf-8")
+        try: opinion_path.unlink(missing_ok=True)
+        except: pass
+except subprocess.TimeoutExpired:
+    log_path.write_text("Codex timed out", encoding="utf-8")
+except Exception as e:
+    log_path.write_text(f"Error: {e}", encoding="utf-8")
+finally:
+    pid_path = pathlib.Path(params["project_dir"]) / ".codex" / "parallel.pid"
+    try: pid_path.unlink(missing_ok=True)
+    except: pass
+''', encoding="utf-8")
+
+    try:
+        subprocess.Popen(
+            [sys.executable, str(wrapper_file), str(params_file)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            cwd=str(cwd),
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0,
+        )
+        print("[session-orient] Codex warm-up launched", file=sys.stderr)
+    except Exception as e:
+        print(f"[session-orient] Codex warm-up failed: {e}", file=sys.stderr)
+
+
 def main():
+    # Hook profile gate
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from hook_base import should_run
+        if not should_run("session-orient"):
+            sys.exit(0)
+    except ImportError:
+        pass
+
     try:
         raw = sys.stdin.read()
         if not raw.strip():
@@ -184,6 +302,9 @@ def main():
 
         if sections:
             print("\n".join(sections))
+
+        # Note: Codex warm-up is handled by codex-parallel.py on first UserPromptSubmit
+        # SessionStart Popen gets killed by hook timeout, so warmup here doesn't work
 
     except Exception as e:
         print(f"[session-orient] Unexpected error: {e}", file=sys.stderr)

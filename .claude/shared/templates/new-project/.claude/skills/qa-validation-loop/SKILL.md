@@ -90,11 +90,12 @@ QA depth should match task risk -- trivial tasks need minimal checks, critical t
 ```bash
 codex exec \
   "Review all uncommitted changes. Focus on correctness, security, performance, test coverage. Use AGENTS.md rubric." \
-  --model gpt-5.3-codex \
+  -m gpt-5.4 \
   --sandbox read-only \
-  --ask-for-approval never \
+  --full-auto \
   --output-schema .codex/review-schema.json \
-  -o .codex/reviews/latest.json
+  -o .codex/reviews/latest.json \
+  --ephemeral
 ```
 
 ### Mapping Codex Findings to QA Severity

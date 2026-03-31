@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "graphiti": {
+      "type": "url",
+      "url": "http://localhost:8000/mcp"
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/mcp-sequential-thinking"]
+    }
+  }
+}

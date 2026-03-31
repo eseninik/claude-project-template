@@ -73,9 +73,10 @@ Check if bypass criteria are met. If yes, skip to Step 6.
 ```bash
 codex exec \
   "Review all uncommitted changes. Focus on correctness, security, performance, test coverage, and logging. Use AGENTS.md rubric. Return JSON matching the schema." \
-  --model gpt-5.3-codex \
+  -m gpt-5.4 \
   --sandbox read-only \
-  --ask-for-approval never \
+  --full-auto \
+  --ephemeral \
   --output-schema .codex/review-schema.json \
   -o .codex/reviews/latest.json
 ```
@@ -84,18 +85,20 @@ codex exec \
 ```bash
 codex exec \
   "Review uncommitted changes for obvious bugs and security issues." \
-  --model codex-mini-latest \
+  -m gpt-5.4-mini \
   --sandbox read-only \
-  --ask-for-approval never
+  --full-auto \
+  --ephemeral
 ```
 
 **Branch review (before PR/merge):**
 ```bash
 codex exec \
   "Review all changes on current branch vs main. Focus on architecture, security, and edge cases." \
-  --model gpt-5.3-codex \
+  -m gpt-5.4 \
   --sandbox read-only \
-  --ask-for-approval never \
+  --full-auto \
+  --ephemeral \
   --output-schema .codex/review-schema.json \
   -o .codex/reviews/latest.json
 ```
@@ -145,14 +148,13 @@ Cross-Model Review (Codex): [PASS/FAIL/SKIPPED]
 
 | Scenario | Model | Rationale |
 |----------|-------|-----------|
-| Pre-commit quick check | `codex-mini-latest` | Fast, cheap, catches obvious errors |
-| Standard code review | `gpt-5.3-codex` | Good balance of depth and speed |
-| Security audit | `gpt-5.3-codex` | Strong at finding vulnerabilities |
+| Pre-commit quick check | `gpt-5.4-mini` | Fast, cheap, catches obvious errors |
+| Standard code review | `gpt-5.4` | Good balance of depth and speed |
+| Security audit | `gpt-5.4` | Strong at finding vulnerabilities |
 | Architecture review | `gpt-5.4` | Best reasoning for complex decisions |
 
 ## Related
 
-- `.claude/guides/codex-integration.md` — full integration guide
-- `.codex/review-schema.json` — structured output schema
 - `qa-validation-loop` — includes cross-model review step
 - `verification-before-completion` — includes cross-model check
+- `.claude/guides/codex-integration.md` — full integration guide

@@ -1,45 +1,62 @@
-# Pipeline: Codex CLI Integration as Cross-Model Verifier
+# Pipeline: ECC Cherry-Pick Integration
 
-**Status:** IN_PROGRESS
-**Created:** 2026-03-30
-**Goal:** Integrate Codex CLI as additional validator/verifier alongside Claude Code in our development system
+- Status: IN_PROGRESS
+- Phase: IMPLEMENT
+- Mode: AGENT_TEAMS
+
+> Cherry-pick HIGH + MEDIUM priority components from everything-claude-code into our template system.
+> Also: fix Graphiti MCP connection, verify RTK hook.
+> Source repo: /tmp/everything-claude-code/
 
 ---
 
-## Phase 1: RESEARCH ✅ COMPLETE
-**Gate:** 4 research files analyzed, integration patterns identified
-**Result:** Read all 4 files from /home/admin/files/. Key patterns: codex exec (shell-based, most reliable), Stop hook, SKILL.md, structured JSON output, AGENTS.md shared context.
+## Phases
 
-## Phase 2: PLAN ✅ COMPLETE
-**Gate:** Implementation plan with file list approved
+### Phase: IMPLEMENT  <- CURRENT
+- Status: IN_PROGRESS
+- Mode: AGENT_TEAMS
+- Attempts: 1 of 2
+- On PASS: -> VERIFY
+- On FAIL: -> FIX
+- Gate: all 12 tasks completed, files created
+- Gate Type: AUTO
 
-### Artifacts to Create/Modify:
+Wave 1 (parallel, independent — 11 agents):
+- Task 1: Fix Graphiti MCP connection
+- Task 2: Verify RTK hook
+- Task 3: Import Security Guide
+- Task 4: Implement Hook Profiles
+- Task 5: Import 10-15 generic skills
+- Task 6: Import language rule packs
+- Task 7: Add Config Protection hook
+- Task 8: Add Build-Error-Resolvers
+- Task 9: Implement Continuous Learning Loop
+- Task 10: Add JSON Schema validation
+- Task 11: Expand MCP catalog
 
-**NEW files:**
-1. `.claude/guides/codex-integration.md` — comprehensive guide for Codex integration
-2. `.claude/shared/templates/new-project/.claude/skills/cross-model-review/SKILL.md` — skill for invoking Codex verification
-3. `.codex/review-schema.json` — JSON schema for structured Codex output
-4. `.claude/hooks/codex-review.sh` — hook script for auto-running Codex review on Stop
-5. `.claude/shared/templates/new-project/AGENTS.md` — shared agent instructions template
+Wave 2 (depends on Wave 1):
+- Task 12: Sync all to new-project template
 
-**MODIFIED files:**
-6. `.claude/settings.json` — add Stop hook for Codex review
-7. `~/.claude/CLAUDE.md` — add Codex integration rules
-8. `.claude/guides/teammate-prompt-template.md` — add Codex verification step
-9. `.claude/shared/templates/new-project/.claude/skills/qa-validation-loop/SKILL.md` — add Codex cross-review step
-10. `.claude/shared/templates/new-project/.claude/skills/verification-before-completion/SKILL.md` — add Codex check
-11. `.claude/skills/INDEX.md` — add cross-model-review skill entry
+### Phase: VERIFY
+- Status: PENDING
+- Mode: SOLO
+- Attempts: 0 of 1
+- On PASS: -> COMPLETE
+- On FAIL: -> FIX
+- Gate: all new files exist, hooks work, skills load
+- Gate Type: AUTO
 
-## Phase 3: IMPLEMENT <- CURRENT
-**Mode:** AGENT_TEAMS (4 parallel tasks + 1 sequential)
-**Gate:** All files created/modified, no conflicts
+### Phase: COMPLETE
+- Status: PENDING
+- Mode: SOLO
+- Gate: memory updated, git committed
 
-### Task Breakdown:
-- T1: Create codex-integration.md guide + review-schema.json + codex-review.sh hook + AGENTS.md template
-- T2: Create cross-model-review SKILL.md + update INDEX.md
-- T3: Update qa-validation-loop + verification-before-completion skills
-- T4: Update settings.json + CLAUDE.md (global) + teammate-prompt-template.md
-- T5: Verify all changes + final consistency check (BLOCKED by T1-T4)
+---
 
-## Phase 4: COMPLETE
-**Gate:** activeContext.md updated, commit made
+## Decisions
+
+- [IMPLEMENT] Skip AUTO_RESEARCH/SPEC/PLAN — task is well-defined cherry-pick, not feature development.
+- [IMPLEMENT] Wave 1 = 11 parallel tasks (independent files/dirs). Wave 2 = template sync (depends on all).
+- [IMPLEMENT] Security Guide: adapt, don't copy verbatim — our system has different hooks/agents.
+- [IMPLEMENT] Skills: convert to our SKILL.md format with frontmatter + triggers.
+- [IMPLEMENT] Hook Profiles: add to hook_base.py, not individual hooks.

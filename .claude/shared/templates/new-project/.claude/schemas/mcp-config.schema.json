@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MCP Configuration",
+  "description": "Validates .mcp.json format for Claude Code MCP servers",
+  "type": "object",
+  "properties": {
+    "mcpServers": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": { "const": "url" },
+              "url": { "type": "string", "format": "uri" }
+            },
+            "required": ["type", "url"],
+            "description": "Streamable HTTP MCP server"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": { "const": "sse" },
+              "url": { "type": "string", "format": "uri" }
+            },
+            "required": ["type", "url"],
+            "description": "SSE MCP server"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "command": { "type": "string", "minLength": 1 },
+              "args": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "env": {
+                "type": "object",
+                "additionalProperties": { "type": "string" }
+              }
+            },
+            "required": ["command"],
+            "description": "Command-based MCP server (stdio)"
+          }
+        ]
+      }
+    }
+  },
+  "required": ["mcpServers"]
+}

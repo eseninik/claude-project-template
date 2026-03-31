@@ -405,6 +405,15 @@ def curate_active_context(cwd: Path) -> None:
 
 
 def main():
+    # Hook profile gate
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from hook_base import should_run
+        if not should_run("pre-compact-save"):
+            sys.exit(0)
+    except ImportError:
+        pass
+
     try:
         # Read hook input from stdin
         raw = sys.stdin.read()

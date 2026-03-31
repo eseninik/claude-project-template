@@ -3,11 +3,76 @@
 > Session bridge. Agent reads at start, updates at end. Max ~150 lines.
 > Old sessions → `.claude/memory/archive/`
 
-**Last updated:** 2026-03-11
+**Last updated:** 2026-03-31
 
 ---
 
 ## Current Focus
+
+### ECC Cherry-Pick Integration + Quality Fixes — COMPLETE
+**Task:** Import best components from everything-claude-code, fix all quality gaps, fleet deploy.
+
+**What was done (session 2026-03-31):**
+- Analyzed ECC repo (136 skills, 28 agents, 60 commands) — 4 parallel Explore agents
+- Imported 13 skills: tdd-workflow, api-design, coding-standards, e2e-testing, docker-patterns, deployment-patterns, backend-patterns, frontend-patterns, continuous-learning, cost-aware-llm-pipeline, database-migrations, security-review, learn-eval
+- Created 4 language rule packs: Python, TypeScript, Go, Rust
+- Created agentic-security.md guide (417 lines, adapted from ECC's 28KB security guide)
+- Created config-protection.py hook (PreToolUse, blocks linter weakening)
+- Created hook profiles system (minimal/standard/strict + CLAUDE_DISABLED_HOOKS)
+- Added should_run() gate to all 9 hooks
+- Created 3 JSON schemas + validate-configs.py (16 PASS, 0 FAIL)
+- Created /learn-eval command + skill (continuous learning loop)
+- Added 5 build-error-resolver agent types to registry.md
+- Added ## Related cross-references to all 13 new skills
+- Fixed Graphiti MCP connection (.mcp.json with type:url transport)
+- Fixed Codex wrapper retry logic (2 attempts on model refresh timeout)
+- Fixed codex-review.py: IMPORTANT→non-blocking, sensitive file detection, summary.has_blockers→findings-derived
+- Fixed config-protection.py: deletion-based loosening (Edit old_string + Write on-disk comparison)
+- Fixed 3 hooks missing os import (tool-failure-logger, task-completed-gate, truthguard)
+- Fixed git pre-commit (single-line NOTE, grep -cF) + post-commit (|| true, ${:-0})
+- Synced 8 skills to Codex ~/.codex/skills/ — verified Codex uses them in reviews
+- Codex found 5 real BLOCKERs across 3 reviews — all fixed
+- 16/16 runtime tests PASS
+- Fleet synced to 10 projects (9 bots + Freelance) + template
+- RTK verified: 85.4% token savings, 575K tokens saved
+
+**Decisions:**
+- ECC целиком не внедряем — cherry-pick лучших компонентов
+- Codex skills: только reviewer-relevant (8 из 13), не все
+- Hook profiles: standard by default, minimal для быстрых сессий
+- codex-review.py: only BLOCKERs block, IMPORTANT→stderr info
+
+### Previous: Codex CLI Full Integration — COMPLETE
+**Task:** Integrate OpenAI Codex CLI as parallel advisor + post-review verifier for Claude Code.
+
+**What was done (session 2026-03-30):**
+- Installed `@openai/codex` CLI v0.117.0 globally (npm)
+- Fixed `codex-review.py` hook — v0.117.0 flags, structured logging, untracked files detection
+- Added Stop hook to `settings.json`
+- Updated `codex-integration.md` guide — v0.117.0 flags, Parallel Advisor architecture
+- Created `~/.codex/config.toml` (model=gpt-5.4)
+- Created 2 Codex global skills: `code-review-standards`, `project-conventions`
+- Deployed `cross-model-review` skill to main project + global (`~/.claude/skills/`)
+- Updated `~/.claude/skills/INDEX.md` with cross-model-review entry
+- Updated `~/.claude/CLAUDE.md` — Hard Rule #3, AUTO-BEHAVIORS, HARD CONSTRAINTS, triggers, knowledge
+- Fixed CLI flags in qa-validation-loop and verification-before-completion skills
+- E2E tested: structured JSON output from Codex gpt-5.4 works, schema validates
+- Codex found real bug (untracked files invisible to hook) — fixed immediately
+- Used Agent Teams (5 parallel agents Wave 1, then Wave 2 sequential)
+- Fleet synced to 11 projects (6 parallel agents): 10 bots + Freelance — all verified OK
+- Updated init-project command with Step 8.5: Codex Integration Setup
+- Updated new-project template with all Codex files (hook, guide, schema, settings, skills)
+
+**Decisions:**
+- Model: always gpt-5.4 (user preference, Plus subscription)
+- Codex = read-only verifier, NEVER modifies code
+- Stop hook REMOVED — was blocking UI for 60-90 seconds waiting for Codex response
+- Replaced with UserPromptSubmit hook (parallel, non-blocking) — `codex-parallel.py` runs in background on every user request, writes opinion to `.codex/reviews/parallel-opinion.md`
+- `codex-parallel.py` = primary hook (always active, automatic)
+- `codex-review.py` = available for explicit skill invocation only (cross-model-review skill)
+- Dual-mode: Mode 1 (Parallel Advisor via UserPromptSubmit) + Mode 2 (Deep Code Review via explicit skill)
+- `codex exec` (not `codex exec review`) for structured JSON output with `--output-schema`
+- `--full-auto` replaces old `--ask-for-approval never` (v0.117.0 change)
 
 ### Logging Standards Integration — COMPLETE
 **Task:** Add mandatory structured logging to all code produced by our development system.
