@@ -9,8 +9,23 @@
 
 ## Current Focus
 
+### MemPalace Cherry-Pick Integration — COMPLETE
+**Task:** Adapt 3 components from MemPalace (github.com/milla-jovovich/mempalace).
+
+**What was done (session 2026-04-08, part 2):**
+- Analyzed MemPalace repo (8,580 lines, 96.6% LongMemEval)
+- Cherry-picked via 3 parallel agents:
+  1. SQLite Knowledge Graph (559 lines) — temporal triples, CLI
+  2. Semantic Search (17K) — ChromaDB, optional dependency
+  3. 4-Layer Context Loading (370 lines) — 93% token savings (610 vs 8,739 tokens)
+- Fleet synced to 13 projects + global + template
+
+**Decisions:**
+- ChromaDB optional, grep fallback. KG replaces Graphiti (SQLite, zero deps).
+- AAAK dialect and Palace metaphor NOT adopted.
+
 ### Webinar Insights Integration — COMPLETE
-**Task:** Analyze "Inside the Agent" webinar (Bayram Annakov) and implement improvements to our template system.
+**Task:** Analyze "Inside the Agent" webinar (Bayram Annakov) and implement improvements.
 
 **What was done (session 2026-04-08):**
 - Analyzed webinar transcript (Claude Code architecture patterns, 60+ min)

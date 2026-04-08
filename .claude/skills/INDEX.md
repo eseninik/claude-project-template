@@ -61,6 +61,8 @@ cross-model-review ──────┘
 | codebase-mapping | Map unfamiliar codebase → codebase-map.md |
 | experiment-loop | Autonomous hypothesis → experiment → measure → keep/discard |
 | memory-consolidation | Background memory consolidation — deduplicate knowledge, resolve conflicts, refresh decay tiers |
+| knowledge-graph | Temporal knowledge graph for entity relationships with time validity (SQLite-based) |
+| semantic-search | Semantic search across memory layers using ChromaDB embeddings |
 | mcp-integration | On-demand MCP server calls (search, scraping, docs) |
 
 ## Skill Lifecycle

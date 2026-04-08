@@ -1,55 +1,32 @@
-# Pipeline: Webinar Insights Integration
+# Pipeline: MemPalace Cherry-Pick Integration
 
-- Status: PIPELINE_COMPLETE
-- Phase: DONE
+- Status: IN_PROGRESS
+- Phase: IMPLEMENT
 - Mode: AGENT_TEAMS
 
-> Implementing 6 improvements from "Inside the Agent" webinar (Bayram Annakov).
-> All changes are to template files (.claude/) — no application code.
+> Cherry-pick 3 components from MemPalace into our template system.
+> Source: C:/Users/Lenovo/AppData/Local/Temp/mempalace/ (github.com/milla-jovovich/mempalace)
 
 ---
 
 ## Phases
 
-### Phase: IMPLEMENT
-- Status: PASS
-- Mandatory: true
+### Phase: IMPLEMENT  <- CURRENT
+- Status: IN_PROGRESS
 - Mode: AGENT_TEAMS
 - Attempts: 0 of 1
-- On PASS: -> SYNC
+- On PASS: -> FLEET_SYNC
 - On FAIL: -> STOP
-- Gate: All 6 improvements applied, files modified match plan
+- Gate: All 3 components working
 - Gate Type: AUTO
-- Inputs: Webinar analysis (conversation), existing template files
-- Outputs: Modified .claude/ files (skills, prompts, guides, templates)
-- Checkpoint: pipeline-checkpoint-IMPLEMENT
 
-#### Tasks (6 improvements — 3 waves):
+#### Tasks (3 parallel):
 
-**Wave 1 (parallel — core changes):**
-1. Evaluator Fresh Context — qa-validation-loop SKILL.md + qa-reviewer.md
-2. Tool Verification Harness — coder.md + teammate-prompt-template.md
-3. Microcompact Instructions — teammate-prompt-template.md + coder.md
+1. **SQLite Knowledge Graph** — Adapt mempalace/knowledge_graph.py
+2. **Semantic Search with ChromaDB** — Adapt mempalace/searcher.py + miner.py  
+3. **4-Layer Context Loading** — Adapt mempalace/layers.py
 
-**Wave 2 (parallel — template + skill):**
-4. Phase Transition Reminders — QA_REVIEW.md + IMPLEMENT.md
-5. Memory Consolidation Skill — new skill
-
-**Wave 3 (solo):**
-6. KAIROS Heartbeat Pattern — knowledge.md + guide
-
-### Phase: SYNC
-- Status: PASS
-- Mode: SOLO
-- Attempts: 0 of 1
-- On PASS: -> DONE
-- On FAIL: -> STOP
-- Gate: new-project template mirrors main template changes
-- Gate Type: AUTO
-- Inputs: Modified .claude/ files
-- Outputs: Synced .claude/shared/templates/new-project/.claude/ files
-
-### Phase: DONE
+### Phase: FLEET_SYNC
 - Status: PENDING
 - Mode: SOLO
-- Gate: All files committed, activeContext.md updated
+- Gate: Files synced to 13 projects + global + template
