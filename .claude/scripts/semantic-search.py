@@ -278,8 +278,12 @@ def cmd_index(args):
             logger.debug("Delete failed: %s", e)
 
     ids, documents, metadatas = [], [], []
+    seen_ids = set()
     for chunk in chunks:
         cid = hashlib.md5(("%s:%s:%s" % (chunk["source"], chunk["file"], chunk["content"][:200])).encode()).hexdigest()
+        if cid in seen_ids:
+            continue  # skip duplicate chunks
+        seen_ids.add(cid)
         ids.append(cid)
         documents.append(chunk["content"])
         metadatas.append({
