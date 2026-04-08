@@ -1,62 +1,55 @@
-# Pipeline: ECC Cherry-Pick Integration
+# Pipeline: Webinar Insights Integration
 
-- Status: IN_PROGRESS
-- Phase: IMPLEMENT
+- Status: PIPELINE_COMPLETE
+- Phase: DONE
 - Mode: AGENT_TEAMS
 
-> Cherry-pick HIGH + MEDIUM priority components from everything-claude-code into our template system.
-> Also: fix Graphiti MCP connection, verify RTK hook.
-> Source repo: /tmp/everything-claude-code/
+> Implementing 6 improvements from "Inside the Agent" webinar (Bayram Annakov).
+> All changes are to template files (.claude/) — no application code.
 
 ---
 
 ## Phases
 
-### Phase: IMPLEMENT  <- CURRENT
-- Status: IN_PROGRESS
+### Phase: IMPLEMENT
+- Status: PASS
+- Mandatory: true
 - Mode: AGENT_TEAMS
-- Attempts: 1 of 2
-- On PASS: -> VERIFY
-- On FAIL: -> FIX
-- Gate: all 12 tasks completed, files created
+- Attempts: 0 of 1
+- On PASS: -> SYNC
+- On FAIL: -> STOP
+- Gate: All 6 improvements applied, files modified match plan
 - Gate Type: AUTO
+- Inputs: Webinar analysis (conversation), existing template files
+- Outputs: Modified .claude/ files (skills, prompts, guides, templates)
+- Checkpoint: pipeline-checkpoint-IMPLEMENT
 
-Wave 1 (parallel, independent — 11 agents):
-- Task 1: Fix Graphiti MCP connection
-- Task 2: Verify RTK hook
-- Task 3: Import Security Guide
-- Task 4: Implement Hook Profiles
-- Task 5: Import 10-15 generic skills
-- Task 6: Import language rule packs
-- Task 7: Add Config Protection hook
-- Task 8: Add Build-Error-Resolvers
-- Task 9: Implement Continuous Learning Loop
-- Task 10: Add JSON Schema validation
-- Task 11: Expand MCP catalog
+#### Tasks (6 improvements — 3 waves):
 
-Wave 2 (depends on Wave 1):
-- Task 12: Sync all to new-project template
+**Wave 1 (parallel — core changes):**
+1. Evaluator Fresh Context — qa-validation-loop SKILL.md + qa-reviewer.md
+2. Tool Verification Harness — coder.md + teammate-prompt-template.md
+3. Microcompact Instructions — teammate-prompt-template.md + coder.md
 
-### Phase: VERIFY
-- Status: PENDING
+**Wave 2 (parallel — template + skill):**
+4. Phase Transition Reminders — QA_REVIEW.md + IMPLEMENT.md
+5. Memory Consolidation Skill — new skill
+
+**Wave 3 (solo):**
+6. KAIROS Heartbeat Pattern — knowledge.md + guide
+
+### Phase: SYNC
+- Status: PASS
 - Mode: SOLO
 - Attempts: 0 of 1
-- On PASS: -> COMPLETE
-- On FAIL: -> FIX
-- Gate: all new files exist, hooks work, skills load
+- On PASS: -> DONE
+- On FAIL: -> STOP
+- Gate: new-project template mirrors main template changes
 - Gate Type: AUTO
+- Inputs: Modified .claude/ files
+- Outputs: Synced .claude/shared/templates/new-project/.claude/ files
 
-### Phase: COMPLETE
+### Phase: DONE
 - Status: PENDING
 - Mode: SOLO
-- Gate: memory updated, git committed
-
----
-
-## Decisions
-
-- [IMPLEMENT] Skip AUTO_RESEARCH/SPEC/PLAN — task is well-defined cherry-pick, not feature development.
-- [IMPLEMENT] Wave 1 = 11 parallel tasks (independent files/dirs). Wave 2 = template sync (depends on all).
-- [IMPLEMENT] Security Guide: adapt, don't copy verbatim — our system has different hooks/agents.
-- [IMPLEMENT] Skills: convert to our SKILL.md format with frontmatter + triggers.
-- [IMPLEMENT] Hook Profiles: add to hook_base.py, not individual hooks.
+- Gate: All files committed, activeContext.md updated

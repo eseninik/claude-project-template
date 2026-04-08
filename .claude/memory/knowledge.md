@@ -46,7 +46,7 @@
 ### Fewer Rules = Higher Compliance (2026-02-22, verified: 2026-02-22)
 - When: Designing agent instruction systems (CLAUDE.md, memory protocols)
 - Pattern: Reduce mandatory steps to minimum viable set. 8→4 session start, 9→2+3 after task.
-- "Two-Level Save": Level 1 MANDATORY (activeContext + daily log), Level 2 RECOMMENDED (knowledge.md + Graphiti)
+- "Two-Level Save": Level 1 MANDATORY (activeContext + daily log), Level 2 RECOMMENDED (knowledge.md)
 - OpenClaw insight: they get high compliance through PROGRAMMATIC enforcement (automatic silent turns); we compensate with SIMPLICITY
 - Verified: OpenClaw analysis of 18+ source files confirmed their approach
 
@@ -93,7 +93,7 @@
 - AutoMemory alone doesn't solve: compaction survival, pipeline state, structured knowledge, quality gates
 - Hooks alone don't solve: knowledge staleness, serendipity, cost-controlled search
 - Decay alone doesn't solve: multi-agent context, automatic saves, compliance enforcement
-- All three together = complete cognitive architecture: remember + retrieve + forget + surprise
+- All layers together = complete cognitive architecture: remember + retrieve + forget + surprise
 
 ### PostToolUseFailure Hook as Error Logger (2026-02-23, verified: 2026-02-23)
 - When: Any tool call fails (Bash, Edit, Write, MCP, etc.)
@@ -103,24 +103,25 @@
 - Skips user interrupts (is_interrupt=true)
 - Matcher: tool name (can filter to specific tools, we use catch-all)
 
+### KAIROS Proactive Agent Pattern (2026-04-08, verified: 2026-04-08)
+- **What:** Daemon-style agent running on heartbeat/cron, checks state changes, acts autonomously
+- **Source:** Bayram Annakov webinar "Inside the Agent" — architecture from Claude Code leaked source
+- **Components:** Cron scheduler + Channels (messaging) + Proactive tick + BriefTool (summary delivery)
+- **Our implementation:** /schedule for cron, Telegram MCP for channels, /loop for tick
+- **Key insight:** Same TAOR loop (Think-Act-Observe-Repeat), but OBSERVE triggered by timer, not user
+- **Graduated cost:** Layer 1-2 free (fs/git checks), Layer 3 free (pattern match), Layer 4-5 cost tokens (LLM)
+- **Risk:** Token costs scale with frequency — use graduated checks, disable during inactive hours
+- **Guide:** `.claude/guides/proactive-agent-patterns.md`
+
 ---
 
 ## Gotchas
-
-### OpenRouter requires HTTP-Referer header (2026-02-19, verified: 2026-02-19)
-- OpenRouter API returns 401 "User not found" if requests lack `HTTP-Referer` header
-- Symptom: Graphiti search/add_memory fails with 401, but API key is valid on dashboard
-- Root cause: graphiti_core's AsyncOpenAI client doesn't send custom headers
-- Fix: patch factories.py to create AsyncOpenAI with `default_headers={"HTTP-Referer": "http://localhost:8000", "X-Title": "Graphiti MCP"}`
-- File: `~/graphiti/mcp_server/src/services/factories.py` (mounted as Docker volume)
-- After patching: restart container with `docker compose -f docker-compose-falkordb.yml restart graphiti-mcp`
 
 ### Docker Desktop on Windows (2026-02-18, verified: 2026-02-18)
 - Docker Desktop on Windows may hang on "Starting Engine" — fix: `wsl --shutdown` + restart
 
 ### Windows PATH trap in Docker Compose (2026-02-19, verified: 2026-02-19)
 - NEVER use `PATH=/root/.local/bin:${PATH}` in compose `environment:` — on Windows `${PATH}` injects Windows PATH, breaking all container binaries
-- Health check: override with `curl -f http://localhost:8000/health`
 - `restart: unless-stopped` on both services
 
 ### Git Clone of Large Repos (2026-02-22, verified: 2026-02-22)

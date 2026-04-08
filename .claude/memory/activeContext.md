@@ -3,11 +3,33 @@
 > Session bridge. Agent reads at start, updates at end. Max ~150 lines.
 > Old sessions → `.claude/memory/archive/`
 
-**Last updated:** 2026-03-31
+**Last updated:** 2026-04-08
 
 ---
 
 ## Current Focus
+
+### Webinar Insights Integration — COMPLETE
+**Task:** Analyze "Inside the Agent" webinar (Bayram Annakov) and implement improvements to our template system.
+
+**What was done (session 2026-04-08):**
+- Analyzed webinar transcript (Claude Code architecture patterns, 60+ min)
+- Identified 6 actionable improvements, prioritized P0-P3
+- Implemented ALL 6 via Agent Teams (4 parallel agents, ~3 min total):
+  1. **QA Evaluator Fresh Context** — reviewer no longer receives prior feedback (prevents bias)
+  2. **Tool Verification Harness** — coder uses compile/typecheck instead of re-reading files
+  3. **Microcompact Instructions** — agents summarize large tool outputs (>200 lines)
+  4. **Phase Transition Reminders** — wave boundary context injection in IMPLEMENT phase
+  5. **Memory Consolidation Skill** — new skill for background knowledge dedup/cleanup
+  6. **KAIROS Heartbeat Pattern** — proactive agent guide + knowledge entry
+- Synced all changes to new-project template (7 files)
+- Global qa-validation-loop SKILL.md updated with Fresh Context Rule
+
+**Decisions:**
+- Evaluator WITHOUT memory of prior feedback — prevents confirmation bias (from Generator-Evaluator pattern)
+- Compile-verify instead of re-read — reduces agent turns by ~10x (from Akim Khalilov's case study)
+- KAIROS is documented as pattern, not implemented as daemon — token cost too high for current usage
+- Memory consolidation as skill (not hook) — user-triggered, not automatic
 
 ### ECC Cherry-Pick Integration + Quality Fixes — COMPLETE
 **Task:** Import best components from everything-claude-code, fix all quality gaps, fleet deploy.
@@ -24,7 +46,7 @@
 - Created /learn-eval command + skill (continuous learning loop)
 - Added 5 build-error-resolver agent types to registry.md
 - Added ## Related cross-references to all 13 new skills
-- Fixed Graphiti MCP connection (.mcp.json with type:url transport)
+- Fixed MCP connection (.mcp.json with type:url transport)
 - Fixed Codex wrapper retry logic (2 attempts on model refresh timeout)
 - Fixed codex-review.py: IMPORTANT→non-blocking, sensitive file detection, summary.has_blockers→findings-derived
 - Fixed config-protection.py: deletion-based loosening (Edit old_string + Write on-disk comparison)

@@ -14,7 +14,6 @@ Before starting this phase, load:
 - Acceptance criteria from `work/{feature}/user-spec.md` or `work/{feature}/tech-spec.md`
 - `.claude/memory/knowledge.md` — known pitfalls to check for
 - `.claude/skills/qa-validation-loop/SKILL.md` — QA procedure
-- Query Graphiti: `search_memory_facts(query="quality issues and common bugs", max_facts=10)`
 
 ## Inputs
 - Source code from IMPLEMENT phase
@@ -53,7 +52,8 @@ Review `work/qa-review-report.md` for final verdict.
 - Roles: Reviewer (checks code against acceptance criteria), Fixer (resolves found issues)
 - Skills per role: verification-before-completion, qa-validation-loop
 - Prompt template: use `.claude/guides/teammate-prompt-template.md`
-- Each agent gets: source code, acceptance criteria, qa-issues.md (if exists from prior iteration)
+- Reviewer gets: source code + acceptance criteria ONLY (NO prior qa-issues.md — fresh evaluation prevents bias)
+- Fixer gets: source code + acceptance criteria + qa-issues.md (needs to know what to fix)
 
 ## Context Recovery
 After compaction, re-read:

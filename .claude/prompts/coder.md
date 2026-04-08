@@ -117,6 +117,27 @@ If ANY command fails:
 
 ---
 
+## Step 5.5: Verify, Don't Re-Read
+
+After writing or editing a file, do NOT read it back to verify your work.
+Instead, use the project's verification tools:
+
+| Language | Verification Command |
+|----------|---------------------|
+| Python | `uv run mypy {file}` or `uv run python -c "import {module}"` |
+| TypeScript | `npx tsc --noEmit` |
+| Rust | `cargo check` |
+| Go | `go vet ./...` |
+
+Rules:
+- If verification passes → trust your write, move on
+- If verification fails → fix based on the error message, not by re-reading the whole file
+- Only re-read a file if the error message is insufficient to understand the problem
+
+**Why:** Re-reading files you just wrote wastes turns dramatically. Observed: agent doing 90 turns reduced to ~10 when compile-verification replaced re-read loops. The model doesn't trust its own writes — give it a verification signal instead.
+
+---
+
 ## Step 6: Self-Critique
 
 Before claiming done, check:
@@ -132,6 +153,19 @@ Before claiming done, check:
 | Logging | Does every new/modified function have entry/exit/error logging? |
 
 If you find issues during self-critique, fix them before proceeding.
+
+---
+
+## Step 6.5: Budget Tool Results
+
+When a tool call returns more than ~200 lines of output:
+1. Extract the 10-20 most relevant lines (errors, key data points, summary)
+2. Work from the extracted summary, not the full output
+3. If you need specific details later, re-query with a more targeted command
+
+Do NOT hold large raw outputs in your working memory. Summarize and discard.
+
+**Why:** Large tool results consume context window rapidly. This "microcompact" technique — replacing verbose tool output with focused summaries — preserves context for actual implementation. Claude Code internally does this at layers 1-3 of its 7-layer context management system.
 
 ---
 

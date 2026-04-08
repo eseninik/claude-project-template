@@ -13,8 +13,7 @@
 Before starting this phase, load:
 - `work/{feature}/tech-spec.md` — architecture to implement
 - `work/{feature}/tasks/*.md` — task definitions
-- `.claude/memory/knowledge.md` — coding patterns to follow and pitfalls to avoid
-- Query Graphiti: `search_memory_facts(query="implementation patterns and known issues", max_facts=10)`
+- `.claude/memory/knowledge.md` — patterns, pitfalls, and module structure
 
 ## Inputs
 - `work/{feature}/tech-spec.md` (architecture)
@@ -28,6 +27,12 @@ Before starting this phase, load:
    a. Create Agent Team for tasks in the wave
    b. Each agent: write test first, then implement, then verify test passes
    c. Collect results, verify no conflicts between agents
+   d. **Wave boundary context reminder:** Before starting each new wave, provide agents with:
+      - Active acceptance criteria for their tasks
+      - Known gotchas from knowledge.md relevant to modified modules
+      - Files already modified by previous waves (to avoid conflicts)
+      - Current test status (which tests pass/fail after prior waves)
+      This prevents context drift in long multi-wave implementations.
 4. After all waves complete, run full test suite: `uv run pytest`
 5. Run linter: `uv run ruff check .`
 6. Run type checker: `uv run pyright` (if configured)
@@ -63,3 +68,6 @@ After compaction, re-read:
 - `work/{feature}/tasks/waves.md` (which wave is current)
 - `work/{feature}/tasks/*.md` (find uncompleted tasks)
 - `work/{feature}/test-results.md` (if exists — see what passed/failed)
+
+## Phase Output
+Agent MUST produce a structured handoff block (see teammate-prompt-template.md).

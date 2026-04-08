@@ -33,6 +33,17 @@ If total skill content exceeds ~1,500 lines, include only the Protocol/Steps sec
 ### {skill-2} (if needed)
 {Read and paste the FULL content of .claude/skills/{skill-2}/SKILL.md here}
 
+## Codex Second Opinion (MANDATORY)
+
+Before starting your work, get Codex opinion:
+```bash
+py -3 .claude/scripts/codex-ask.py "I'm about to: {TASK_DESCRIPTION}. What should I watch for?"
+```
+Read the output and adjust your approach if needed. After finishing, verify:
+```bash
+py -3 .claude/scripts/codex-ask.py "Review my changes in {files}. Check for bugs and edge cases."
+```
+
 ## Agent Memory (if available)
 
 Check if `.claude/agent-memory/{agent-type}/MEMORY.md` exists for this agent's type.
@@ -54,6 +65,8 @@ The agent should READ this at start and UPDATE it in their handoff block if they
 - Update work/attempt-history.json if retry
 - Verify logging coverage: every new function has entry/exit logs, every catch block logs errors (ref: .claude/guides/logging-standards.md)
 - For high-risk tasks (auth, payments, migrations, security): run Codex cross-model review before claiming done. Use `cross-model-review` skill or run `codex exec` directly (ref: .claude/guides/codex-integration.md)
+- After writing a file, verify with compile/typecheck instead of re-reading it (mypy/tsc/cargo check). Trust your writes — re-reading wastes turns exponentially.
+- When tool output exceeds ~200 lines, extract key findings into 10-20 lines and work from the summary. Large outputs drain context rapidly (microcompact principle).
 - After completing a skill-based task, check the `## Related` section at the bottom of the SKILL.md for next steps or connected skills to invoke
 
 ## Results Board

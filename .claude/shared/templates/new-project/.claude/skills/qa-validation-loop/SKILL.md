@@ -71,48 +71,6 @@ QA depth should match task risk -- trivial tasks need minimal checks, critical t
 | Missing timing on slow operations | **MINOR** |
 | Missing DEBUG logs for data transformations | **MINOR** |
 
-## Cross-Model Verification (Codex)
-
-**When:** After Claude QA reviewer completes, before final QA verdict.
-**Why:** Different AI model catches confirmation bias — classes of errors that same-model review systematically misses.
-
-### When to Invoke
-- High-risk changes: auth, payments, migrations, security, public API
-- Large changes: 5+ files across modules
-- Complex refactoring: architectural changes
-
-### When to Skip
-- Docs/CSS/config-only changes
-- Small fixes < 50 lines with existing test coverage
-- Codex CLI not available (graceful degradation)
-
-### How to Invoke
-```bash
-codex exec \
-  "Review all uncommitted changes. Focus on correctness, security, performance, test coverage. Use AGENTS.md rubric." \
-  -m gpt-5.4 \
-  --sandbox read-only \
-  --full-auto \
-  --output-schema .codex/review-schema.json \
-  -o .codex/reviews/latest.json \
-  --ephemeral
-```
-
-### Mapping Codex Findings to QA Severity
-
-| Codex Severity | QA Severity | Action |
-|---------------|-------------|--------|
-| BLOCKER | **CRITICAL** | Must fix before approval |
-| IMPORTANT | **IMPORTANT** | Should fix, verify if valid |
-| NIT | MINOR | Optional, fix if genuine improvement |
-
-### Conflict Resolution (Claude QA vs Codex)
-1. **Reproducible issue** (failing test, obvious bug) → CRITICAL regardless of which model found it
-2. **Style/approach disagreement** → defer to AGENTS.md/CLAUDE.md rules as norm
-3. **Security disagreement** → err on caution, escalate to security-auditor agent
-4. **Same issue disputed after 2 rounds** → BLOCKED, escalate to human
-5. **Lint/format disputes** → deterministic tools decide (prettier, eslint, black, ruff)
-
 ## Runtime Configuration
 
 Before executing, check `.claude/ops/config.yaml`:
@@ -226,6 +184,11 @@ For already-implemented phases without Nyquist:
    - Input: changed files list + acceptance criteria + complexity level
    - Use prompt: .claude/prompts/qa-reviewer.md
    - Output: issues with severity (CRITICAL / IMPORTANT / MINOR) with evidence
+   - **IMPORTANT: Fresh Context Rule** — Do NOT pass work/qa-issues.md or prior review results to the Reviewer.
+     The Reviewer must evaluate code as if seeing it for the first time.
+     Only the Fixer receives prior issues (to know what to fix).
+     Why: Evaluators with memory of prior feedback exhibit confirmation bias — they rarely lower scores
+     even when fixes are incomplete (ref: Generator-Evaluator pattern, Bayram Annakov).
 4. **Evaluate**: No CRITICAL/IMPORTANT -> PASS. Otherwise -> continue
 5. **Spawn Fixer** (Task tool, agent type: qa-fixer from registry):
    - Input: CRITICAL + IMPORTANT issues only

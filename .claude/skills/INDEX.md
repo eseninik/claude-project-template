@@ -60,6 +60,7 @@ cross-model-review ──────┘
 | expert-panel | 3-5 domain experts for deep analysis before implementation |
 | codebase-mapping | Map unfamiliar codebase → codebase-map.md |
 | experiment-loop | Autonomous hypothesis → experiment → measure → keep/discard |
+| memory-consolidation | Background memory consolidation — deduplicate knowledge, resolve conflicts, refresh decay tiers |
 | mcp-integration | On-demand MCP server calls (search, scraping, docs) |
 
 ## Skill Lifecycle

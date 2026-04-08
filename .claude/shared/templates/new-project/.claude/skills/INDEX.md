@@ -1,6 +1,6 @@
 # Skills Index
 
-> Navigation hub for 22 agent skills. Agent scans categories, follows chains to relevant skills.
+> Navigation hub for 23 agent skills. Agent scans categories, follows chains to relevant skills.
 > Each skill has `## Related` section with cross-references for graph traversal.
 
 ---
@@ -41,7 +41,8 @@ task-decomposition → subagent-driven-development ──→ qa-validation-loop
 ```
 qa-validation-loop → verification-before-completion
                          ↑
-systematic-debugging ────┘
+systematic-debugging ────┤
+cross-model-review ──────┘
 ```
 
 | Skill | Purpose |
@@ -49,6 +50,7 @@ systematic-debugging ────┘
 | qa-validation-loop | Risk-proportional QA with Reviewer + Fixer agents |
 | verification-before-completion | Evidence-based completion gate (goal-backward) |
 | systematic-debugging | 4-phase debugging: investigate → analyze → test → fix |
+| cross-model-review | Codex CLI cross-model verification before PRs/merge |
 | error-recovery | Structured recovery for tool/test/timeout failures |
 
 ## Analysis & Research
@@ -58,6 +60,7 @@ systematic-debugging ────┘
 | expert-panel | 3-5 domain experts for deep analysis before implementation |
 | codebase-mapping | Map unfamiliar codebase → codebase-map.md |
 | experiment-loop | Autonomous hypothesis → experiment → measure → keep/discard |
+| memory-consolidation | Background memory consolidation — deduplicate knowledge, resolve conflicts, refresh decay tiers |
 | mcp-integration | On-demand MCP server calls (search, scraping, docs) |
 
 ## Skill Lifecycle
