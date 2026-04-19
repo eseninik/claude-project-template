@@ -3,6 +3,15 @@
 > Patterns + Gotchas combined. Single source of truth for project-specific knowledge.
 > **IF YOU LEARNED SOMETHING THIS SESSION — ADD IT HERE.**
 > Dedup before adding. One bullet per entry.
+
+### Triage-Before-Loop (Autoresearch) (2026-04-19, verified: 2026-04-19)
+Before launching any experiment/optimization loop, score 5 dimensions green/yellow/red: feedback latency, metric mechanicality, tail shape, sample size, surface locality. Any RED → refuse or adapt the mode (barbell / via-negativa / inverted / human-in-loop). "Refusing is a feature. Do not start the loop to be agreeable." Reference: `~/.claude/skills/experiment-loop/references/triage-checklist.md`. Bayram Annakov's core thesis: Karpathy's loop is Step 5 of 5; 80% of the work is BEFORE the loop.
+
+### Compliance Audit for LLM-Prompt Loops (2026-04-19, verified: 2026-04-19)
+Fitness Req #7: before optimizing an LLM-steering prompt, sample 5-10 baseline traces and check whether the model actually follows each concrete rule. If compliance <70%, the prompt text is decorative — editing rules the model ignores moves the score on noise, not prompt content. Fix before iterating: shorten, replace abstract rules with worked examples, or move hard rules into scaffolding (schema/tools/filters). Reference: `~/.claude/skills/experiment-loop/references/fitness-design.md`.
+
+### Best-Kept Metric Scan on Loop Resume (2026-04-19, verified: 2026-04-19)
+`loop-driver.py` resume logic MUST scan the entire journal for the best kept=yes metric (direction-aware), not just parse the last line. A trailing reverted iteration would otherwise leave `best_metric=None` and make the first resumed kept iteration always "improve" regardless of value. Fallback: baseline_data["metric"] if no kept line exists. Bug caught by Codex review 2026-04-19; fixed in `templates/loop-driver.py`.
 > **Observations:** Capture friction/surprises/gaps/insights in `.claude/memory/observations/`
 > **Promotion:** Review pending observations → promote stable ones here
 >
