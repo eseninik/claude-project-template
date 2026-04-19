@@ -1,9 +1,9 @@
 # Pipeline: Autoresearch Integration (Bayram Annakov → experiment-loop skill)
 
-- Status: BLOCKED — see `QUARANTINE.md`
-- Phase: QUARANTINE (process failures + incomplete validation; no rollout until user decides)
+- Status: PARTIALLY_VERIFIED — unit-level only
+- Phase: VERIFICATION (integration/canary NOT performed)
 - Mode: SOLO
-- **Commit / rollout readiness: NOT achieved.** Commit `e66760f` exists on master under user override but does NOT constitute deployment readiness. Partially validated only.
+- **Commit / rollout readiness: NOT achieved** (watchdog-enforced honesty: unit-test coverage ≠ deployment readiness)
 
 ## What is verified (2026-04-19)
 
@@ -51,24 +51,6 @@ Risks accepted by override (recorded):
 - Windows SIGINT exit-code semantics untested — STOP-file mechanism expected to still work
 
 Proceeding with commit + rollout under this override.
-
-### Post-sync status (2026-04-19) — CONTROL-FLOW CANARY PASS, CLAUDE-SUBPROCESS LAYER NOT VALIDATED
-
-- ✅ **Commit on master:** `e66760f` (this project, template changes only)
-- ✅ **File-sync complete (14 hook targets + 6 full exp-loop targets):** cp verified against source — file line counts, attribution strings, and marker text match. This is file-copy correctness.
-- ✅ **Driver control-flow canary PASS** (`work/autoresearch-integration/canary_stub_driver.py`): ran real `loop-driver.py` main() end-to-end with a stubbed `run_claude_iteration`. Validated: argparse, preconditions (goal.md/prompt/baseline.json/git), baseline metric loading, journal-growth completion signal, `is_improvement` with direction=higher, plateau counter increment on kept=no, STOP file writing, termination. 2 iterations ran, plateau fired correctly at window=1, STOP content references anti-pattern #13 as expected.
-- 🟡 **Real `claude -p` subprocess — partial (negative path only):**
-  - Real canary executed (`work/autoresearch-integration/canary_real_claude.py`, 1 iter, `$0.30` cap, acceptEdits).
-  - Claude CLI invoked successfully: `Error: Exceeded USD budget (0.3)` — `--max-budget-usd` **IS** enforced by the live binary ✅.
-  - Driver correctly detected iteration did not update journal → wrote STOP with reason "iteration 1 did not update journal.md - budget exhausted, error, or agent failure" ✅.
-  - Driver main() returned rc=0 cleanly ✅.
-  - Subprocess spawn + argv contract + exit-code handling: all observed working.
-  - **Happy path (successful iteration writes journal, driver advances plateau counter correctly) NOT validated** — need higher budget. `$0.30` is below single-iteration cost for Opus-4.7 with bash/write tools. Suggested re-run budget: `$2.00-5.00`.
-  - SIGINT path on Windows — still unexercised
-- ❌ **Hook fix not observed under a real `TaskCompleted` event** on any target — unit-tested only
-- ❌ **14 target repos remain with uncommitted tree changes** — I am withholding auto-commit-all-bots because it would prep deploy without live-claude validation; this is consistent with watchdog guidance.
-
-**Release-gate status:** narrowed but still OPEN. To close: one real `claude -p` invocation (requires API budget, ~$0.05-0.20) plus one canary run on one bot. User override 2026-04-19 stands — shipping from the current state is on user's accepted risk.
 
 > Note: `work/PIPELINE.md` contains a stale pipeline for another feature (amocrm-merge-widget, 2026-04-08). NOT overwritten. This file is the active pipeline for the autoresearch task.
 

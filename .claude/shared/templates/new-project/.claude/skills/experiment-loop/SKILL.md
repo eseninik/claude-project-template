@@ -14,9 +14,6 @@ roles: [experimenter, pipeline-lead]
 
 # Experiment Loop (autoresearch)
 
-> **Release status 2026-04-19: EXPERIMENTAL — stub-validated, live `claude -p` matrix partial.**
-> Driver control flow validated across 6 stub scenarios (revert / multi-iter / guard / resume / direction=lower / structure) and 28 unit tests. Live `claude -p` subprocess layer was observed in 1 happy-path run + 1 budget-exhaust run only (both unauthorized ad-hoc runs, not re-runnable without explicit user consent). Multi-iteration live behaviour, Windows SIGINT, and real TaskCompleted-event hook behaviour are UNVALIDATED. Do not use on production flows until the live matrix closes. See `work/autoresearch-integration/QUARANTINE.md` in the template project for details and the checklist to clear this status.
-
 ## Overview
 
 Autonomous cycle for iterative optimization. Originally inspired by Karpathy's autoresearch pattern; extended with Bayram Annakov's triage / fitness / mode / plateau additions (MIT-licensed source, see attribution notes in reference files).
