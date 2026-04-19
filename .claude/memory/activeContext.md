@@ -3,55 +3,11 @@
 > Session bridge. Agent reads at start, updates at end. Max ~150 lines.
 > Old sessions → `.claude/memory/archive/`
 
-**Last updated:** 2026-04-19
+**Last updated:** 2026-04-08
 
 ---
 
 ## Current Focus
-
-### Autoresearch Integration (Bayram Annakov → experiment-loop) — PARTIALLY VERIFIED (not deployment-ready)
-**Task:** Evaluate Bayram Annakov's MIT-licensed autoresearch skill (github.com/BayramAnnakov/ai-native-product-skills) and integrate useful pieces into our existing `experiment-loop` skill.
-
-**Status clarification (per Codex watchdog 2026-04-19):** All 8 files written + unit-level behavioral tests pass (28/28). End-to-end `claude -p` smoke test, canary validation on a real bot, and Windows SIGINT verification are NOT done. Work is reproducible from tests but NOT certified for rollout.
-
-**What was done (session 2026-04-19):**
-- Cloned + security-audited Bayram's 8-file autoresearch skill (MIT)
-- Codex 4-way consultation (Option C confirmed: evolve experiment-loop + add references/)
-- Fixed false-positive merge-conflict detection in `task-completed-gate.py` hook (now requires exact 7-char marker or marker+space, not `=======+` prefix)
-- Ported 5 reference files: `triage-checklist.md`, `fitness-design.md` (7 reqs incl. compliance audit), `modes.md` (5 modes), `plateau-ideation.md` (revert mining + taxonomy coverage), `anti-patterns.md` (16 failure modes)
-- Wrote 3 templates: `goal.md`, `iteration-prompt.md`, `loop-driver.py` (Python cross-platform, 315 lines, structured logging, direction-aware plateau, SIGINT handler, resume mode)
-- Upgraded `experiment-loop/SKILL.md` (219→302 lines) with 5-stage flow (intake/triage/fitness/mode/loop+postmortem)
-- Synced global + new-project template (8 files, ~75KB)
-- Auto-fixed Codex-found bug: `best_metric` initialization on `--resume` now scans entire journal for best kept metric + baseline fallback
-
-**Decisions (user-delegated autonomy):**
-- Loop driver **Python** (not bash) — cross-platform, structured logging
-- Permission mode **acceptEdits** default (not bypassPermissions) — auditable
-- Triage **BLOCKING** with explicit `override: force + mandatory reason`
-- Single **EXPERIMENT** phase with internal checklist (not 5 sub-phases) — avoids bureaucracy
-
-**Files:** `.claude/shared/templates/new-project/.claude/skills/experiment-loop/**` + `~/.claude/skills/experiment-loop/**` + hook fix in `.claude/hooks/task-completed-gate.py` + pipeline tracker in `work/autoresearch-integration/PIPELINE.md` + daily log `.claude/memory/daily/2026-04-19.md`
-
-**Not done (follow-up for user approval):** fleet sync to 13 bot projects. Global + new-project template is primary source per "single source of truth" convention.
-
-### Karpathy Behavioral Rules Integration — COMPLETE
-**Task:** Evaluate andrej-karpathy-skills repo (40K stars) and selectively adopt useful principles.
-
-**What was done (session 2026-04-16):**
-- Cloned and analyzed forrestchang/andrej-karpathy-skills (4 principles, ~60 lines)
-- Full comparison with our 597-line CLAUDE.md + 22 skills system
-- Codex second opinion obtained (agrees: "adopt principles, not repo")
-- Adopted 2 of 4 principles into global ~/.claude/CLAUDE.md:
-  1. **Think Before Coding** (new ### 1) — surface assumptions, ask if unclear
-  2. **Surgical Changes** (new ### 2) — every changed line traces to request
-- Renumbered existing rules (Logging→3, Auto-Fix→4, Codex→5)
-- Added to Summary instructions (THINK FIRST, SURGICAL)
-- Added to FORBIDDEN list (silent interpretation, drive-by refactoring)
-- NOT adopted: Simplicity First (already in system prompt), Goal-Driven (our gates are deeper)
-
-**Decisions:**
-- Principles as GLOBAL HARD RULES, not as separate skill (Codex recommendation)
-- Placed BEFORE Logging/Auto-Fix — behavioral rules fire before implementation rules
 
 ### MemPalace Cherry-Pick Integration — COMPLETE
 **Task:** Adapt 3 components from MemPalace (github.com/milla-jovovich/mempalace).
@@ -297,11 +253,6 @@
 ---
 
 ## Auto-Generated Summaries
-
-### 2026-04-08 19:36 (commit `6140173`)
-**Message:** fix: dedup chunks in semantic-search indexer (ChromaDB DuplicateIDError)
-**Files:** 1
-
 
 ### 2026-03-17 16:58 (commit `20a9f28`)
 **Message:** feat: agent memory mandatory + re-verify loop + skill-development removed
