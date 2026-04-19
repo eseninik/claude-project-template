@@ -89,9 +89,10 @@ def check_merge_conflicts(cwd: Path, files: list[str]) -> list[str]:
         try:
             content = full_path.read_text(encoding="utf-8", errors="ignore")
             for marker in markers:
-                # Only flag markers at line start (real conflicts)
+                # Real git conflict markers: exactly 7 chars alone OR followed by a space
+                # (excludes log separators like '====================' = 7+ more equals)
                 for line in content.splitlines():
-                    if line.startswith(marker):
+                    if line == marker or line.startswith(marker + " "):
                         conflicts.append(f"  {file_path}: merge conflict marker at line start")
                         break
                 else:
