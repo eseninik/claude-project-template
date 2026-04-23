@@ -156,17 +156,30 @@ def load_state(path: Path) -> dict:
 
 
 def save_state(path: Path, state: dict) -> None:
+    """Atomic write: stage to tempfile in same dir, then os.replace.
+
+    os.replace is atomic on POSIX and Windows (MoveFileEx with MOVEFILE_REPLACE_EXISTING).
+    Prevents partial-write corruption if two Stop hooks race.
+    """
     # Truncate recent_wakes to keep file small
     state["recent_wakes"] = state["recent_wakes"][-RECENT_WAKES_LIMIT:]
     try:
-        path.write_text(json.dumps(state, ensure_ascii=False, indent=2),
-                        encoding="utf-8")
+        tmp_path = path.with_suffix(path.suffix + f".tmp.{os.getpid()}")
+        tmp_path.write_text(json.dumps(state, ensure_ascii=False, indent=2),
+                            encoding="utf-8")
+        os.replace(tmp_path, path)
         logger.info("save_state ok recent=%d topics=%d cooldown=%d",
                     len(state["recent_wakes"]),
                     len(state["topic_halt_counts"]),
                     state["cooldown_remaining"])
     except OSError as e:
         logger.warning("save_state error=%s", e)
+        # Best-effort cleanup of stale tmp
+        try:
+            if tmp_path.exists():
+                tmp_path.unlink()
+        except (NameError, OSError):
+            pass
 
 
 def _session_id() -> str:

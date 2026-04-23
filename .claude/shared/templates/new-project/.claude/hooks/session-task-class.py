@@ -123,15 +123,22 @@ def _looks_like_chat(p: str) -> bool:
 
 
 def write_class(project_dir: Path, cls: str) -> None:
-    """Persist detected class to .codex/task-class."""
+    """Persist detected class to .codex/task-class atomically."""
     codex_dir = project_dir / ".codex"
     codex_dir.mkdir(parents=True, exist_ok=True)
     path = codex_dir / "task-class"
+    tmp_path = path.with_suffix(f".tmp.{os.getpid()}")
     try:
-        path.write_text(cls, encoding="utf-8")
+        tmp_path.write_text(cls, encoding="utf-8")
+        os.replace(tmp_path, path)
         logger.info("write_class path=%s value=%s", path, cls)
     except OSError as e:
         logger.warning("write_class fail=%s", e)
+        try:
+            if tmp_path.exists():
+                tmp_path.unlink()
+        except OSError:
+            pass
 
 
 def read_override(project_dir: Path) -> str | None:

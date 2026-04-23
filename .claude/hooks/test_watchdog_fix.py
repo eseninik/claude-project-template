@@ -184,6 +184,53 @@ class TestPreFilter(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# TRUE POSITIVES — watchdog MUST analyze these (symmetric to FP tests)
+# ---------------------------------------------------------------------------
+
+class TestTruePositives(unittest.TestCase):
+    """Responses that genuinely warrant Codex analysis must pass pre-filter.
+
+    These are the anti-test to AC6 — verify watchdog is NOT too passive.
+    Without this coverage, narrowing pre-filter could silently break
+    the watchdog's ability to catch real quality shortcuts.
+    """
+
+    def test_tp_skip_test_before_commit(self):
+        r = ("Реализовал фичу. Тесты пока без запуска — не критично, "
+             "закоммичу и задеплой на прод сразу. " * 6)
+        self.assertTrue(watchdog.should_analyze(r, "feature"),
+                        "skip_test + commit + deploy MUST trigger analysis")
+
+    def test_tp_partial_work_with_deploy(self):
+        r = ("Готово. Можно закоммитить. Осталось пару edge cases, но пока "
+             "не критично — оставим на потом. Push в production. " * 4)
+        self.assertTrue(watchdog.should_analyze(r, "feature"),
+                        "partial + deploy MUST trigger")
+
+    def test_tp_acknowledged_failure_proceeding(self):
+        r = ("Тесты не запускал на этом модуле, но commit делаю всё равно — "
+             "задеплой завершён, работает. " * 5)
+        self.assertTrue(watchdog.should_analyze(r, "feature"),
+                        "no_tests + commit + deploy MUST trigger")
+
+    def test_tp_triggers_in_deploy_class(self):
+        r = ("Закоммитил релиз. Часть проверок не запускал — не критично. " * 4)
+        self.assertTrue(watchdog.should_analyze(r, "deploy"),
+                        "In deploy class, any quality shortcut MUST trigger")
+
+    def test_tp_chat_still_skipped_even_with_signals(self):
+        """Exception: even TP signals are skipped under `chat` class.
+
+        This is by design — user asking about a PAST commit is not grounds
+        for watchdog wake. User is the one making statements, not Claude.
+        """
+        r = ("Да, помню — мы в тот commit не запускали тесты, было не критично, "
+             "и задеплоил сразу. " * 5)
+        self.assertFalse(watchdog.should_analyze(r, "chat"),
+                         "chat class disables watchdog by design")
+
+
+# ---------------------------------------------------------------------------
 # AC6 — FP replay (Linear MCP case)
 # ---------------------------------------------------------------------------
 
@@ -309,6 +356,219 @@ class TestCooldown(unittest.TestCase):
         max_sev = watchdog.cap_severity(
             watchdog.SEV_WARN, watchdog.SEV_HALT)
         self.assertEqual(max_sev, watchdog.SEV_WARN)
+
+
+# ---------------------------------------------------------------------------
+# STRESS: malformed / corrupted state file
+# ---------------------------------------------------------------------------
+
+class TestStressState(unittest.TestCase):
+    """Corrupted / malformed state must not crash watchdog."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self.project_dir = Path(self.tmpdir.name)
+        self.state_path = self.project_dir / ".codex" / "watchdog-state.json"
+        self.state_path.parent.mkdir()
+
+    def tearDown(self):
+        self.tmpdir.cleanup()
+
+    def test_corrupted_json_falls_back_to_new_state(self):
+        self.state_path.write_text("{this is not json", encoding="utf-8")
+        state = watchdog.load_state(self.state_path)
+        self.assertIn("recent_wakes", state)
+        self.assertEqual(state["recent_wakes"], [])
+
+    def test_truncated_json_falls_back(self):
+        self.state_path.write_text('{"session_id":"abc",', encoding="utf-8")
+        state = watchdog.load_state(self.state_path)
+        self.assertEqual(state["recent_wakes"], [])
+
+    def test_missing_file_returns_new_state(self):
+        ghost = self.state_path.parent / "nonexistent.json"
+        state = watchdog.load_state(ghost)
+        self.assertEqual(state["recent_wakes"], [])
+        self.assertEqual(state["cooldown_remaining"], 0)
+
+    def test_atomic_save_then_load_roundtrip(self):
+        state = {
+            "session_id": "testsid",
+            "recent_wakes": [{"ts": 100, "sig_hash": "a", "severity": "WARN"}],
+            "topic_halt_counts": {"t1": 1},
+            "cooldown_remaining": 2,
+        }
+        watchdog.save_state(self.state_path, state)
+        self.assertTrue(self.state_path.exists())
+        # Make sure tmp file is gone
+        leftovers = list(self.state_path.parent.glob("*.tmp.*"))
+        self.assertEqual(leftovers, [],
+                         f"atomic write left tmp file behind: {leftovers}")
+
+
+# ---------------------------------------------------------------------------
+# STRESS: malformed Codex verdicts
+# ---------------------------------------------------------------------------
+
+class TestStressCodexVerdict(unittest.TestCase):
+
+    def test_wrapped_in_extra_prose(self):
+        raw = ("Here is my analysis of the response:\n\n"
+               "Looking carefully at the context, I note that...\n"
+               '{"severity":"WARN","confidence":0.8,"reason":"x","evidence":"y"}'
+               "\n\nLet me know if you need more detail.")
+        v = watchdog._parse_codex_verdict(raw)
+        self.assertIsNotNone(v)
+        self.assertEqual(v["severity"], "WARN")
+
+    def test_confidence_out_of_range_clamped(self):
+        raw = '{"severity":"WARN","confidence":1.5,"reason":"x","evidence":"y"}'
+        v = watchdog._parse_codex_verdict(raw)
+        self.assertEqual(v["confidence"], 1.0)
+
+    def test_confidence_non_numeric_defaults(self):
+        raw = '{"severity":"WARN","confidence":"high","reason":"x","evidence":"y"}'
+        v = watchdog._parse_codex_verdict(raw)
+        self.assertEqual(v["confidence"], 0.5)
+
+    def test_missing_fields_still_parses(self):
+        raw = '{"severity":"OBSERVE"}'
+        v = watchdog._parse_codex_verdict(raw)
+        self.assertEqual(v["severity"], "OBSERVE")
+        self.assertEqual(v["reason"], "")
+        self.assertEqual(v["evidence"], "")
+
+    def test_empty_response_returns_none(self):
+        self.assertIsNone(watchdog._parse_codex_verdict(""))
+        self.assertIsNone(watchdog._parse_codex_verdict("   "))
+
+
+# ---------------------------------------------------------------------------
+# STRESS: classifier edge inputs
+# ---------------------------------------------------------------------------
+
+class TestStressClassifier(unittest.TestCase):
+
+    def test_very_long_prompt_classifies(self):
+        p = "добавь " + ("новый endpoint " * 200)
+        cls = classifier.classify(p)
+        self.assertEqual(cls, "feature")
+
+    def test_unicode_emoji_noise(self):
+        cls = classifier.classify("🔥🚀 задеплой это в прод please ✨")
+        self.assertEqual(cls, "deploy")
+
+    def test_mixed_signals_first_match_wins(self):
+        # deploy keyword + fix keyword → deploy wins (ordered rules)
+        cls = classifier.classify("deploy the bugfix to production")
+        self.assertEqual(cls, "deploy")
+
+    def test_null_byte_safe(self):
+        cls = classifier.classify("hello\x00world")
+        # Should not crash, should classify as chat or feature
+        self.assertIn(cls, {"chat", "feature"})
+
+
+# ---------------------------------------------------------------------------
+# INTEGRATION: full hook invocation via subprocess
+# ---------------------------------------------------------------------------
+
+import subprocess
+
+
+class TestIntegrationSmoke(unittest.TestCase):
+    """End-to-end: run hook as a subprocess with realistic stdin."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self.project_dir = Path(self.tmpdir.name)
+        (self.project_dir / ".codex").mkdir()
+        self.env = {
+            **dict(__import__("os").environ),
+            "CLAUDE_PROJECT_DIR": str(self.project_dir),
+        }
+
+    def tearDown(self):
+        self.tmpdir.cleanup()
+
+    def _run_watchdog(self, payload: dict) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [sys.executable, str(HOOKS_DIR / "codex-watchdog.py")],
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            env=self.env,
+            timeout=30,
+            encoding="utf-8",
+        )
+
+    def _run_classifier(self, payload: dict) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [sys.executable, str(HOOKS_DIR / "session-task-class.py")],
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            env=self.env,
+            timeout=10,
+            encoding="utf-8",
+        )
+
+    def test_classifier_persists_class_file(self):
+        res = self._run_classifier({"prompt": "задеплой в прод"})
+        self.assertEqual(res.returncode, 0)
+        cls_file = self.project_dir / ".codex" / "task-class"
+        self.assertTrue(cls_file.exists())
+        self.assertEqual(cls_file.read_text(encoding="utf-8"), "deploy")
+
+    def test_watchdog_skips_empty_stdin(self):
+        res = subprocess.run(
+            [sys.executable, str(HOOKS_DIR / "codex-watchdog.py")],
+            input="",
+            capture_output=True,
+            text=True,
+            env=self.env,
+            timeout=10,
+            encoding="utf-8",
+        )
+        self.assertEqual(res.returncode, 0)
+
+    def test_watchdog_skips_chat_class_even_with_signals(self):
+        # Set chat class
+        (self.project_dir / ".codex" / "task-class").write_text(
+            "chat", encoding="utf-8")
+        # Response with hard signals that WOULD otherwise trigger
+        payload = {"assistant_message":
+                   ("Готово, закоммитил, деплой прошёл. "
+                    "Не запускал тесты — не критично сейчас. " * 10)}
+        res = self._run_watchdog(payload)
+        self.assertEqual(res.returncode, 0)
+        # Should skip entirely — no Codex call attempted
+        self.assertIn("class_disabled", res.stderr)
+
+    def test_watchdog_skips_short_response(self):
+        res = self._run_watchdog({"assistant_message": "short"})
+        self.assertEqual(res.returncode, 0)
+        self.assertIn("too_short", res.stderr)
+
+    def test_watchdog_fp_linear_mcp_skips(self):
+        # AC6 integration: the exact FP response from today's session
+        fp_response = TestFPReplay.LINEAR_MCP_RESPONSE
+        res = self._run_watchdog({"assistant_message": fp_response})
+        self.assertEqual(res.returncode, 0,
+                         f"Watchdog should exit 0, got {res.returncode}. "
+                         f"stderr: {res.stderr[:500]}")
+        self.assertIn("no_hard_signals", res.stderr)
+
+    def test_override_file_applied_end_to_end(self):
+        # Write an active override forcing chat class
+        override = {"class": "chat", "until": int(time.time()) + 600}
+        (self.project_dir / ".codex" / "task-class-override").write_text(
+            json.dumps(override), encoding="utf-8")
+        # Run classifier with a prompt that would normally be `deploy`
+        self._run_classifier({"prompt": "задеплой в прод сейчас"})
+        # Classifier honors override, writes chat to task-class
+        cls = (self.project_dir / ".codex" / "task-class").read_text(encoding="utf-8")
+        self.assertEqual(cls, "chat")
 
 
 if __name__ == "__main__":
