@@ -570,6 +570,109 @@ class TestIntegrationSmoke(unittest.TestCase):
         cls = (self.project_dir / ".codex" / "task-class").read_text(encoding="utf-8")
         self.assertEqual(cls, "chat")
 
+    def test_watchdog_off_override_honored_end_to_end(self):
+        """AC7 regression (BLOCKER from Codex review): /watchdog off must disable watchdog.
+
+        1. Classifier must preserve "off" override (write "off" to task-class file)
+        2. Watchdog must see "off" class and skip before analysis
+        """
+        # Set /watchdog off override
+        override = {"class": "off", "until": int(time.time()) + 600}
+        (self.project_dir / ".codex" / "task-class-override").write_text(
+            json.dumps(override), encoding="utf-8")
+
+        # Classifier run — must persist "off" to task-class file
+        self._run_classifier({"prompt": "задеплой в прод сейчас"})
+        cls = (self.project_dir / ".codex" / "task-class").read_text(encoding="utf-8")
+        self.assertEqual(cls, "off",
+                         "Classifier must persist 'off' terminal state")
+
+        # Watchdog run with response that WOULD trigger — must skip
+        payload = {"assistant_message":
+                   ("Готово, закоммитил, деплой. Не запускал тесты, не критично. " * 10)}
+        res = self._run_watchdog(payload)
+        self.assertEqual(res.returncode, 0)
+        self.assertIn("class_disabled", res.stderr,
+                      "Watchdog must skip due to 'off' class")
+
+
+# ---------------------------------------------------------------------------
+# HALT integration (AC2 + AC4) — true positive end-to-end
+# ---------------------------------------------------------------------------
+
+class TestHaltIntegration(unittest.TestCase):
+    """AC2 + AC4: stub Codex to return HALT, drive main(), verify exit 2 + state."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self.project_dir = Path(self.tmpdir.name)
+        (self.project_dir / ".codex").mkdir()
+        # Force deploy class so HALT is allowed
+        (self.project_dir / ".codex" / "task-class").write_text(
+            "deploy", encoding="utf-8")
+        import os as _os
+        self._old_env = _os.environ.get("CLAUDE_PROJECT_DIR")
+        _os.environ["CLAUDE_PROJECT_DIR"] = str(self.project_dir)
+
+    def tearDown(self):
+        import os as _os
+        if self._old_env is None:
+            _os.environ.pop("CLAUDE_PROJECT_DIR", None)
+        else:
+            _os.environ["CLAUDE_PROJECT_DIR"] = self._old_env
+        self.tmpdir.cleanup()
+
+    def _run_main_with_halt_verdict(self, response: str):
+        """Invoke main() with analyze_with_codex stubbed to return HALT."""
+        halt_verdict = {
+            "severity": "HALT",
+            "confidence": 0.95,
+            "reason": "claimed tests pass but log shows failure",
+            "evidence": "'fixtures: 2 failed' in output",
+        }
+        # Patch stdin + analyze_with_codex + exit
+        import io
+        payload = json.dumps({"assistant_message": response})
+        with patch.object(watchdog, "analyze_with_codex",
+                          return_value=halt_verdict), \
+             patch.object(sys, "stdin", io.StringIO(payload)):
+            try:
+                watchdog.main()
+                return 0  # main didn't exit
+            except SystemExit as e:
+                return e.code
+
+    def test_halt_verdict_exits_2_and_updates_state(self):
+        response = ("Я завершил работу. Часть тестов не запускал, но commit "
+                    "сделаю. Закоммитил. Push на прод. " * 5)
+        exit_code = self._run_main_with_halt_verdict(response)
+        self.assertEqual(exit_code, 2, "HALT verdict must exit 2")
+
+        # State file must exist with recorded wake + cooldown
+        state_path = self.project_dir / ".codex" / "watchdog-state.json"
+        self.assertTrue(state_path.exists(), "State file must be created")
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        self.assertGreaterEqual(len(state["recent_wakes"]), 1)
+        self.assertEqual(state["recent_wakes"][-1]["severity"], "HALT")
+        self.assertEqual(state["cooldown_remaining"], watchdog.POST_HALT_COOLDOWN)
+        self.assertEqual(sum(state["topic_halt_counts"].values()), 1)
+
+    def test_second_halt_on_same_topic_downgrades(self):
+        """Topic-dedup: same anomaly seen 2+ times must downgrade HALT to WARN."""
+        response = ("Готово, commit, deploy. Не запускал tests. " * 5)
+        # First HALT
+        self._run_main_with_halt_verdict(response)
+        # Second attempt with same verdict → should downgrade
+        # (we change sig by adding text, keeping topic the same)
+        response2 = response + " Ещё немного текста для разного sig hash. " * 3
+        exit_code = self._run_main_with_halt_verdict(response2)
+        # After one HALT (seen_count=1), second still HALTs (threshold is >=2)
+        # Third would downgrade. Let's run third.
+        response3 = response + " Third iteration text. " * 5
+        exit_code3 = self._run_main_with_halt_verdict(response3)
+        # After 2 HALTs on same topic, third should downgrade.
+        self.assertEqual(exit_code3, 0, "Third HALT on same topic must downgrade → exit 0")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

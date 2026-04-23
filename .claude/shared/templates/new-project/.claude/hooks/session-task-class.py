@@ -37,6 +37,9 @@ logging.basicConfig(
 
 DEFAULT_CLASS = "feature"
 KNOWN_CLASSES = {"chat", "typo", "bugfix", "feature", "refactor", "deploy"}
+# Override file may contain "off" as a terminal state — valid override value
+# even though classify() never produces it. Watchdog reads "off" and disables.
+VALID_OVERRIDE_CLASSES = KNOWN_CLASSES | {"off"}
 
 # Ordered rules: first match wins. Each rule = (class, list of regex patterns).
 # Patterns are case-insensitive. Russian + English.
@@ -150,7 +153,7 @@ def read_override(project_dir: Path) -> str | None:
         data = json.loads(path.read_text(encoding="utf-8"))
         if data.get("until", 0) > time.time():
             cls = data.get("class", "")
-            if cls in KNOWN_CLASSES or cls == "off":
+            if cls in VALID_OVERRIDE_CLASSES:
                 logger.info("override_active class=%s until=%d", cls, data["until"])
                 return cls
     except (OSError, json.JSONDecodeError) as e:
@@ -191,9 +194,10 @@ def main() -> None:
 
     project_dir = get_project_dir()
 
-    # Honor override if active — keep it, skip classification
+    # Honor override if active. "off" is a terminal state — persist it so
+    # downstream hooks (watchdog) read "off" and skip entirely.
     override = read_override(project_dir)
-    if override and override != "off":
+    if override:
         logger.info("main=keep_override class=%s", override)
         write_class(project_dir, override)
         sys.exit(0)

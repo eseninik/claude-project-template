@@ -75,6 +75,7 @@ SEV_ORDER = {SEV_OBSERVE: 0, SEV_WARN: 1, SEV_HALT: 2}
 # Task-class → allowed severities (others are capped to max allowed)
 TASK_CLASS_POLICY = {
     "chat":     {"enabled": False, "max_sev": SEV_OBSERVE},
+    "off":      {"enabled": False, "max_sev": SEV_OBSERVE},  # /watchdog off terminal state
     "typo":     {"enabled": True,  "max_sev": SEV_OBSERVE},
     "bugfix":   {"enabled": True,  "max_sev": SEV_HALT, "skip_warn": True},
     "feature":  {"enabled": True,  "max_sev": SEV_HALT},
@@ -82,6 +83,10 @@ TASK_CLASS_POLICY = {
     "deploy":   {"enabled": True,  "max_sev": SEV_HALT, "stricter": True},
 }
 DEFAULT_TASK_CLASS = "feature"  # if no detector ran yet, err on the strict-medium side
+
+# File lock parameters (Windows-safe)
+LOCK_RETRY_MAX = 10
+LOCK_RETRY_SLEEP = 0.05  # 50ms per retry, ~500ms total worst case
 
 # Narrowed pre-filter — only real-danger keywords
 # Old list was too broad (every "bug"/"error" mention triggered analysis).
@@ -115,6 +120,49 @@ def get_trail_path(project_dir: Path) -> Path:
     codex_dir = project_dir / ".codex"
     codex_dir.mkdir(parents=True, exist_ok=True)
     return codex_dir / "watchdog-trail.jsonl"
+
+
+def acquire_state_lock(state_path: Path):
+    """Cross-platform exclusive lock via O_CREAT|O_EXCL on sibling `.lock` file.
+
+    Returns lock fd or None if couldn't acquire after retries. Caller MUST
+    release via release_state_lock(). Stop hooks are usually sequential,
+    but if asyncRewake causes overlap, this prevents lost updates.
+    """
+    lock_path = state_path.with_suffix(state_path.suffix + ".lock")
+    for attempt in range(LOCK_RETRY_MAX):
+        try:
+            fd = os.open(str(lock_path),
+                         os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            logger.info("acquire_state_lock ok attempt=%d", attempt)
+            return (fd, lock_path)
+        except FileExistsError:
+            # Stale lock from a crashed process? Check age.
+            try:
+                age = time.time() - lock_path.stat().st_mtime
+                if age > 10.0:
+                    logger.warning("stale lock (%.1fs), removing", age)
+                    lock_path.unlink()
+                    continue
+            except (OSError, FileNotFoundError):
+                pass
+            time.sleep(LOCK_RETRY_SLEEP)
+    logger.warning("acquire_state_lock timeout, proceeding without lock")
+    return None
+
+
+def release_state_lock(lock_handle) -> None:
+    if not lock_handle:
+        return
+    fd, lock_path = lock_handle
+    try:
+        os.close(fd)
+    except OSError:
+        pass
+    try:
+        lock_path.unlink()
+    except (OSError, FileNotFoundError):
+        pass
 
 
 def load_state(path: Path) -> dict:
@@ -540,82 +588,94 @@ def main() -> None:
     if not should_analyze(response, task_class):
         sys.exit(0)
 
-    # State-based dedup before Codex call
+    # State-based dedup before Codex call — guarded by inter-process lock
     state_path = get_state_path(project_dir)
     trail_path = get_trail_path(project_dir)
-    state = load_state(state_path)
+    lock_handle = acquire_state_lock(state_path)
+    try:
+        state = load_state(state_path)
 
-    sig = sig_hash(response)
-    recent_sigs = [w.get("sig_hash") for w in state["recent_wakes"][-SIG_DEDUP_WINDOW:]]
-    if sig in recent_sigs:
-        logger.info("main=skip reason=sig_dedup sig=%s", sig)
-        emit_observe(trail_path, None, task_class, len(response))
+        sig = sig_hash(response)
+        recent_sigs = [w.get("sig_hash") for w in
+                       state["recent_wakes"][-SIG_DEDUP_WINDOW:]]
+        if sig in recent_sigs:
+            logger.info("main=skip reason=sig_dedup sig=%s", sig)
+            emit_observe(trail_path, None, task_class, len(response))
 
-    # Determine severity cap from state + task-class
-    max_sev = policy_for(task_class)["max_sev"]
-    if state["cooldown_remaining"] > 0:
-        # After recent HALT — cap at WARN
-        max_sev = cap_severity(SEV_WARN, max_sev)
-        state["cooldown_remaining"] -= 1
-        logger.info("main=cooldown remaining=%d capped_to=%s",
-                    state["cooldown_remaining"], max_sev)
+        # Determine severity cap from state + task-class
+        max_sev = policy_for(task_class)["max_sev"]
+        if state["cooldown_remaining"] > 0:
+            # After recent HALT — cap at WARN
+            max_sev = cap_severity(SEV_WARN, max_sev)
+            state["cooldown_remaining"] -= 1
+            logger.info("main=cooldown remaining=%d capped_to=%s",
+                        state["cooldown_remaining"], max_sev)
 
-    # Call Codex
-    verdict = analyze_with_codex(response, task_class)
+        # Call Codex (release lock temporarily — Codex call can take 10s)
+        release_state_lock(lock_handle)
+        lock_handle = None
+        verdict = analyze_with_codex(response, task_class)
+        # Re-acquire for state mutation
+        lock_handle = acquire_state_lock(state_path)
+        # Reload state in case another Stop mutated it while we called Codex
+        state = load_state(state_path)
 
-    if not verdict:
-        logger.info("main=no_verdict emit=OBSERVE")
-        save_state(state_path, state)
-        emit_observe(trail_path, None, task_class, len(response))
+        if not verdict:
+            logger.info("main=no_verdict emit=OBSERVE")
+            save_state(state_path, state)
+            emit_observe(trail_path, None, task_class, len(response))
 
-    # Apply confidence threshold for HALT
-    proposed_sev = verdict["severity"]
-    if proposed_sev == SEV_HALT and verdict["confidence"] < HALT_CONFIDENCE_THRESHOLD:
-        logger.info("main=halt_downgraded reason=low_confidence conf=%.2f",
-                    verdict["confidence"])
-        proposed_sev = SEV_WARN
+        # Apply confidence threshold for HALT
+        proposed_sev = verdict["severity"]
+        if (proposed_sev == SEV_HALT
+                and verdict["confidence"] < HALT_CONFIDENCE_THRESHOLD):
+            logger.info("main=halt_downgraded reason=low_confidence conf=%.2f",
+                        verdict["confidence"])
+            proposed_sev = SEV_WARN
 
-    # Topic-based dedup: if we've seen this topic HALT before, downgrade
-    thash = topic_hash(verdict["reason"] + " " + verdict["evidence"])
-    seen_count = state["topic_halt_counts"].get(thash, 0)
-    if proposed_sev == SEV_HALT and seen_count >= TOPIC_HALT_DOWNGRADE:
-        logger.info("main=halt_downgraded reason=topic_repeat count=%d thash=%s",
-                    seen_count, thash)
-        proposed_sev = SEV_WARN
+        # Topic-based dedup: if we've seen this topic HALT before, downgrade
+        thash = topic_hash(verdict["reason"] + " " + verdict["evidence"])
+        seen_count = state["topic_halt_counts"].get(thash, 0)
+        if proposed_sev == SEV_HALT and seen_count >= TOPIC_HALT_DOWNGRADE:
+            logger.info("main=halt_downgraded reason=topic_repeat count=%d thash=%s",
+                        seen_count, thash)
+            proposed_sev = SEV_WARN
 
-    # Apply task-class / cooldown severity cap
-    final_sev = cap_severity(proposed_sev, max_sev)
-    verdict["severity"] = final_sev
-    if final_sev != proposed_sev:
-        logger.info("main=sev_capped proposed=%s final=%s",
-                    proposed_sev, final_sev)
+        # Apply task-class / cooldown severity cap
+        final_sev = cap_severity(proposed_sev, max_sev)
+        verdict["severity"] = final_sev
+        if final_sev != proposed_sev:
+            logger.info("main=sev_capped proposed=%s final=%s",
+                        proposed_sev, final_sev)
 
-    # Class-specific: bugfix with skip_warn → WARN becomes OBSERVE
-    if policy_for(task_class).get("skip_warn") and final_sev == SEV_WARN:
-        logger.info("main=warn_to_observe class=%s", task_class)
-        final_sev = SEV_OBSERVE
-        verdict["severity"] = SEV_OBSERVE
+        # Class-specific: bugfix with skip_warn → WARN becomes OBSERVE
+        if policy_for(task_class).get("skip_warn") and final_sev == SEV_WARN:
+            logger.info("main=warn_to_observe class=%s", task_class)
+            final_sev = SEV_OBSERVE
+            verdict["severity"] = SEV_OBSERVE
 
-    # Record wake
-    state["recent_wakes"].append({
-        "ts": int(time.time()),
-        "sig_hash": sig,
-        "topic_hash": thash,
-        "severity": final_sev,
-    })
+        # Record wake
+        state["recent_wakes"].append({
+            "ts": int(time.time()),
+            "sig_hash": sig,
+            "topic_hash": thash,
+            "severity": final_sev,
+        })
 
-    # Act per severity
-    if final_sev == SEV_HALT:
-        state["topic_halt_counts"][thash] = seen_count + 1
-        state["cooldown_remaining"] = POST_HALT_COOLDOWN
-        save_state(state_path, state)
-        emit_halt(verdict)
-    elif final_sev == SEV_WARN:
-        save_state(state_path, state)
-        emit_warn(verdict)
-    else:
-        save_state(state_path, state)
-        emit_observe(trail_path, verdict, task_class, len(response))
+        # Act per severity
+        if final_sev == SEV_HALT:
+            state["topic_halt_counts"][thash] = seen_count + 1
+            state["cooldown_remaining"] = POST_HALT_COOLDOWN
+            save_state(state_path, state)
+            emit_halt(verdict)
+        elif final_sev == SEV_WARN:
+            save_state(state_path, state)
+            emit_warn(verdict)
+        else:
+            save_state(state_path, state)
+            emit_observe(trail_path, verdict, task_class, len(response))
+    finally:
+        release_state_lock(lock_handle)
 
 
 if __name__ == "__main__":
