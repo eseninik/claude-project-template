@@ -709,6 +709,45 @@ class TestHaltIntegration(unittest.TestCase):
         self.assertTrue(acquired_by_b.is_set(),
                         "B must eventually acquire lock after A releases")
 
+    def test_main_fail_closed_when_lock_unavailable(self):
+        """Round-4 coverage gap: main() fail-closed orchestration path.
+
+        When acquire_state_lock returns None (lock held forever), main()
+        must exit 0 via OBSERVE AND must NOT call Codex AND must NOT mutate
+        state file. Tests the lock-timeout guard wired into main().
+        """
+        import io
+        # Set deploy class so watchdog would normally proceed to Codex
+        (self.project_dir / ".codex" / "task-class").write_text(
+            "deploy", encoding="utf-8")
+
+        response = ("Я закончил. Часть тестов не запускал — не критично. "
+                    "Можно commit. " * 6)
+        payload = json.dumps({"assistant_message": response})
+
+        state_path = self.project_dir / ".codex" / "watchdog-state.json"
+        codex_called = {"val": False}
+
+        def fake_codex(*args, **kwargs):
+            codex_called["val"] = True
+            return {"severity": "HALT", "confidence": 0.95,
+                    "reason": "x", "evidence": "y"}
+
+        with patch.object(watchdog, "acquire_state_lock", return_value=None), \
+             patch.object(watchdog, "analyze_with_codex", side_effect=fake_codex), \
+             patch.object(sys, "stdin", io.StringIO(payload)):
+            try:
+                watchdog.main()
+                exit_code = 0
+            except SystemExit as e:
+                exit_code = e.code if e.code is not None else 0
+
+        self.assertEqual(exit_code, 0, "fail-closed path must exit 0")
+        self.assertFalse(codex_called["val"],
+                         "Codex must NOT be called when lock unavailable")
+        self.assertFalse(state_path.exists(),
+                         "State file must NOT be created when lock unavailable")
+
     def test_lock_timeout_fails_closed(self):
         """If lock truly unavailable (held forever by fake crashed process),
         acquire returns None and main path emits OBSERVE without mutating state.
