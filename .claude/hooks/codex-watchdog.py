@@ -85,8 +85,10 @@ TASK_CLASS_POLICY = {
 DEFAULT_TASK_CLASS = "feature"  # if no detector ran yet, err on the strict-medium side
 
 # File lock parameters (Windows-safe)
-LOCK_RETRY_MAX = 10
-LOCK_RETRY_SLEEP = 0.05  # 50ms per retry, ~500ms total worst case
+LOCK_RETRY_MAX = 40
+LOCK_RETRY_SLEEP = 0.05   # 50ms per retry, ~2s wait budget
+LOCK_STALE_SECONDS = 120  # lock older than this considered from crashed process
+                          # (must exceed Codex WS timeout of ~30s with safety margin)
 
 # Narrowed pre-filter — only real-danger keywords
 # Old list was too broad (every "bug"/"error" mention triggered analysis).
@@ -140,7 +142,7 @@ def acquire_state_lock(state_path: Path):
             # Stale lock from a crashed process? Check age.
             try:
                 age = time.time() - lock_path.stat().st_mtime
-                if age > 10.0:
+                if age > LOCK_STALE_SECONDS:
                     logger.warning("stale lock (%.1fs), removing", age)
                     lock_path.unlink()
                     continue
@@ -588,7 +590,10 @@ def main() -> None:
     if not should_analyze(response, task_class):
         sys.exit(0)
 
-    # State-based dedup before Codex call — guarded by inter-process lock
+    # State-based dedup + mutation guarded by inter-process lock.
+    # Lock is held across the entire read-modify-write transaction, including
+    # the Codex call. LOCK_STALE_SECONDS=120 safely exceeds Codex timeout (30s)
+    # with margin. In practice Stop hooks are sequential per Claude session.
     state_path = get_state_path(project_dir)
     trail_path = get_trail_path(project_dir)
     lock_handle = acquire_state_lock(state_path)
@@ -602,23 +607,19 @@ def main() -> None:
             logger.info("main=skip reason=sig_dedup sig=%s", sig)
             emit_observe(trail_path, None, task_class, len(response))
 
-        # Determine severity cap from state + task-class
+        # Call Codex while holding the lock. This serializes concurrent Stop
+        # hooks but avoids the cooldown-reload race (finding from round-2
+        # review) that would lose the decrement across Codex call boundary.
+        verdict = analyze_with_codex(response, task_class)
+
+        # Severity cap + cooldown decrement happens on the SAME state snapshot
+        # we loaded above (no reload). No race because lock is still held.
         max_sev = policy_for(task_class)["max_sev"]
         if state["cooldown_remaining"] > 0:
-            # After recent HALT — cap at WARN
             max_sev = cap_severity(SEV_WARN, max_sev)
             state["cooldown_remaining"] -= 1
             logger.info("main=cooldown remaining=%d capped_to=%s",
                         state["cooldown_remaining"], max_sev)
-
-        # Call Codex (release lock temporarily — Codex call can take 10s)
-        release_state_lock(lock_handle)
-        lock_handle = None
-        verdict = analyze_with_codex(response, task_class)
-        # Re-acquire for state mutation
-        lock_handle = acquire_state_lock(state_path)
-        # Reload state in case another Stop mutated it while we called Codex
-        state = load_state(state_path)
 
         if not verdict:
             logger.info("main=no_verdict emit=OBSERVE")
