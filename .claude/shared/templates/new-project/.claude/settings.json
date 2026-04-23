@@ -43,6 +43,15 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py -3 .claude/hooks/codex-broker.py SessionStart",
+            "timeout": 15
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -51,8 +60,56 @@
         "hooks": [
           {
             "type": "command",
-            "command": "py -3 .claude/hooks/codex-parallel.py",
-            "timeout": 10
+            "command": "py -3 .claude/hooks/session-task-class.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "py -3 .claude/hooks/codex-broker.py UserPromptSubmit",
+            "timeout": 300
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py -3 .claude/hooks/codex-broker.py Stop",
+            "timeout": 25
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py -3 .claude/hooks/codex-watchdog.py",
+            "timeout": 60,
+            "asyncRewake": true
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py -3 .claude/hooks/codex-broker.py SessionEnd",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "TaskCreated": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "py -3 .claude/hooks/codex-gate.py TaskCreated",
+            "timeout": 120
           }
         ]
       }
@@ -64,6 +121,11 @@
           {
             "type": "command",
             "command": "py -3 .claude/hooks/config-protection.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "py -3 .claude/hooks/codex-gate.py PreToolUse",
             "timeout": 5
           }
         ]

@@ -3,11 +3,34 @@
 > Session bridge. Agent reads at start, updates at end. Max ~150 lines.
 > Old sessions → `.claude/memory/archive/`
 
-**Last updated:** 2026-04-19
+**Last updated:** 2026-04-23
 
 ---
 
 ## Current Focus
+
+### Watchdog Дnushnost Fix — COMPLETE (branch: `fix/watchdog-dushnost`)
+**Problem:** Codex Watchdog давал 10+ итерационные циклы ложных пробуждений. Два live FP пойманы за одну сессию: (1) «Linear MCP works with caveat» триггернул по словам works+fails; (2) codex-gate заблокировал write на 5 edits (by-design, не часть проблемы).
+
+**Root cause (confirmed via evidence in session):**
+1. `codex-watchdog.py` не имел state-файла между вызовами — каждое Stop заново видело те же триггеры.
+2. Pre-filter keywords были слишком широкие (`bug/error/ошибк/fail` + любое action word = trigger).
+3. Единственный канал реакции = блокировка Claude (exit 2 + asyncRewake). Нюансированные вердикты форсились в HALT.
+4. Codex сам в `.codex/reviews/latest.json` пометил over-blocking как BLOCKER в старой реализации `codex-review.py` (уже не wired).
+
+**Solution (4 слоя):**
+- **L1 Severity triage**: HALT (exit 2, ~3-5%) / WARN (stdout systemMessage, ~15%) / OBSERVE (file log, ~80%). HALT требует confidence ≥ 0.85.
+- **L2 State memory**: `.codex/watchdog-state.json` — sig dedup (3 last wakes), topic dedup (downgrade after 2 HALTs на ту же тему), post-HALT cooldown (следующие 3 Stops cap'ятся до WARN).
+- **L3 Task-class detector**: новый `session-task-class.py` хук на UserPromptSubmit — regex-классифицирует prompt в chat/typo/bugfix/feature/refactor/deploy. `chat` → watchdog skip entirely. `bugfix` → только HALT.
+- **L5 Slash command**: `/watchdog status|strict|normal|off|class X` через `.codex/task-class-override` JSON.
+
+**NOT changed (scope discipline):** `codex-gate.py`, `codex-broker.py`, `task-completed-gate.py` — user подтвердил что это by-design parallel Codex review, не часть проблемы.
+
+**Files:** `.claude/hooks/codex-watchdog.py` (rewrite 255→456), `.claude/hooks/session-task-class.py` (new 195), `.claude/hooks/test_watchdog_fix.py` (new 277, 30/30 pass), `.claude/commands/watchdog.md` (new), `.claude/hooks/hook_base.py` (+session-task-class в profile), `.claude/settings.json` (wire UserPromptSubmit). Всё синхронизировано в new-project template.
+
+**Not done (follow-up):** fleet-sync на 13 bot проектов требует отдельного user approval. Layer 4 (gate consolidation через broker cache) отложен — это перф-оптимизация, не душнота.
+
+---
 
 ### Autoresearch Integration (Bayram Annakov → experiment-loop) — PARTIALLY VERIFIED (not deployment-ready)
 **Task:** Evaluate Bayram Annakov's MIT-licensed autoresearch skill (github.com/BayramAnnakov/ai-native-product-skills) and integrate useful pieces into our existing `experiment-loop` skill.
@@ -297,6 +320,21 @@
 ---
 
 ## Auto-Generated Summaries
+
+### 2026-04-23 09:44 (commit `762d52a`)
+**Message:** pipeline-checkpoint-IMPL+TESTS: severity-graded watchdog + classifier + tests
+**Files:** 6
+
+
+### 2026-04-23 09:34 (commit `0135b5f`)
+**Message:** pipeline-checkpoint-SPEC: freeze watchdog-fix spec + FP corpus
+**Files:** 3
+
+
+### 2026-04-19 23:49 (commit `684b43f`)
+**Message:** docs(autoresearch): finalize quarantine state + expanded stub validation matrix
+**Files:** 6
+
 
 ### 2026-04-08 19:36 (commit `6140173`)
 **Message:** fix: dedup chunks in semantic-search indexer (ChromaDB DuplicateIDError)

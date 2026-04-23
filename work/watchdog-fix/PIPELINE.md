@@ -1,7 +1,7 @@
 # Pipeline: Watchdog Дnushnost Fix
 
-- Status: IN_PROGRESS
-- Phase: SPEC
+- Status: PIPELINE_COMPLETE
+- Phase: COMPLETE
 - Mode: INTERACTIVE
 
 > Targeted bug-fix pipeline. Skip MRD/AUTO_RESEARCH/REVIEW — problem is well-scoped (watchdog over-blocks, user reported 10+ iteration loops, Codex itself flagged over-blocking in latest.json, live FP captured in session).
@@ -11,8 +11,8 @@
 
 ## Phases
 
-### Phase: SPEC  <- CURRENT
-- Status: PENDING
+### Phase: SPEC
+- Status: PASSED
 - Mandatory: true
 - Mode: SOLO
 - Gate: `spec.md` complete with severity taxonomy, state schema, task-class rules, AC1..ACn
@@ -21,7 +21,7 @@
 - Checkpoint: pipeline-checkpoint-SPEC
 
 ### Phase: IMPL_L1_L2
-- Status: PENDING
+- Status: PASSED
 - Mode: SOLO
 - On PASS: -> IMPL_L3
 - Gate: codex-watchdog.py refactored; severity enum returned by Codex; state file dedup; unit-level smoke from CLI works
@@ -30,7 +30,7 @@
 - Checkpoint: pipeline-checkpoint-IMPL_L1_L2
 
 ### Phase: IMPL_L3
-- Status: PENDING
+- Status: PASSED
 - Mode: SOLO
 - On PASS: -> IMPL_L5
 - Gate: `session-task-class.py` hook classifies; env `CLAUDE_TASK_CLASS` set; watchdog/gate read it
@@ -39,7 +39,7 @@
 - Checkpoint: pipeline-checkpoint-IMPL_L3
 
 ### Phase: IMPL_L5
-- Status: PENDING
+- Status: PASSED
 - Mode: SOLO
 - On PASS: -> TESTS
 - Gate: `/watchdog` slash-command present with strict|normal|off|status subcommands
@@ -47,7 +47,7 @@
 - Checkpoint: pipeline-checkpoint-IMPL_L5
 
 ### Phase: TESTS
-- Status: PENDING
+- Status: PASSED
 - Mode: SOLO
 - On PASS: -> SYNC
 - Gate: all unit tests pass; FP replay suite passes (the 1 captured FP from today MUST not trigger HALT under `chat` task-class)
@@ -55,7 +55,7 @@
 - Checkpoint: pipeline-checkpoint-TESTS
 
 ### Phase: SYNC
-- Status: PENDING
+- Status: PASSED
 - Mode: SOLO
 - On PASS: -> VERIFY
 - Gate: new-project template mirrors all changed/new files
@@ -63,7 +63,7 @@
 - Checkpoint: pipeline-checkpoint-SYNC
 
 ### Phase: VERIFY
-- Status: PENDING
+- Status: PASSED
 - Mandatory: true
 - Mode: SOLO
 - On PASS: -> COMPLETE
@@ -71,8 +71,8 @@
 - Outputs: `work/watchdog-fix/verification.md`
 - Checkpoint: pipeline-checkpoint-VERIFY
 
-### Phase: COMPLETE
-- Status: PENDING
+### Phase: COMPLETE  <- CURRENT
+- Status: PASSED
 - Gate: Status = PIPELINE_COMPLETE; branch ready for merge
 
 ---
