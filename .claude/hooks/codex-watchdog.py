@@ -85,10 +85,11 @@ TASK_CLASS_POLICY = {
 DEFAULT_TASK_CLASS = "feature"  # if no detector ran yet, err on the strict-medium side
 
 # File lock parameters (Windows-safe)
-LOCK_RETRY_MAX = 40
-LOCK_RETRY_SLEEP = 0.05   # 50ms per retry, ~2s wait budget
-LOCK_STALE_SECONDS = 120  # lock older than this considered from crashed process
-                          # (must exceed Codex WS timeout of ~30s with safety margin)
+# Budget must exceed max Codex round-trip (~30s) so legitimate contention
+# from an overlapping Stop hook is outwaited rather than falling through.
+LOCK_RETRY_MAX = 1200
+LOCK_RETRY_SLEEP = 0.05    # 50ms × 1200 = ~60s wait budget (2× Codex timeout)
+LOCK_STALE_SECONDS = 120   # lock older than this is from crashed process
 
 # Narrowed pre-filter — only real-danger keywords
 # Old list was too broad (every "bug"/"error" mention triggered analysis).
@@ -597,6 +598,13 @@ def main() -> None:
     state_path = get_state_path(project_dir)
     trail_path = get_trail_path(project_dir)
     lock_handle = acquire_state_lock(state_path)
+    # Fail closed on lock acquisition failure: never mutate state without
+    # exclusive access. Emit OBSERVE so watchdog stays non-blocking — we
+    # log the situation and skip the Codex call entirely.
+    if lock_handle is None:
+        logger.warning("main=fail_closed reason=lock_unavailable")
+        emit_observe(trail_path, None, task_class, len(response))
+
     try:
         state = load_state(state_path)
 

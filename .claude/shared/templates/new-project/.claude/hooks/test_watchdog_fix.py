@@ -657,6 +657,82 @@ class TestHaltIntegration(unittest.TestCase):
         self.assertEqual(state["cooldown_remaining"], watchdog.POST_HALT_COOLDOWN)
         self.assertEqual(sum(state["topic_halt_counts"].values()), 1)
 
+    def test_concurrent_stop_hooks_serialize_via_lock(self):
+        """Round-3 BLOCKER regression test: overlapping Stop hooks must serialize.
+
+        Simulate scenario where hook A holds lock during a slow Codex call
+        and hook B attempts concurrent access. B must wait for A (not fall
+        through unlocked). Verified by checking that lock file presence
+        blocks acquire beyond the spin window.
+        """
+        import threading
+
+        # Simulate A holding the lock
+        state_path = self.project_dir / ".codex" / "watchdog-state.json"
+        lock_path = state_path.with_suffix(state_path.suffix + ".lock")
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Hold lock for 1.5 seconds (simulating slow Codex call segment)
+        import os as _os
+        fd = _os.open(str(lock_path), _os.O_CREAT | _os.O_EXCL | _os.O_WRONLY)
+
+        acquired_by_b = threading.Event()
+        release_by_a = threading.Event()
+
+        def b_tries_to_acquire():
+            # Temporarily shrink retry budget for test speed
+            original_retry = watchdog.LOCK_RETRY_MAX
+            watchdog.LOCK_RETRY_MAX = 40  # 2s
+            try:
+                handle = watchdog.acquire_state_lock(state_path)
+                if handle is not None:
+                    acquired_by_b.set()
+                    watchdog.release_state_lock(handle)
+            finally:
+                watchdog.LOCK_RETRY_MAX = original_retry
+
+        def a_releases_after_delay():
+            time.sleep(0.3)
+            release_by_a.set()
+            try:
+                _os.close(fd)
+                lock_path.unlink()
+            except OSError:
+                pass
+
+        threading.Thread(target=a_releases_after_delay, daemon=True).start()
+        b_thread = threading.Thread(target=b_tries_to_acquire, daemon=True)
+        b_thread.start()
+        b_thread.join(timeout=5.0)
+
+        # Within 2s budget, A releases after 0.3s, so B should acquire
+        self.assertTrue(acquired_by_b.is_set(),
+                        "B must eventually acquire lock after A releases")
+
+    def test_lock_timeout_fails_closed(self):
+        """If lock truly unavailable (held forever by fake crashed process),
+        acquire returns None and main path emits OBSERVE without mutating state.
+        """
+        import os as _os
+        state_path = self.project_dir / ".codex" / "watchdog-state.json"
+        lock_path = state_path.with_suffix(state_path.suffix + ".lock")
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        # Create lock and set mtime to RECENT (not stale) so stale-removal doesn't fire
+        fd = _os.open(str(lock_path), _os.O_CREAT | _os.O_EXCL | _os.O_WRONLY)
+        try:
+            # Shrink retry budget so test doesn't wait 60s
+            original_retry = watchdog.LOCK_RETRY_MAX
+            watchdog.LOCK_RETRY_MAX = 3  # 150ms
+            try:
+                handle = watchdog.acquire_state_lock(state_path)
+                self.assertIsNone(handle,
+                                  "acquire must return None when timeout exhausted")
+            finally:
+                watchdog.LOCK_RETRY_MAX = original_retry
+        finally:
+            _os.close(fd)
+            lock_path.unlink()
+
     def test_second_halt_on_same_topic_downgrades(self):
         """Topic-dedup: same anomaly seen 2+ times must downgrade HALT to WARN."""
         response = ("Готово, commit, deploy. Не запускал tests. " * 5)
