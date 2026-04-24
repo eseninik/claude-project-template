@@ -524,9 +524,109 @@ def rollback_worktree(worktree: Path, base_sha: str) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def build_codex_prompt(task: Task) -> str:
-    """Build prompt embedding full task-N.md content + execution instructions."""
-    _log(logging.DEBUG, "entry: build_codex_prompt", task_id=task.task_id)
+def load_prior_iteration(path: Path) -> str:
+    """Parse a previous task-result.md and distill it into a prompt-ready summary.
+
+    Extracts: ``status``, self-report lines (NOTE/BLOCKER), the list of files
+    touched (from ``diff --git`` headers), and scope-check verdict. Returns a
+    markdown block ready to inject as ``## Previous Iteration`` into the next
+    Codex prompt. This lets Opus hand a failed/partial round's context to the
+    next round without manually re-editing task-N.md — "automated iteration
+    memory" per activeContext follow-up list.
+
+    Missing file raises FileNotFoundError; malformed content still returns
+    whatever was parseable with ``(unparsed)`` placeholders for the rest.
+    """
+    _log(logging.DEBUG, "entry: load_prior_iteration", path=str(path))
+    try:
+        if not path.exists():
+            raise FileNotFoundError(f"prior iteration not found: {path}")
+        text = path.read_text(encoding="utf-8")
+
+        def _extract(key: str) -> str:
+            m = re.search(rf"^\-\s*{re.escape(key)}\s*:\s*(.+)$", text, re.MULTILINE)
+            return m.group(1).strip() if m else "(unparsed)"
+
+        status = _extract("status")
+        scope_status = _extract("scope_status")
+        codex_rc = _extract("codex_returncode")
+        base_sha = _extract("base_sha")
+        tests_all = _extract("tests_all_passed")
+
+        files_touched: list[str] = []
+        for m in re.finditer(r"^diff --git a/(\S+) b/", text, re.MULTILINE):
+            f = m.group(1)
+            if f not in files_touched:
+                files_touched.append(f)
+
+        notes: list[str] = []
+        blockers: list[str] = []
+        in_self_report = False
+        for ln in text.splitlines():
+            s = ln.strip()
+            if s.startswith("## Self-Report"):
+                in_self_report = True
+                continue
+            if in_self_report and s.startswith("## "):
+                in_self_report = False
+            if in_self_report:
+                m = re.match(r"-\s*(NOTE|BLOCKER):\s*(.+)$", s)
+                if m:
+                    (blockers if m.group(1) == "BLOCKER" else notes).append(m.group(2).strip())
+
+        parts: list[str] = []
+        parts.append("## Previous Iteration (auto-injected by --iterate-from)")
+        parts.append("")
+        parts.append(f"- prior status: {status}")
+        parts.append(f"- prior scope_status: {scope_status}")
+        parts.append(f"- prior codex_returncode: {codex_rc}")
+        parts.append(f"- prior tests_all_passed: {tests_all}")
+        parts.append(f"- prior base_sha: {base_sha}")
+        if files_touched:
+            parts.append(f"- files touched previously: {', '.join(files_touched)}")
+        if notes:
+            parts.append("- prior NOTEs:")
+            for n in notes:
+                parts.append(f"  - NOTE: {n}")
+        if blockers:
+            parts.append("- prior BLOCKERs (address these this round):")
+            for b in blockers:
+                parts.append(f"  - BLOCKER: {b}")
+        parts.append("")
+        parts.append(
+            "Key directive: do NOT repeat the prior failure mode verbatim. "
+            "Read the BLOCKERs above and make sure your implementation this round "
+            "addresses them. The task spec below is the same or a refinement — "
+            "Acceptance Criteria remain IMMUTABLE."
+        )
+        summary = "\n".join(parts)
+        _log(
+            logging.INFO,
+            "prior iteration loaded",
+            path=str(path),
+            status=status,
+            notes=len(notes),
+            blockers=len(blockers),
+            files_touched=len(files_touched),
+        )
+        return summary
+    except Exception:
+        logger.exception("load_prior_iteration failed")
+        raise
+
+
+def build_codex_prompt(task: Task, prior_iteration: Optional[str] = None) -> str:
+    """Build prompt embedding full task-N.md content + execution instructions.
+
+    If ``prior_iteration`` is provided (markdown block from load_prior_iteration),
+    it is injected BEFORE the task spec so Codex sees the failure context first.
+    """
+    _log(
+        logging.DEBUG,
+        "entry: build_codex_prompt",
+        task_id=task.task_id,
+        has_prior=bool(prior_iteration),
+    )
     try:
         header = (
             "You are the single-task implementer. The task specification below is IMMUTABLE.\n"
@@ -534,8 +634,15 @@ def build_codex_prompt(task: Task) -> str:
             "Forbidden Paths or Read-Only Files. After writing code, run every Test Command\n"
             "listed in the task and report the result in your self-report.\n"
             "Any AGENTS.md or CLAUDE.md in the worktree is authoritative background context.\n"
-            "\n---- TASK SPECIFICATION ----\n\n"
         )
+        if prior_iteration:
+            header += (
+                "\n---- PREVIOUS ITERATION ----\n\n"
+                + prior_iteration
+                + "\n\n---- END PREVIOUS ITERATION ----\n"
+            )
+        header += "\n---- TASK SPECIFICATION ----\n\n"
+
         footer = (
             "\n\n---- END TASK SPECIFICATION ----\n"
             "Return a short self-report at the end of your run using lines starting with\n"
@@ -968,6 +1075,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
                        help="Directory for task-{N}-result.md output")
         p.add_argument("--log-dir", default=Path("work/codex-primary/logs"), type=Path,
                        help="Directory for structured logs")
+        p.add_argument("--iterate-from", type=Path, default=None,
+                       help="Path to a prior task-N-result.md; its summary is auto-injected "
+                            "into the Codex prompt as 'PREVIOUS ITERATION' so multi-round "
+                            "tasks don't have to re-edit task-N.md's Iteration History manually.")
         _log(logging.DEBUG, "exit: build_arg_parser")
         return p
     except Exception:
@@ -1047,7 +1158,15 @@ def main(argv: Optional[list[str]] = None) -> int:
     timestamp = datetime.now(timezone.utc).isoformat()
     project_root = find_project_root(worktree)
 
-    prompt = build_codex_prompt(task)
+    prior_iteration: Optional[str] = None
+    if args.iterate_from is not None:
+        try:
+            prior_iteration = load_prior_iteration(args.iterate_from.resolve())
+        except Exception as exc:
+            print(f"fatal: could not load --iterate-from: {exc}", file=sys.stderr)
+            return EXIT_SCOPE_OR_TIMEOUT
+
+    prompt = build_codex_prompt(task, prior_iteration=prior_iteration)
 
     codex_run: Optional[CodexRunResult] = None
     test_run: Optional[TestRunResult] = None

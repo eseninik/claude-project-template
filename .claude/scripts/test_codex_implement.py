@@ -507,5 +507,111 @@ class TestPreflightCleanTreeGuard(unittest.TestCase):
             self.assertIn("dirty.txt", lines[0])
 
 
+class TestLoadPriorIteration(unittest.TestCase):
+    """load_prior_iteration — auto-injected iteration memory (--iterate-from)."""
+
+    _SAMPLE = """# Codex Implementation Result — Task dual-1
+
+- status: scope-violation
+- timestamp: 2026-04-24T11:00:00+00:00
+- task_file: /x/task-dual-1.md
+- base_sha: deadbeef0000000000000000000000000000dead
+- codex_returncode: 0
+- scope_status: fail
+- scope_message: bogus 42 entries parsed from fence file
+- tests_all_passed: False
+- test_commands_count: 3
+
+## Diff
+
+```diff
+diff --git a/.claude/scripts/foo.py b/.claude/scripts/foo.py
+index 0000..1111 100644
+--- a/.claude/scripts/foo.py
++++ b/.claude/scripts/foo.py
+@@ -1 +1,2 @@
+ original
++new line
+diff --git a/.claude/scripts/bar.py b/.claude/scripts/bar.py
+--- /dev/null
++++ b/.claude/scripts/bar.py
+@@ -0,0 +1 @@
++hello
+```
+
+## Self-Report (Codex NOTE/BLOCKER lines)
+
+- NOTE: Added feature X
+- NOTE: Kept existing style
+- BLOCKER: Tests failed because py -3 not in sandbox PATH
+- BLOCKER: Scope fence parser flagged correct file wrongly
+"""
+
+    def test_parses_status_and_blockers(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "prior.md"
+            p.write_text(self._SAMPLE, encoding="utf-8")
+            summary = codex_impl.load_prior_iteration(p)
+            self.assertIn("prior status: scope-violation", summary)
+            self.assertIn("prior scope_status: fail", summary)
+            self.assertIn("prior tests_all_passed: False", summary)
+            self.assertIn("BLOCKER: Tests failed because py -3", summary)
+            self.assertIn("BLOCKER: Scope fence parser flagged", summary)
+
+    def test_extracts_files_touched(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "prior.md"
+            p.write_text(self._SAMPLE, encoding="utf-8")
+            summary = codex_impl.load_prior_iteration(p)
+            self.assertIn(".claude/scripts/foo.py", summary)
+            self.assertIn(".claude/scripts/bar.py", summary)
+            # No duplicates — each file once.
+            self.assertEqual(summary.count(".claude/scripts/foo.py"), 1)
+
+    def test_preserves_notes(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "prior.md"
+            p.write_text(self._SAMPLE, encoding="utf-8")
+            summary = codex_impl.load_prior_iteration(p)
+            self.assertIn("NOTE: Added feature X", summary)
+            self.assertIn("NOTE: Kept existing style", summary)
+
+    def test_missing_file_raises(self):
+        with self.assertRaises(FileNotFoundError):
+            codex_impl.load_prior_iteration(Path("/nope/does/not/exist.md"))
+
+    def test_directive_suffix_always_appended(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "prior.md"
+            p.write_text(self._SAMPLE, encoding="utf-8")
+            summary = codex_impl.load_prior_iteration(p)
+            self.assertIn("do NOT repeat the prior failure mode", summary)
+            self.assertIn("Acceptance Criteria remain IMMUTABLE", summary)
+
+    def test_build_prompt_injects_prior_section(self):
+        # Minimal Task: body is read lazily from path, so write a real file.
+        with tempfile.TemporaryDirectory() as td:
+            task_path = Path(td) / "x.md"
+            task_path.write_text("# Task body here\n", encoding="utf-8")
+            task = codex_impl.Task(
+                path=task_path, task_id="x",
+                frontmatter={}, sections={},
+                scope_fence=codex_impl.ScopeFence(),
+                test_commands=[], acceptance_criteria=[],
+                skill_contracts="",
+            )
+            prompt_no_prior = codex_impl.build_codex_prompt(task)
+            self.assertNotIn("PREVIOUS ITERATION", prompt_no_prior)
+            prior = "## Previous Iteration (auto-injected)\n\n- prior status: fail"
+            prompt_with = codex_impl.build_codex_prompt(task, prior_iteration=prior)
+            self.assertIn("---- PREVIOUS ITERATION ----", prompt_with)
+            self.assertIn("---- END PREVIOUS ITERATION ----", prompt_with)
+            # Prior block must come BEFORE the task spec.
+            self.assertLess(
+                prompt_with.index("PREVIOUS ITERATION"),
+                prompt_with.index("TASK SPECIFICATION"),
+            )
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
