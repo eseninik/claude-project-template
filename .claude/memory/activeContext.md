@@ -321,6 +321,11 @@
 
 ## Auto-Generated Summaries
 
+### 2026-04-24 15:05 (commit `1dede16`)
+**Message:** codex-primary: recreate task-PoC.md (previously wiped by rollback)
+**Files:** 1
+
+
 ### 2026-04-23 09:44 (commit `762d52a`)
 **Message:** pipeline-checkpoint-IMPL+TESTS: severity-graded watchdog + classifier + tests
 **Files:** 6

@@ -59,3 +59,4 @@ tmpclaude*
 # Sensitive files
 SSH_SERVER_CONNECTION.md
 nul
+.codex/
