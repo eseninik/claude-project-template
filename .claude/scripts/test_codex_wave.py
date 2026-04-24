@@ -489,5 +489,46 @@ class CliSmokeTests(unittest.TestCase):
         self.assertNotEqual(cm.exception.code, 0)
 
 
+
+class WriteBaseRefSidecarTests(unittest.TestCase):
+    """AC6: create_worktree writes <wt>/.dual-base-ref with base SHA."""
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name).resolve()
+        _init_repo(self.root)
+    def tearDown(self):
+        subprocess.run(['git', 'worktree', 'prune'], cwd=str(self.root),
+                       capture_output=True, check=False)
+        try: self._tmp.cleanup()
+        except PermissionError:
+            shutil.rmtree(self._tmp.name, ignore_errors=True)
+    def test_create_worktree_writes_sidecar(self):
+        """AC1/AC5: .dual-base-ref = 40-char hex SHA + trailing \n."""
+        wt = self.root / 'worktrees' / 'Tsc'
+        wave.create_worktree(self.root, wt, 'codex-wave/Tsc', base='HEAD')
+        sidecar = wt / '.dual-base-ref'
+        self.assertTrue(sidecar.is_file())
+        content = sidecar.read_text(encoding='utf-8')
+        self.assertTrue(content.endswith('\n'))
+        sha = content.rstrip('\n')
+        self.assertEqual(len(sha), 40)
+        self.assertTrue(all(c in '0123456789abcdef' for c in sha))
+        self.assertEqual(content.count('\n'), 1)
+    def test_create_worktree_sidecar_failure_soft(self):
+        """AC3: rev-parse fail => worktree ok, no sidecar, WARNING."""
+        wt = self.root / 'worktrees' / 'Tsoft'
+        real = wave._run
+        def fake(cmd, cwd=None, timeout=None):
+            if len(cmd) >= 2 and cmd[0] == 'git' and cmd[1] == 'rev-parse':
+                return (128, '', 'fatal: not a valid object')
+            return real(cmd, cwd=cwd, timeout=timeout)
+        with mock.patch.object(wave, '_run', side_effect=fake), \
+             self.assertLogs(wave.logger, level='WARNING') as cm:
+            wave.create_worktree(self.root, wt, 'codex-wave/Tsoft', base='HEAD')
+        self.assertTrue(wt.is_dir())
+        self.assertFalse((wt / '.dual-base-ref').exists())
+        self.assertIn('write_base_ref_sidecar_revparse_failed', '\n'.join(cm.output))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

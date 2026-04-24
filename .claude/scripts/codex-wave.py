@@ -152,6 +152,28 @@ def _run(cmd: list[str], cwd: Optional[Path] = None, timeout: Optional[int] = No
     return proc.returncode, proc.stdout or "", proc.stderr or ""
 
 
+def _write_base_ref_sidecar(project_root: Path, worktree_path: Path,
+                            base: str) -> None:
+    """Best-effort `<worktree>/.dual-base-ref` sidecar (SHA + LF). Swallow errors."""
+    logger.info("write_base_ref_sidecar_started worktree=%s base=%s", worktree_path, base)
+    try:
+        rc, out, err = _run(["git", "rev-parse", base], cwd=project_root)
+    except Exception as exc:
+        logger.warning("write_base_ref_sidecar_revparse_crashed err=%s", exc)
+        return
+    sha = (out or "").strip()
+    if rc != 0 or not sha:
+        logger.warning("write_base_ref_sidecar_revparse_failed rc=%d err=%s", rc, (err or "").strip())
+        return
+    sidecar = Path(_strip_unc_prefix(worktree_path)) / ".dual-base-ref"
+    try:
+        sidecar.write_bytes((sha + "\n").encode("utf-8"))
+    except OSError as exc:
+        logger.warning("write_base_ref_sidecar_write_failed path=%s err=%s", sidecar, exc)
+        return
+    logger.info("write_base_ref_sidecar_completed path=%s sha=%s", sidecar, sha)
+
+
 def create_worktree(project_root: Path, worktree_path: Path, branch: str, base: str = "HEAD") -> None:
     """Create a git worktree at ``worktree_path`` on a new branch ``branch``.
 
@@ -162,7 +184,7 @@ def create_worktree(project_root: Path, worktree_path: Path, branch: str, base: 
         "create_worktree_started path=%s branch=%s base=%s",
         worktree_path, branch, base,
     )
-    # Normalize UNC prefix before mkdir — Windows long-path resolve() may return \?\
+    # Normalize UNC prefix before mkdir -- Windows long-path resolve() may return \?\
     _normalized_parent = Path(_strip_unc_prefix(worktree_path.parent))
     _normalized_parent.mkdir(parents=True, exist_ok=True)
 
@@ -188,6 +210,7 @@ def create_worktree(project_root: Path, worktree_path: Path, branch: str, base: 
             f"git worktree add failed (rc={rc}): {err.strip() or out.strip()}"
         )
     logger.info("create_worktree_completed path=%s", worktree_path)
+    _write_base_ref_sidecar(project_root, worktree_path, base)
 
 
 def run_codex_implement(
