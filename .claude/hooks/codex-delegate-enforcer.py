@@ -38,6 +38,7 @@ EXEMPT_PATTERNS: tuple = (
     ".claude/settings.json", ".claude/ops/*.yaml", ".mcp.json",
     ".claude/adr/**/*.md", ".claude/guides/**/*.md",
     ".claude/skills/**/*.md",
+    "worktrees/**",  # dual-implement worktrees — edits here are part of an outer DUAL operation
 )
 # AC14 - regex compiled at module scope.
 _STATUS_RE = re.compile(r"(?i)status\s*[:=]\s*([A-Za-z0-9_-]+)")
