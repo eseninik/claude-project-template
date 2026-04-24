@@ -1,9 +1,9 @@
 # Codex Implementation Result — Task PoC
 
 - status: pass
-- timestamp: 2026-04-24T12:10:48.428083+00:00
+- timestamp: 2026-04-24T12:22:19.916027+00:00
 - task_file: C:\Bots\Migrator bots\claude-project-template-update\work\codex-primary\tasks\task-PoC.md
-- base_sha: 239707767a29ba1d9a9afa7d69aca9fc4cbe3cda
+- base_sha: eef339b7fb9b6aa8142e167c0ef97d79034fb725
 - codex_returncode: 0
 - scope_status: pass
 - scope_message: OK: no modified paths in diff
@@ -25,21 +25,19 @@
 ```
 --- stdout ---
 codex-ask.py  171
-codex-implement.py  1083
+codex-implement.py  1100
 codex-scope-check.py  265
 codex-wave.py  582
-total: 4 files, 2101 lines
---- stderr ---
-INFO list_codex_scripts event=main_start scripts_dir=C:\Bots\Migrator bots\claude-project-template-update\.claude\scripts
-INFO list_codex_scripts event=main_end file_count=4 line_count=2101
+total: 4 files, 2118 lines
 ```
 
 ## Self-Report (Codex NOTE/BLOCKER lines)
 
-- NOTE: Added only `.claude/scripts/list_codex_scripts.py`; no forbidden paths were modified.
-- NOTE: The script is 40 lines long, uses only Python stdlib, includes a module docstring, uses `pathlib.Path`, and has `logger.info` calls at `main()` entry and exit.
-- NOTE: The implemented output logic is deterministic and alphabetically sorted by filename, with the required `total:` summary line format.
-- BLOCKER: The environment has no usable Python launcher or interpreter (`py`, `python`, and `python3` were all unavailable), so I could not run the mandated test command to prove AC1/AC2 and runtime behavior directly.
+- NOTE: Added `.claude/scripts/list_codex_scripts.py:1` as a 56-line stdlib-only Python utility with module docstring, `pathlib`, type hints, sorted `codex*.py` listing, totals, and structured `logging` calls at main entry/exit.
+- NOTE: Scope check shows only `?? .claude/scripts/list_codex_scripts.py` modified.
+- NOTE: Required test command `py -3 .claude/scripts/list_codex_scripts.py` was run; result: exit code `112`, output: `No installed Python found!`
+- NOTE: Static file discovery found expected files: `codex-ask.py`, `codex-implement.py`, `codex-scope-check.py`, `codex-wave.py`.
+- BLOCKER: AC2/runtime verification is blocked because this environment has `C:\WINDOWS\py.exe` but no installed Python runtime; `python` is also unavailable.
 
 ## Codex stderr
 
@@ -47,13 +45,13 @@ INFO list_codex_scripts event=main_end file_count=4 line_count=2101
 OpenAI Codex v0.117.0 (research preview)
 --------
 workdir: C:\Bots\Migrator bots\claude-project-template-update
-model: gpt-5.4
-provider: openai
+model: gpt-5.5
+provider: chatgpt
 approval: never
 sandbox: workspace-write [workdir, /tmp, $TMPDIR, C:\Users\Lenovo\.codex\memories]
 reasoning effort: high
 reasoning summaries: none
-session id: 019dbf66-5744-7971-81b2-799e0ac7173e
+session id: 019dbf70-e46d-7db2-9b4c-a11ef8d84235
 --------
 user
 You are the single-task implementer. The task specification below is IMMUTABLE.
@@ -154,13 +152,14 @@ This is a PoC task for the codex-primary-implementer pipeline. Goal: prove end-t
 Return a short self-report at the end of your run using lines starting with
 `NOTE:` for observations and `BLOCKER:` for unresolved problems.
 
+**Planning coding standards implementation**
+
+I need to focus on implementing a single file and inspect the requirements. It’s essential to consider coding standards mentioned in the user skill contract and whether they align with the task. I should also look into project conventions, even though "Skill Contracts" don’t equate to actual skills. I'll read through SKILL.md and AGENTS.md/CLAUDE. While I can't modify the repo, I can read it. A plan might be helpful since there are multiple steps and tests involved.
 codex
-I’m checking the repo context first: authoritative `AGENTS.md`/`CLAUDE.md` files, the existing `.claude/scripts` contents, and any project conventions that affect this single-file utility.
+I’ll use the coding standards skill, then inspect repo guidance and the target scripts.
 exec
-"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'rg --files -g AGENTS.md -g CLAUDE.md -g .claude/scripts/*' in C:\Bots\Migrator bots\claude-project-template-update
-exec
-"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content C:\\Users\\Lenovo\\.codex\\skills\\coding-standards\\SKILL.md" in C:\Bots\Migrator bots\claude-project-template-update
- succeeded in 399ms:
+powershell.exe -Command "Get-Content -Path 'C:/Users/Lenovo/.codex/skills/coding-standards/SKILL.md'; Get-ChildItem -Force -Filter AGENTS.md -Recurse | ForEach-Object { "'$_.FullName }; Get-ChildItem -Force -Filter CLAUDE.md -Recurse | ForEach-Object { $_.FullName }' in C:\Bots\Migrator bots\claude-project-template-update
+ succeeded in 569ms:
 ---
 name: coding-standards
 description: Universal coding standards and best practices for code quality, naming, structure, error handling. Use when reviewing code quality or starting new modules. Do NOT use for language-specific rules (see language-rules guides).
@@ -228,156 +227,15 @@ roles: [coder, coder-complex, qa-reviewer]
 - [tdd-workflow](./../tdd-workflow/SKILL.md) вЂ” test-driven development with RED-GREEN-REFACTOR
 - [security-review](./../security-review/SKILL.md) вЂ” security checklist and input validation
 - [api-design](./../api-design/SKILL.md) вЂ” REST API design and error format standards
-
-2026-04-24T12:11:00.169810Z ERROR codex_core::tools::router: error=Exit code: 1
-Wall time: 1.3 seconds
-Output:
-rg : Имя "rg" не распознано как имя командлета, функции, файла сценария или выполняемой программы. Проверьте правильнос
-ть написания имени, а также наличие и правильность пути, после чего повторите попытку.
-строка:2 знак:1
-+ rg --files -g AGENTS.md -g CLAUDE.md -g .claude/scripts/*
-+ ~~
-    + CategoryInfo          : ObjectNotFound: (rg:String) [], CommandNotFoundException
-    + FullyQualifiedErrorId : CommandNotFoundException
- 
-
- exited 1 in 1315ms:
-rg : Имя "rg" не распознано как имя командлета, функции, файла сценария или выполняемой программы. Проверьте правильнос
-ть написания имени, а также наличие и правильность пути, после чего повторите попытку.
-строка:2 знак:1
-+ rg --files -g AGENTS.md -g CLAUDE.md -g .claude/scripts/*
-+ ~~
-    + CategoryInfo          : ObjectNotFound: (rg:String) [], CommandNotFoundException
-    + FullyQualifiedErrorId : CommandNotFoundException
- 
+C:\Bots\Migrator bots\claude-project-template-update\.claude\shared\templates\new-project\AGENTS.md
+C:\Bots\Migrator bots\claude-project-template-update\CLAUDE.md
+C:\Bots\Migrator bots\claude-project-template-update\.claude\shared\templates\new-project\CLAUDE.md
 
 codex
-I’m using the `coding-standards` skill for this new script. `rg` isn’t available here, so I’m switching to PowerShell-native file discovery and reading the repo instructions that can override defaults.
+Using `coding-standards` for the new utility’s structure and logging. Now I’ll read the root guidance and existing script names.
 exec
-"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-ChildItem -Path . -Recurse -File -Include AGENTS.md,CLAUDE.md | Select-Object -ExpandProperty FullName' in C:\Bots\Migrator bots\claude-project-template-update
-exec
-"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem -Path .claude\\scripts -File | Select-Object Name,Length" in C:\Bots\Migrator bots\claude-project-template-update
- succeeded in 396ms:
-
-Name                      Length
-----                      ------
-ao-hybrid.sh                8456
-bridge-stub-template.py     1935
-codex-ask.py                5260
-codex-implement.py         39216
-codex-scope-check.py        8663
-codex-wave.py              19672
-context-layers.py          23570
-generate-prompt.py         17787
-knowledge-graph.py         24292
-memory-engine.py           25033
-semantic-search.py         17515
-spawn-agent.py             16862
-sync-bridge-stubs.py        5283
-sync-from-github.sh         4584
-test_codex_implement.py    18570
-test_codex_scope_check.py   7782
-test_codex_wave.py         17107
-validate-configs.py         9864
-
-
-
- succeeded in 674ms:
-C:\Bots\Migrator bots\claude-project-template-update\.claude\shared\templates\new-project\AGENTS.md
-C:\Bots\Migrator bots\claude-project-template-update\.claude\shared\templates\new-project\CLAUDE.md
-C:\Bots\Migrator bots\claude-project-template-update\CLAUDE.md
-
-exec
-"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content .claude\\scripts\\codex-wave.py -TotalCount 40" in C:\Bots\Migrator bots\claude-project-template-update
-exec
-"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'Get-Content CLAUDE.md' in C:\Bots\Migrator bots\claude-project-template-update
-exec
-"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content .claude\\scripts\\codex-ask.py -TotalCount 40" in C:\Bots\Migrator bots\claude-project-template-update
- succeeded in 425ms:
-#!/usr/bin/env python3
-"""Codex Ask вЂ” CLI tool for Claude to get Codex opinion on any task.
-
-Usage:
-    py -3 .claude/scripts/codex-ask.py "Your question or task description"
-
-Connects to warm Codex broker (ws://127.0.0.1:4500), sends question,
-waits for response, prints to stdout. Claude reads the output.
-
-Works everywhere: main session, subtasks, Agent Teams, pipeline phases.
-If broker is not running, falls back to codex exec.
-"""
-
-import json
-import os
-import shutil
-import subprocess
-import sys
-import time
-from pathlib import Path
-
-# Also update last-consulted for codex-broker sync
-BROKER_URL = "ws://127.0.0.1:4500"
-
-if sys.platform == "win32":
-    for s in [sys.stdin, sys.stdout, sys.stderr]:
-        if hasattr(s, "reconfigure"):
-            s.reconfigure(encoding="utf-8", errors="replace")
-
-BROKER_URL = "ws://127.0.0.1:4500"
-INACTIVITY_TIMEOUT = 30
-MAX_TIMEOUT = 300
-
-
-def ask_via_broker(prompt):
-    """Ask Codex via warm WebSocket broker."""
-    from websockets.sync.client import connect
-
-    t0 = time.time()
-    ws = connect(BROKER_URL, close_timeout=5, open_timeout=5)
-
- succeeded in 425ms:
-"""
-codex-wave.py -- Parallel launcher for codex-implement.py processes.
-
-Spawns up to --parallel concurrent codex-implement.py subprocesses, each in
-its own git worktree at worktrees/codex-wave/T{N}/. Aggregates results into
-work/codex-primary/codex-wave-report.md.
-
-Does NOT auto-merge worktree branches -- that is Opus's job.
-
-CLI Usage:
-    py -3 .claude/scripts/codex-wave.py \\
-        --tasks work/codex-primary/tasks/T1.md,T2.md,T3.md \\
-        --parallel 3 \\
-        --worktree-base worktrees/codex-wave \\
-        [--timeout-per-task 3600] \\
-        [--report work/codex-primary/codex-wave-report.md] \\
-        [--implement-script .claude/scripts/codex-implement.py] \\
-        [--base-branch HEAD]
-"""
-
-from __future__ import annotations
-
-import argparse
-import glob
-import logging
-import os
-import re
-import subprocess
-import sys
-import threading
-import time
-from concurrent.futures import Future, ThreadPoolExecutor
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Iterable, Optional
-
-
-logger = logging.getLogger("codex_wave")
-
-
-
- succeeded in 430ms:
+powershell.exe -Command "Get-Content -Path 'CLAUDE.md'; Get-ChildItem -Path '.claude/scripts' -Filter 'codex*.py' | Sort-Object Name | Select-Object -ExpandProperty Name; Test-Path '.claude/scripts/list_codex_scripts.py'" in C:\Bots\Migrator bots\claude-project-template-update
+ succeeded in 440ms:
 # Project: Claude Project Template Update
 
 > Template upgrade automation with AI-First methodology integration
@@ -422,22 +280,28 @@ Opus plans, decomposes, and reviews; **Codex (GPT-5.5) executes** well-defined, 
 
 ### Compatibility (unchanged вЂ” fully supported)
 Agent Teams (TeamCreate), skills injection, memory (activeContext / knowledge / daily), `codex-ask` second opinion, existing codex-advisor hooks (`codex-parallel`, `codex-watchdog`, `codex-broker`, `codex-review`, `codex-stop-opinion`, `codex-gate`) вЂ” **all unchanged and fully supported**. The new modes compose with existing infrastructure; they do not replace or disable any of it.
+codex-ask.py
+codex-implement.py
+codex-scope-check.py
+codex-wave.py
+False
 
+Implement only the allowed new file, then run the specified command and self-check the ACs.
+  → Create scoped utility script
+  • Run mandated command
+  • Verify acceptance criteria
 codex
-I have the constraints now: only one new file, `pathlib` + stdlib only, logging on stderr, deterministic alphabetical output, and total script size under 80 lines. Next I’m writing the utility and then I’ll run the required command and verify each acceptance criterion against the actual stdout.
-codex
-I’m adding the single allowed file now. The implementation stays intentionally small: one collector, one line-counter, one `main()`, and logger calls only for entry/exit metadata.
+I found the four expected Codex scripts. Next I’ll add only the scoped utility file.
 apply patch
 patch: completed
 C:\Bots\Migrator bots\claude-project-template-update\.claude/scripts/list_codex_scripts.py
 diff --git a/.claude/scripts/list_codex_scripts.py b/.claude/scripts/list_codex_scripts.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..5c67309eb8809caf469a2065a4904f54528dc1b6
+index 0000000000000000000000000000000000000000..f18311379ac092aa98ba8c482c55aafafce5926a
 --- /dev/null
 +++ b/.claude/scripts/list_codex_scripts.py
-@@ -0,0 +1,40 @@
-+#!/usr/bin/env python3
-+"""List `.claude/scripts/codex*.py` files with alphabetical line counts."""
+@@ -0,0 +1,56 @@
++"""List Codex helper scripts and their line counts."""
 +
 +from __future__ import annotations
 +
@@ -445,46 +309,62 @@ index 0000000000000000000000000000000000000000..5c67309eb8809caf469a2065a4904f54
 +from pathlib import Path
 +
 +
-+logger = logging.getLogger("list_codex_scripts")
++LOGGER = logging.getLogger(__name__)
++SCRIPT_PATTERN = "codex*.py"
 +
 +
-+def count_lines(path: Path) -> int:
-+    with path.open("r", encoding="utf-8") as handle:
++def count_lines(file_path: Path) -> int:
++    """Return the number of lines in a text file."""
++    with file_path.open("r", encoding="utf-8") as handle:
 +        return sum(1 for _ in handle)
 +
 +
-+def collect_entries(scripts_dir: Path) -> list[tuple[str, int]]:
++def get_codex_scripts(script_dir: Path) -> list[Path]:
++    """Return matching script files sorted alphabetically by filename."""
 +    return sorted(
-+        (path.name, count_lines(path))
-+        for path in scripts_dir.glob("codex*.py")
-+        if path.is_file()
++        (path for path in script_dir.glob(SCRIPT_PATTERN) if path.is_file()),
++        key=lambda path: path.name,
 +    )
 +
 +
 +def main() -> int:
-+    scripts_dir = Path(__file__).resolve().parent
-+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
-+    logger.info("event=main_start scripts_dir=%s", scripts_dir)
-+    entries = collect_entries(scripts_dir)
-+    total_lines = sum(line_count for _, line_count in entries)
-+    for name, line_count in entries:
-+        print(f"{name}  {line_count}")
-+    print(f"total: {len(entries)} files, {total_lines} lines")
-+    logger.info("event=main_end file_count=%d line_count=%d", len(entries), total_lines)
++    """Print matching script filenames, line counts, and totals."""
++    script_dir = Path(__file__).resolve().parent
++    LOGGER.info(
++        "list_codex_scripts.start",
++        extra={"script_dir": str(script_dir), "pattern": SCRIPT_PATTERN},
++    )
++
++    total_lines = 0
++    scripts = get_codex_scripts(script_dir)
++    for script_path in scripts:
++        line_count = count_lines(script_path)
++        total_lines += line_count
++        LOGGER.info(
++            "list_codex_scripts.file_counted",
++            extra={"filename": script_path.name, "line_count": line_count},
++        )
++        print(f"{script_path.name}  {line_count}")
++
++    print(f"total: {len(scripts)} files, {total_lines} lines")
++    LOGGER.info(
++        "list_codex_scripts.exit",
++        extra={"file_count": len(scripts), "line_count": total_lines},
++    )
 +    return 0
 +
 +
 +if __name__ == "__main__":
++    logging.basicConfig(level=logging.WARNING)
 +    raise SystemExit(main())
 
 diff --git a/.claude/scripts/list_codex_scripts.py b/.claude/scripts/list_codex_scripts.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..5c67309eb8809caf469a2065a4904f54528dc1b6
+index 0000000000000000000000000000000000000000..f18311379ac092aa98ba8c482c55aafafce5926a
 --- /dev/null
 +++ b/.claude/scripts/list_codex_scripts.py
-@@ -0,0 +1,40 @@
-+#!/usr/bin/env python3
-+"""List `.claude/scripts/codex*.py` files with alphabetical line counts."""
+@@ -0,0 +1,56 @@
++"""List Codex helper scripts and their line counts."""
 +
 +from __future__ import annotations
 +
@@ -492,58 +372,136 @@ index 0000000000000000000000000000000000000000..5c67309eb8809caf469a2065a4904f54
 +from pathlib import Path
 +
 +
-+logger = logging.getLogger("list_codex_scripts")
++LOGGER = logging.getLogger(__name__)
++SCRIPT_PATTERN = "codex*.py"
 +
 +
-+def count_lines(path: Path) -> int:
-+    with path.open("r", encoding="utf-8") as handle:
++def count_lines(file_path: Path) -> int:
++    """Return the number of lines in a text file."""
++    with file_path.open("r", encoding="utf-8") as handle:
 +        return sum(1 for _ in handle)
 +
 +
-+def collect_entries(scripts_dir: Path) -> list[tuple[str, int]]:
++def get_codex_scripts(script_dir: Path) -> list[Path]:
++    """Return matching script files sorted alphabetically by filename."""
 +    return sorted(
-+        (path.name, count_lines(path))
-+        for path in scripts_dir.glob("codex*.py")
-+        if path.is_file()
++        (path for path in script_dir.glob(SCRIPT_PATTERN) if path.is_file()),
++        key=lambda path: path.name,
 +    )
 +
 +
 +def main() -> int:
-+    scripts_dir = Path(__file__).resolve().parent
-+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
-+    logger.info("event=main_start scripts_dir=%s", scripts_dir)
-+    entries = collect_entries(scripts_dir)
-+    total_lines = sum(line_count for _, line_count in entries)
-+    for name, line_count in entries:
-+        print(f"{name}  {line_count}")
-+    print(f"total: {len(entries)} files, {total_lines} lines")
-+    logger.info("event=main_end file_count=%d line_count=%d", len(entries), total_lines)
++    """Print matching script filenames, line counts, and totals."""
++    script_dir = Path(__file__).resolve().parent
++    LOGGER.info(
++        "list_codex_scripts.start",
++        extra={"script_dir": str(script_dir), "pattern": SCRIPT_PATTERN},
++    )
++
++    total_lines = 0
++    scripts = get_codex_scripts(script_dir)
++    for script_path in scripts:
++        line_count = count_lines(script_path)
++        total_lines += line_count
++        LOGGER.info(
++            "list_codex_scripts.file_counted",
++            extra={"filename": script_path.name, "line_count": line_count},
++        )
++        print(f"{script_path.name}  {line_count}")
++
++    print(f"total: {len(scripts)} files, {total_lines} lines")
++    LOGGER.info(
++        "list_codex_scripts.exit",
++        extra={"file_count": len(scripts), "line_count": total_lines},
++    )
 +    return 0
 +
 +
 +if __name__ == "__main__":
++    logging.basicConfig(level=logging.WARNING)
 +    raise SystemExit(main())
 
 codex
-The script is in place. I’m running the exact required command now and capturing stdout/stderr so I can verify ordering, formatting, summary, and clean exit against the task’s acceptance criteria.
-exec
-"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'py -3 .claude/scripts/list_codex_scripts.py' in C:\Bots\Migrator bots\claude-project-template-update
-2026-04-24T12:11:49.330478Z ERROR codex_core::tools::router: error=Exit code: 1
-Wall time: 0.3 seconds
-Output:
-No installed Python found!
+The scoped file is in place. I’ll run the required command and a quick line-count sanity check.
+  ✓ Create scoped utility script
+  → Run mandated command
+  • Verify acceptance criteria
+diff --git a/.claude/scripts/list_codex_scripts.py b/.claude/scripts/list_codex_scripts.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..f18311379ac092aa98ba8c482c55aafafce5926a
+--- /dev/null
++++ b/.claude/scripts/list_codex_scripts.py
+@@ -0,0 +1,56 @@
++"""List Codex helper scripts and their line counts."""
++
++from __future__ import annotations
++
++import logging
++from pathlib import Path
++
++
++LOGGER = logging.getLogger(__name__)
++SCRIPT_PATTERN = "codex*.py"
++
++
++def count_lines(file_path: Path) -> int:
++    """Return the number of lines in a text file."""
++    with file_path.open("r", encoding="utf-8") as handle:
++        return sum(1 for _ in handle)
++
++
++def get_codex_scripts(script_dir: Path) -> list[Path]:
++    """Return matching script files sorted alphabetically by filename."""
++    return sorted(
++        (path for path in script_dir.glob(SCRIPT_PATTERN) if path.is_file()),
++        key=lambda path: path.name,
++    )
++
++
++def main() -> int:
++    """Print matching script filenames, line counts, and totals."""
++    script_dir = Path(__file__).resolve().parent
++    LOGGER.info(
++        "list_codex_scripts.start",
++        extra={"script_dir": str(script_dir), "pattern": SCRIPT_PATTERN},
++    )
++
++    total_lines = 0
++    scripts = get_codex_scripts(script_dir)
++    for script_path in scripts:
++        line_count = count_lines(script_path)
++        total_lines += line_count
++        LOGGER.info(
++            "list_codex_scripts.file_counted",
++            extra={"filename": script_path.name, "line_count": line_count},
++        )
++        print(f"{script_path.name}  {line_count}")
++
++    print(f"total: {len(scripts)} files, {total_lines} lines")
++    LOGGER.info(
++        "list_codex_scripts.exit",
++        extra={"file_count": len(scripts), "line_count": total_lines},
++    )
++    return 0
++
++
++if __name__ == "__main__":
++    logging.basicConfig(level=logging.WARNING)
++    raise SystemExit(main())
 
- exited 1 in 273ms:
+exec
+powershell.exe -Command 'py -3 .claude/scripts/list_codex_scripts.py; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; (Get-Content '"'.claude/scripts/list_codex_scripts.py').Count" in C:\Bots\Migrator bots\claude-project-template-update
+2026-04-24T12:23:15.699771Z ERROR codex_core::tools::router: error={"output":"No installed Python found!\r\n","metadata":{"exit_code":112,"duration_seconds":0.2}}
+ exited 112 in 249ms:
 No installed Python found!
 
 diff --git a/.claude/scripts/list_codex_scripts.py b/.claude/scripts/list_codex_scripts.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..5c67309eb8809caf469a2065a4904f54528dc1b6
+index 0000000000000000000000000000000000000000..f18311379ac092aa98ba8c482c55aafafce5926a
 --- /dev/null
 +++ b/.claude/scripts/list_codex_scripts.py
-@@ -0,0 +1,40 @@
-+#!/usr/bin/env python3
-+"""List `.claude/scripts/codex*.py` files with alphabetical line counts."""
+@@ -0,0 +1,56 @@
++"""List Codex helper scripts and their line counts."""
 +
 +from __future__ import annotations
 +
@@ -551,49 +509,222 @@ index 0000000000000000000000000000000000000000..5c67309eb8809caf469a2065a4904f54
 +from pathlib import Path
 +
 +
-+logger = logging.getLogger("list_codex_scripts")
++LOGGER = logging.getLogger(__name__)
++SCRIPT_PATTERN = "codex*.py"
 +
 +
-+def count_lines(path: Path) -> int:
-+    with path.open("r", encoding="utf-8") as handle:
++def count_lines(file_path: Path) -> int:
++    """Return the number of lines in a text file."""
++    with file_path.open("r", encoding="utf-8") as handle:
 +        return sum(1 for _ in handle)
 +
 +
-+def collect_entries(scripts_dir: Path) -> list[tuple[str, int]]:
++def get_codex_scripts(script_dir: Path) -> list[Path]:
++    """Return matching script files sorted alphabetically by filename."""
 +    return sorted(
-+        (path.name, count_lines(path))
-+        for path in scripts_dir.glob("codex*.py")
-+        if path.is_file()
++        (path for path in script_dir.glob(SCRIPT_PATTERN) if path.is_file()),
++        key=lambda path: path.name,
 +    )
 +
 +
 +def main() -> int:
-+    scripts_dir = Path(__file__).resolve().parent
-+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
-+    logger.info("event=main_start scripts_dir=%s", scripts_dir)
-+    entries = collect_entries(scripts_dir)
-+    total_lines = sum(line_count for _, line_count in entries)
-+    for name, line_count in entries:
-+        print(f"{name}  {line_count}")
-+    print(f"total: {len(entries)} files, {total_lines} lines")
-+    logger.info("event=main_end file_count=%d line_count=%d", len(entries), total_lines)
++    """Print matching script filenames, line counts, and totals."""
++    script_dir = Path(__file__).resolve().parent
++    LOGGER.info(
++        "list_codex_scripts.start",
++        extra={"script_dir": str(script_dir), "pattern": SCRIPT_PATTERN},
++    )
++
++    total_lines = 0
++    scripts = get_codex_scripts(script_dir)
++    for script_path in scripts:
++        line_count = count_lines(script_path)
++        total_lines += line_count
++        LOGGER.info(
++            "list_codex_scripts.file_counted",
++            extra={"filename": script_path.name, "line_count": line_count},
++        )
++        print(f"{script_path.name}  {line_count}")
++
++    print(f"total: {len(scripts)} files, {total_lines} lines")
++    LOGGER.info(
++        "list_codex_scripts.exit",
++        extra={"file_count": len(scripts), "line_count": total_lines},
++    )
 +    return 0
 +
 +
 +if __name__ == "__main__":
++    logging.basicConfig(level=logging.WARNING)
 +    raise SystemExit(main())
 
 codex
-The required test command failed at the environment level: Windows `py` launcher is not installed here, so I can’t complete the mandated test exactly as written. I’m checking whether another Python executable exists so I can at least validate the script behavior, while keeping the missing `py` launcher explicit in the final report.
+`py -3` is unavailable in this environment. I’ll check with `python` for syntax/output evidence, without changing scope.
 exec
-"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python3 --version' in C:\Bots\Migrator bots\claude-project-template-update
+powershell.exe -Command 'python --version; if ($LASTEXITCODE -eq 0) { python -m py_compile .claude/scripts/list_codex_scripts.py; python .claude/scripts/list_codex_scripts.py }; git status --short; git diff -- .claude/scripts/list_codex_scripts.py' in C:\Bots\Migrator bots\claude-project-template-update
+ succeeded in 1289ms:
+?? .claude/scripts/list_codex_scripts.py
+python : Имя "python" не распознано как имя командлета, функции, файла сценария или выполняемой программы. Проверьте пр
+авильность написания имени, а также наличие и правильность пути, после чего повторите попытку.
+строка:2 знак:1
++ python --version; if ($LASTEXITCODE -eq 0) { python -m py_compile .cl ...
++ ~~~~~~
+    + CategoryInfo          : ObjectNotFound: (python:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+
+diff --git a/.claude/scripts/list_codex_scripts.py b/.claude/scripts/list_codex_scripts.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..f18311379ac092aa98ba8c482c55aafafce5926a
+--- /dev/null
++++ b/.claude/scripts/list_codex_scripts.py
+@@ -0,0 +1,56 @@
++"""List Codex helper scripts and their line counts."""
++
++from __future__ import annotations
++
++import logging
++from pathlib import Path
++
++
++LOGGER = logging.getLogger(__name__)
++SCRIPT_PATTERN = "codex*.py"
++
++
++def count_lines(file_path: Path) -> int:
++    """Return the number of lines in a text file."""
++    with file_path.open("r", encoding="utf-8") as handle:
++        return sum(1 for _ in handle)
++
++
++def get_codex_scripts(script_dir: Path) -> list[Path]:
++    """Return matching script files sorted alphabetically by filename."""
++    return sorted(
++        (path for path in script_dir.glob(SCRIPT_PATTERN) if path.is_file()),
++        key=lambda path: path.name,
++    )
++
++
++def main() -> int:
++    """Print matching script filenames, line counts, and totals."""
++    script_dir = Path(__file__).resolve().parent
++    LOGGER.info(
++        "list_codex_scripts.start",
++        extra={"script_dir": str(script_dir), "pattern": SCRIPT_PATTERN},
++    )
++
++    total_lines = 0
++    scripts = get_codex_scripts(script_dir)
++    for script_path in scripts:
++        line_count = count_lines(script_path)
++        total_lines += line_count
++        LOGGER.info(
++            "list_codex_scripts.file_counted",
++            extra={"filename": script_path.name, "line_count": line_count},
++        )
++        print(f"{script_path.name}  {line_count}")
++
++    print(f"total: {len(scripts)} files, {total_lines} lines")
++    LOGGER.info(
++        "list_codex_scripts.exit",
++        extra={"file_count": len(scripts), "line_count": total_lines},
++    )
++    return 0
++
++
++if __name__ == "__main__":
++    logging.basicConfig(level=logging.WARNING)
++    raise SystemExit(main())
+
+**Analyzing command execution**
+
+I'm noticing an interesting issue with command ordering in my output, showing git first. There are some PS errors, but the exit code is 0 since it's non-terminating. I realize Python is absent and might need to check its existence. I think I could use a PowerShell script to verify the expected stdout, but since Python can't execute, I may be facing a blocker. I need to report that as a BLOCKER, but there's a possibility to do static verification instead.
+**Exploring Python execution issues**
+
+I can quote the stdout of the failed command saying "No installed Python found!" but it's not from the script stdout. This raises a potential issue: we shouldn't modify other files, and it seems no `py_compile` was created since Python didn't run. I could use PowerShell to count actual script lines and compare those, but that's not strictly required. Even so, I might test the presence of an alternative Python version and decide whether to run additional commands like `Get-Command py`. Ultimately, I need to think about updating my plan.
+**Clarifying completion status**
+
+I need to sort out the verification status since we've hit a blocker. Can I mark it as completed with an explanation about the blocker? It seems like "Verify acceptance criteria" has been partially verified, so should I update the plan to reflect that? Since the blocker is unresolved, I could still mark the test command as completed and mention "Verify acceptance criteria" is done but note the blocker. It’s important to clarify everything accurately!
+codex
+Python isn’t installed, so runtime verification is blocked. I’ll do a scope/static check and capture evidence.
+The required command was run but failed because `py -3` cannot find an installed Python runtime in this environment.
+  ✓ Create scoped utility script
+  ✓ Run mandated command
+  → Verify acceptance criteria
+diff --git a/.claude/scripts/list_codex_scripts.py b/.claude/scripts/list_codex_scripts.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..f18311379ac092aa98ba8c482c55aafafce5926a
+--- /dev/null
++++ b/.claude/scripts/list_codex_scripts.py
+@@ -0,0 +1,56 @@
++"""List Codex helper scripts and their line counts."""
++
++from __future__ import annotations
++
++import logging
++from pathlib import Path
++
++
++LOGGER = logging.getLogger(__name__)
++SCRIPT_PATTERN = "codex*.py"
++
++
++def count_lines(file_path: Path) -> int:
++    """Return the number of lines in a text file."""
++    with file_path.open("r", encoding="utf-8") as handle:
++        return sum(1 for _ in handle)
++
++
++def get_codex_scripts(script_dir: Path) -> list[Path]:
++    """Return matching script files sorted alphabetically by filename."""
++    return sorted(
++        (path for path in script_dir.glob(SCRIPT_PATTERN) if path.is_file()),
++        key=lambda path: path.name,
++    )
++
++
++def main() -> int:
++    """Print matching script filenames, line counts, and totals."""
++    script_dir = Path(__file__).resolve().parent
++    LOGGER.info(
++        "list_codex_scripts.start",
++        extra={"script_dir": str(script_dir), "pattern": SCRIPT_PATTERN},
++    )
++
++    total_lines = 0
++    scripts = get_codex_scripts(script_dir)
++    for script_path in scripts:
++        line_count = count_lines(script_path)
++        total_lines += line_count
++        LOGGER.info(
++            "list_codex_scripts.file_counted",
++            extra={"filename": script_path.name, "line_count": line_count},
++        )
++        print(f"{script_path.name}  {line_count}")
++
++    print(f"total: {len(scripts)} files, {total_lines} lines")
++    LOGGER.info(
++        "list_codex_scripts.exit",
++        extra={"file_count": len(scripts), "line_count": total_lines},
++    )
++    return 0
++
++
++if __name__ == "__main__":
++    logging.basicConfig(level=logging.WARNING)
++    raise SystemExit(main())
+
 exec
-"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-Content .claude\\scripts\\list_codex_scripts.py" in C:\Bots\Migrator bots\claude-project-template-update
-exec
-"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'python --version' in C:\Bots\Migrator bots\claude-project-template-update
- succeeded in 429ms:
-#!/usr/bin/env python3
-"""List `.claude/scripts/codex*.py` files with alphabetical line counts."""
+powershell.exe -Command "Get-Command py -ErrorAction SilentlyContinue | Format-List Source,CommandType; Get-Content '.claude/scripts/list_codex_scripts.py'; Write-Output '--- line count ---'; (Get-Content '.claude/scripts/list_codex_scripts.py').Count; Write-Output '--- matching files ---'; Get-ChildItem '.claude/scripts' -Filter 'codex*.py' | Sort-Object Name | ForEach-Object { '{0}  {1}' -f "'$_.Name, (Get-Content $_.FullName).Count }; Write-Output '"'--- git status ---'; git status --short" in C:\Bots\Migrator bots\claude-project-template-update
+ succeeded in 539ms:
+
+
+Source      : C:\WINDOWS\py.exe
+CommandType : Application
+
+
+
+"""List Codex helper scripts and their line counts."""
 
 from __future__ import annotations
 
@@ -601,208 +732,71 @@ import logging
 from pathlib import Path
 
 
-logger = logging.getLogger("list_codex_scripts")
+LOGGER = logging.getLogger(__name__)
+SCRIPT_PATTERN = "codex*.py"
 
 
-def count_lines(path: Path) -> int:
-    with path.open("r", encoding="utf-8") as handle:
+def count_lines(file_path: Path) -> int:
+    """Return the number of lines in a text file."""
+    with file_path.open("r", encoding="utf-8") as handle:
         return sum(1 for _ in handle)
 
 
-def collect_entries(scripts_dir: Path) -> list[tuple[str, int]]:
+def get_codex_scripts(script_dir: Path) -> list[Path]:
+    """Return matching script files sorted alphabetically by filename."""
     return sorted(
-        (path.name, count_lines(path))
-        for path in scripts_dir.glob("codex*.py")
-        if path.is_file()
+        (path for path in script_dir.glob(SCRIPT_PATTERN) if path.is_file()),
+        key=lambda path: path.name,
     )
 
 
 def main() -> int:
-    scripts_dir = Path(__file__).resolve().parent
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
-    logger.info("event=main_start scripts_dir=%s", scripts_dir)
-    entries = collect_entries(scripts_dir)
-    total_lines = sum(line_count for _, line_count in entries)
-    for name, line_count in entries:
-        print(f"{name}  {line_count}")
-    print(f"total: {len(entries)} files, {total_lines} lines")
-    logger.info("event=main_end file_count=%d line_count=%d", len(entries), total_lines)
+    """Print matching script filenames, line counts, and totals."""
+    script_dir = Path(__file__).resolve().parent
+    LOGGER.info(
+        "list_codex_scripts.start",
+        extra={"script_dir": str(script_dir), "pattern": SCRIPT_PATTERN},
+    )
+
+    total_lines = 0
+    scripts = get_codex_scripts(script_dir)
+    for script_path in scripts:
+        line_count = count_lines(script_path)
+        total_lines += line_count
+        LOGGER.info(
+            "list_codex_scripts.file_counted",
+            extra={"filename": script_path.name, "line_count": line_count},
+        )
+        print(f"{script_path.name}  {line_count}")
+
+    print(f"total: {len(scripts)} files, {total_lines} lines")
+    LOGGER.info(
+        "list_codex_scripts.exit",
+        extra={"file_count": len(scripts), "line_count": total_lines},
+    )
     return 0
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.WARNING)
     raise SystemExit(main())
-
-2026-04-24T12:12:00.923033Z ERROR codex_core::tools::router: error=Exit code: 1
-Wall time: 1.3 seconds
-Output:
-python : Имя "python" не распознано как имя командлета, функции, файла сценария или выполняемой программы. Проверьте пр
-авильность написания имени, а также наличие и правильность пути, после чего повторите попытку.
-строка:2 знак:1
-+ python --version
-+ ~~~~~~
-    + CategoryInfo          : ObjectNotFound: (python:String) [], CommandNotFoundException
-    + FullyQualifiedErrorId : CommandNotFoundException
- 
-
- exited 1 in 1289ms:
-python : Имя "python" не распознано как имя командлета, функции, файла сценария или выполняемой программы. Проверьте пр
-авильность написания имени, а также наличие и правильность пути, после чего повторите попытку.
-строка:2 знак:1
-+ python --version
-+ ~~~~~~
-    + CategoryInfo          : ObjectNotFound: (python:String) [], CommandNotFoundException
-    + FullyQualifiedErrorId : CommandNotFoundException
- 
-
- exited 1 in 1301ms:
-python3 : Имя "python3" не распознано как имя командлета, функции, файла сценария или выполняемой программы. Проверьте 
-правильность написания имени, а также наличие и правильность пути, после чего повторите попытку.
-строка:2 знак:1
-+ python3 --version
-+ ~~~~~~~
-    + CategoryInfo          : ObjectNotFound: (python3:String) [], CommandNotFoundException
-    + FullyQualifiedErrorId : CommandNotFoundException
- 
-
-2026-04-24T12:12:00.938055Z ERROR codex_core::tools::router: error=Exit code: 1
-Wall time: 1.3 seconds
-Output:
-python3 : Имя "python3" не распознано как имя командлета, функции, файла сценария или выполняемой программы. Проверьте 
-правильность написания имени, а также наличие и правильность пути, после чего повторите попытку.
-строка:2 знак:1
-+ python3 --version
-+ ~~~~~~~
-    + CategoryInfo          : ObjectNotFound: (python3:String) [], CommandNotFoundException
-    + FullyQualifiedErrorId : CommandNotFoundException
- 
-
-diff --git a/.claude/scripts/list_codex_scripts.py b/.claude/scripts/list_codex_scripts.py
-new file mode 100644
-index 0000000000000000000000000000000000000000..5c67309eb8809caf469a2065a4904f54528dc1b6
---- /dev/null
-+++ b/.claude/scripts/list_codex_scripts.py
-@@ -0,0 +1,40 @@
-+#!/usr/bin/env python3
-+"""List `.claude/scripts/codex*.py` files with alphabetical line counts."""
-+
-+from __future__ import annotations
-+
-+import logging
-+from pathlib import Path
-+
-+
-+logger = logging.getLogger("list_codex_scripts")
-+
-+
-+def count_lines(path: Path) -> int:
-+    with path.open("r", encoding="utf-8") as handle:
-+        return sum(1 for _ in handle)
-+
-+
-+def collect_entries(scripts_dir: Path) -> list[tuple[str, int]]:
-+    return sorted(
-+        (path.name, count_lines(path))
-+        for path in scripts_dir.glob("codex*.py")
-+        if path.is_file()
-+    )
-+
-+
-+def main() -> int:
-+    scripts_dir = Path(__file__).resolve().parent
-+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
-+    logger.info("event=main_start scripts_dir=%s", scripts_dir)
-+    entries = collect_entries(scripts_dir)
-+    total_lines = sum(line_count for _, line_count in entries)
-+    for name, line_count in entries:
-+        print(f"{name}  {line_count}")
-+    print(f"total: {len(entries)} files, {total_lines} lines")
-+    logger.info("event=main_end file_count=%d line_count=%d", len(entries), total_lines)
-+    return 0
-+
-+
-+if __name__ == "__main__":
-+    raise SystemExit(main())
-
-codex
-I can’t execute Python in this environment, so I’m gathering the repository-side evidence with PowerShell: the exact set of `codex*.py` files, their line counts, and the new script’s size. That lets me confirm the implemented logic against the current repo state while keeping the execution blocker explicit.
-exec
-"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "(Get-Content .claude\\scripts\\list_codex_scripts.py).Count" in C:\Bots\Migrator bots\claude-project-template-update
-exec
-"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command "Get-ChildItem .claude\\scripts -File -Filter 'codex*.py' | Sort-Object Name | ForEach-Object { "'$lines = (Get-Content $_.FullName).Count; '"'{0}  {1}' -f "'$_.Name, $lines }; $files = Get-ChildItem .claude'"\\scripts -File -Filter 'codex*.py'; "'$totalLines = ($files | ForEach-Object { (Get-Content $_.FullName).Count } | Measure-Object -Sum).Sum; '"'total: {0} files, {1} lines' -f "'$files.Count, $totalLines' in C:\Bots\Migrator bots\claude-project-template-update
-exec
-"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git diff -- .claude/scripts/list_codex_scripts.py' in C:\Bots\Migrator bots\claude-project-template-update
- succeeded in 269ms:
- succeeded in 423ms:
-40
-
- succeeded in 522ms:
+--- line count ---
+56
+--- matching files ---
 codex-ask.py  171
-codex-implement.py  1083
+codex-implement.py  1100
 codex-scope-check.py  265
 codex-wave.py  582
-total: 4 files, 2101 lines
-
-diff --git a/.claude/scripts/list_codex_scripts.py b/.claude/scripts/list_codex_scripts.py
-new file mode 100644
-index 0000000000000000000000000000000000000000..5c67309eb8809caf469a2065a4904f54528dc1b6
---- /dev/null
-+++ b/.claude/scripts/list_codex_scripts.py
-@@ -0,0 +1,40 @@
-+#!/usr/bin/env python3
-+"""List `.claude/scripts/codex*.py` files with alphabetical line counts."""
-+
-+from __future__ import annotations
-+
-+import logging
-+from pathlib import Path
-+
-+
-+logger = logging.getLogger("list_codex_scripts")
-+
-+
-+def count_lines(path: Path) -> int:
-+    with path.open("r", encoding="utf-8") as handle:
-+        return sum(1 for _ in handle)
-+
-+
-+def collect_entries(scripts_dir: Path) -> list[tuple[str, int]]:
-+    return sorted(
-+        (path.name, count_lines(path))
-+        for path in scripts_dir.glob("codex*.py")
-+        if path.is_file()
-+    )
-+
-+
-+def main() -> int:
-+    scripts_dir = Path(__file__).resolve().parent
-+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
-+    logger.info("event=main_start scripts_dir=%s", scripts_dir)
-+    entries = collect_entries(scripts_dir)
-+    total_lines = sum(line_count for _, line_count in entries)
-+    for name, line_count in entries:
-+        print(f"{name}  {line_count}")
-+    print(f"total: {len(entries)} files, {total_lines} lines")
-+    logger.info("event=main_end file_count=%d line_count=%d", len(entries), total_lines)
-+    return 0
-+
-+
-+if __name__ == "__main__":
-+    raise SystemExit(main())
-
-exec
-"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -Command 'git status --short -- .claude/scripts/list_codex_scripts.py' in C:\Bots\Migrator bots\claude-project-template-update
- succeeded in 236ms:
+--- git status ---
 ?? .claude/scripts/list_codex_scripts.py
 
 diff --git a/.claude/scripts/list_codex_scripts.py b/.claude/scripts/list_codex_scripts.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..5c67309eb8809caf469a2065a4904f54528dc1b6
+index 0000000000000000000000000000000000000000..f18311379ac092aa98ba8c482c55aafafce5926a
 --- /dev/null
 +++ b/.claude/scripts/list_codex_scripts.py
-@@ -0,0 +1,40 @@
-+#!/usr/bin/env python3
-+"""List `.claude/scripts/codex*.py` files with alphabetical line counts."""
+@@ -0,0 +1,56 @@
++"""List Codex helper scripts and their line counts."""
 +
 +from __future__ import annotations
 +
@@ -810,69 +804,139 @@ index 0000000000000000000000000000000000000000..5c67309eb8809caf469a2065a4904f54
 +from pathlib import Path
 +
 +
-+logger = logging.getLogger("list_codex_scripts")
++LOGGER = logging.getLogger(__name__)
++SCRIPT_PATTERN = "codex*.py"
 +
 +
-+def count_lines(path: Path) -> int:
-+    with path.open("r", encoding="utf-8") as handle:
++def count_lines(file_path: Path) -> int:
++    """Return the number of lines in a text file."""
++    with file_path.open("r", encoding="utf-8") as handle:
 +        return sum(1 for _ in handle)
 +
 +
-+def collect_entries(scripts_dir: Path) -> list[tuple[str, int]]:
++def get_codex_scripts(script_dir: Path) -> list[Path]:
++    """Return matching script files sorted alphabetically by filename."""
 +    return sorted(
-+        (path.name, count_lines(path))
-+        for path in scripts_dir.glob("codex*.py")
-+        if path.is_file()
++        (path for path in script_dir.glob(SCRIPT_PATTERN) if path.is_file()),
++        key=lambda path: path.name,
 +    )
 +
 +
 +def main() -> int:
-+    scripts_dir = Path(__file__).resolve().parent
-+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
-+    logger.info("event=main_start scripts_dir=%s", scripts_dir)
-+    entries = collect_entries(scripts_dir)
-+    total_lines = sum(line_count for _, line_count in entries)
-+    for name, line_count in entries:
-+        print(f"{name}  {line_count}")
-+    print(f"total: {len(entries)} files, {total_lines} lines")
-+    logger.info("event=main_end file_count=%d line_count=%d", len(entries), total_lines)
++    """Print matching script filenames, line counts, and totals."""
++    script_dir = Path(__file__).resolve().parent
++    LOGGER.info(
++        "list_codex_scripts.start",
++        extra={"script_dir": str(script_dir), "pattern": SCRIPT_PATTERN},
++    )
++
++    total_lines = 0
++    scripts = get_codex_scripts(script_dir)
++    for script_path in scripts:
++        line_count = count_lines(script_path)
++        total_lines += line_count
++        LOGGER.info(
++            "list_codex_scripts.file_counted",
++            extra={"filename": script_path.name, "line_count": line_count},
++        )
++        print(f"{script_path.name}  {line_count}")
++
++    print(f"total: {len(scripts)} files, {total_lines} lines")
++    LOGGER.info(
++        "list_codex_scripts.exit",
++        extra={"file_count": len(scripts), "line_count": total_lines},
++    )
 +    return 0
 +
 +
 +if __name__ == "__main__":
++    logging.basicConfig(level=logging.WARNING)
++    raise SystemExit(main())
+
+Static/scope checks are complete; runtime AC2 remains blocked by missing Python launcher/runtime.
+  ✓ Create scoped utility script
+  ✓ Run mandated command
+  ✓ Verify acceptance criteria
+diff --git a/.claude/scripts/list_codex_scripts.py b/.claude/scripts/list_codex_scripts.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..f18311379ac092aa98ba8c482c55aafafce5926a
+--- /dev/null
++++ b/.claude/scripts/list_codex_scripts.py
+@@ -0,0 +1,56 @@
++"""List Codex helper scripts and their line counts."""
++
++from __future__ import annotations
++
++import logging
++from pathlib import Path
++
++
++LOGGER = logging.getLogger(__name__)
++SCRIPT_PATTERN = "codex*.py"
++
++
++def count_lines(file_path: Path) -> int:
++    """Return the number of lines in a text file."""
++    with file_path.open("r", encoding="utf-8") as handle:
++        return sum(1 for _ in handle)
++
++
++def get_codex_scripts(script_dir: Path) -> list[Path]:
++    """Return matching script files sorted alphabetically by filename."""
++    return sorted(
++        (path for path in script_dir.glob(SCRIPT_PATTERN) if path.is_file()),
++        key=lambda path: path.name,
++    )
++
++
++def main() -> int:
++    """Print matching script filenames, line counts, and totals."""
++    script_dir = Path(__file__).resolve().parent
++    LOGGER.info(
++        "list_codex_scripts.start",
++        extra={"script_dir": str(script_dir), "pattern": SCRIPT_PATTERN},
++    )
++
++    total_lines = 0
++    scripts = get_codex_scripts(script_dir)
++    for script_path in scripts:
++        line_count = count_lines(script_path)
++        total_lines += line_count
++        LOGGER.info(
++            "list_codex_scripts.file_counted",
++            extra={"filename": script_path.name, "line_count": line_count},
++        )
++        print(f"{script_path.name}  {line_count}")
++
++    print(f"total: {len(scripts)} files, {total_lines} lines")
++    LOGGER.info(
++        "list_codex_scripts.exit",
++        extra={"file_count": len(scripts), "line_count": total_lines},
++    )
++    return 0
++
++
++if __name__ == "__main__":
++    logging.basicConfig(level=logging.WARNING)
 +    raise SystemExit(main())
 
 codex
-Implemented [list_codex_scripts.py](</C:/Bots/Migrator bots/claude-project-template-update/.claude/scripts/list_codex_scripts.py>).
+NOTE: Added `.claude/scripts/list_codex_scripts.py:1` as a 56-line stdlib-only Python utility with module docstring, `pathlib`, type hints, sorted `codex*.py` listing, totals, and structured `logging` calls at main entry/exit.
 
-The required test command `py -3 .claude/scripts/list_codex_scripts.py` could not be executed successfully in this environment. Its actual output was:
+NOTE: Scope check shows only `?? .claude/scripts/list_codex_scripts.py` modified.
 
-```text
-No installed Python found!
-```
+NOTE: Required test command `py -3 .claude/scripts/list_codex_scripts.py` was run; result: exit code `112`, output: `No installed Python found!`
 
-Repo-side verification against the current `.claude/scripts/codex*.py` files shows the script is designed to emit this stdout on this checkout:
+NOTE: Static file discovery found expected files: `codex-ask.py`, `codex-implement.py`, `codex-scope-check.py`, `codex-wave.py`.
 
-```text
-codex-ask.py  171
-codex-implement.py  1083
-codex-scope-check.py  265
-codex-wave.py  582
-total: 4 files, 2101 lines
-```
-
-NOTE: Added only `.claude/scripts/list_codex_scripts.py`; no forbidden paths were modified.
-NOTE: The script is 40 lines long, uses only Python stdlib, includes a module docstring, uses `pathlib.Path`, and has `logger.info` calls at `main()` entry and exit.
-NOTE: The implemented output logic is deterministic and alphabetically sorted by filename, with the required `total:` summary line format.
-BLOCKER: The environment has no usable Python launcher or interpreter (`py`, `python`, and `python3` were all unavailable), so I could not run the mandated test command to prove AC1/AC2 and runtime behavior directly.
+BLOCKER: AC2/runtime verification is blocked because this environment has `C:\WINDOWS\py.exe` but no installed Python runtime; `python` is also unavailable.
 diff --git a/.claude/scripts/list_codex_scripts.py b/.claude/scripts/list_codex_scripts.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..5c67309eb8809caf469a2065a4904f54528dc1b6
+index 0000000000000000000000000000000000000000..f18311379ac092aa98ba8c482c55aafafce5926a
 --- /dev/null
 +++ b/.claude/scripts/list_codex_scripts.py
-@@ -0,0 +1,40 @@
-+#!/usr/bin/env python3
-+"""List `.claude/scripts/codex*.py` files with alphabetical line counts."""
+@@ -0,0 +1,56 @@
++"""List Codex helper scripts and their line counts."""
 +
 +from __future__ import annotations
 +
@@ -880,38 +944,55 @@ index 0000000000000000000000000000000000000000..5c67309eb8809caf469a2065a4904f54
 +from pathlib import Path
 +
 +
-+logger = logging.getLogger("list_codex_scripts")
++LOGGER = logging.getLogger(__name__)
++SCRIPT_PATTERN = "codex*.py"
 +
 +
-+def count_lines(path: Path) -> int:
-+    with path.open("r", encoding="utf-8") as handle:
++def count_lines(file_path: Path) -> int:
++    """Return the number of lines in a text file."""
++    with file_path.open("r", encoding="utf-8") as handle:
 +        return sum(1 for _ in handle)
 +
 +
-+def collect_entries(scripts_dir: Path) -> list[tuple[str, int]]:
++def get_codex_scripts(script_dir: Path) -> list[Path]:
++    """Return matching script files sorted alphabetically by filename."""
 +    return sorted(
-+        (path.name, count_lines(path))
-+        for path in scripts_dir.glob("codex*.py")
-+        if path.is_file()
++        (path for path in script_dir.glob(SCRIPT_PATTERN) if path.is_file()),
++        key=lambda path: path.name,
 +    )
 +
 +
 +def main() -> int:
-+    scripts_dir = Path(__file__).resolve().parent
-+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
-+    logger.info("event=main_start scripts_dir=%s", scripts_dir)
-+    entries = collect_entries(scripts_dir)
-+    total_lines = sum(line_count for _, line_count in entries)
-+    for name, line_count in entries:
-+        print(f"{name}  {line_count}")
-+    print(f"total: {len(entries)} files, {total_lines} lines")
-+    logger.info("event=main_end file_count=%d line_count=%d", len(entries), total_lines)
++    """Print matching script filenames, line counts, and totals."""
++    script_dir = Path(__file__).resolve().parent
++    LOGGER.info(
++        "list_codex_scripts.start",
++        extra={"script_dir": str(script_dir), "pattern": SCRIPT_PATTERN},
++    )
++
++    total_lines = 0
++    scripts = get_codex_scripts(script_dir)
++    for script_path in scripts:
++        line_count = count_lines(script_path)
++        total_lines += line_count
++        LOGGER.info(
++            "list_codex_scripts.file_counted",
++            extra={"filename": script_path.name, "line_count": line_count},
++        )
++        print(f"{script_path.name}  {line_count}")
++
++    print(f"total: {len(scripts)} files, {total_lines} lines")
++    LOGGER.info(
++        "list_codex_scripts.exit",
++        extra={"file_count": len(scripts), "line_count": total_lines},
++    )
 +    return 0
 +
 +
 +if __name__ == "__main__":
++    logging.basicConfig(level=logging.WARNING)
 +    raise SystemExit(main())
 
 tokens used
-18 795
+25 894
 ```
