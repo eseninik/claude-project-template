@@ -224,3 +224,8 @@
 | 2026-04-24 18:42 | 13 | T7: AGENTS.md update вЂ” dual contract (SOLO-docs) | main | PASSED |
 | 2026-04-24 19:06 | 7 | T1: codex-delegate-enforcer.py hook (DUAL) | main | PASSED |
 | 2026-04-24 19:06 | 12 | T6: Wire enforcer in settings.json (SOLO-config) | main | PASSED |
+| 2026-04-24 19:33 | 9 | T3: dual-teams-spawn.py helper (DUAL) | main | PASSED |
+| 2026-04-24 19:33 | 10 | T4: codex-inline-dual.py helper (DUAL) | main | PASSED |
+| 2026-04-24 19:55 | 17 | T11: Streaming judge in dual-implement skill (DUAL | main | PASSED |
+| 2026-04-24 19:55 | 18 | T12: codex-integration.md update вЂ” new patterns  | main | PASSED |
+| 2026-04-24 19:55 | 19 | T13: Update dual-implement SKILL.md for cherry-pic | main | PASSED |

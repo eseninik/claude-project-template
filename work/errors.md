@@ -2023,3 +2023,28 @@ print('test')
 **Context:** `cd "C:/Bots/Migrator bots/claude-project-template-update/worktrees/v2/T4-claude" && pwd && git status 2>&1 | head -20 && echo "---" && ls .claude/ 2>&1`
 **Error:** Exit code 1 /usr/bin/bash: line 3: cd: C:/Bots/Migrator bots/claude-project-template-update/worktrees/v2/T4-claude: No such file or directory
 
+### 2026-04-24 19:37:50 — Bash
+**Context:** `cd "C:/Bots/Migrator bots/claude-project-template-update/worktrees/v2/T4-claude" && py -3 .claude/scripts/test_codex_inline_dual.py 2>&1`
+**Error:** Exit code 1 test_minimal_args_ok (__main__.TestArgParser.test_minimal_args_ok) ... ok test_missing_required_exits_nonzero (__main__.TestArgParser.test_missing_required_exits_nonzero) AC8: missing required arg -> argparse exits non-zero. ... ok test_multiple_test_flags_append (__main__.TestArgPars
+
+### 2026-04-24 20:01:09 — Bash
+**Context:** `python << 'PYEOF'
+import pathlib
+p = pathlib.Path(r'C:/Bots/Migrator bots/claude-project-template-update/worktrees/v3/T8T9-claude/.claude/scripts/codex-implement.py')
+txt = p.read_text(encoding='utf-8`
+**Error:** Exit code 1 <stdin>:20: SyntaxWarning: invalid escape sequence '\s'   File "<stdin>", line 56     """AC9 пїЅ atomic temp-file-rename (os.replace works on Windows)."""            ^ SyntaxError: invalid character 'пїЅ' (U+2014)
+
+### 2026-04-24 20:02:56 — Bash
+**Context:** `rtk ls "C:/Bots/Migrator bots/claude-project-template-update/worktrees/v3/T10-claude/.claude/logs/" 2>/dev/null`
+**Error:** Exit code 2
+
+### 2026-04-24 20:05:45 — Bash
+**Context:** `cd "C:/Bots/Migrator bots/claude-project-template-update/worktrees/v3/T8T9-claude" && py -3 work/_patch_move.py && py -3 -m py_compile .claude/scripts/codex-implement.py && echo COMPILE_OK && py -3 .c`
+**Error:** Exit code 1 Traceback (most recent call last):   File "C:\Bots\Migrator bots\claude-project-template-update\worktrees\v3\T8T9-claude\work\_patch_move.py", line 31, in <module>     assert anchor in txt_no_wrapper, 'anchor (run_codex end) not found'            ^^^^^^^^^^^^^^^^^^^^^^^^ AssertionErr
+
+### 2026-04-24 20:05:52 — Bash
+**Context:** `cat > "C:/Bots/Migrator bots/claude-project-template-update/worktrees/v3/T10-claude/.claude/scripts/codex-pool.py" <<'PYEOF'
+#!/usr/bin/env python3
+"""Codex Pool вЂ” warm pool of `codex app-server` in`
+**Error:** Exit code 2 /usr/bin/bash: -c: line 3: unexpected EOF while looking for matching `''
+
