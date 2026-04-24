@@ -201,3 +201,58 @@ Fitness Req #7: before optimizing an LLM-steering prompt, sample 5-10 baseline t
 - Gotcha: Agent passed `.claude/memory/knowledge.md` (file) but command expected directory → "not a directory" error
 - Fix: Added `is_file()` check in main() — if target is file, use parent as dir and set knowledge_path from filename
 - Pattern: CLI tools should accept both file paths and directory paths for usability
+
+### GPT-5.5 via Codex CLI for ChatGPT Accounts (2026-04-24, verified: 2026-04-24)
+- When: invoking gpt-5.5 through `codex exec` while logged in as ChatGPT-account
+- Gotcha: default `openai` provider returns `"The model 'gpt-5.5' is not supported when using Codex with a ChatGPT account"`
+- Root cause: OpenAI routes ChatGPT-Plus/Pro CLI traffic through a restricted endpoint that gates gpt-5/5.5
+- Fix: register `chatgpt` provider inline pointing at the Codex desktop-app endpoint:
+  `-c 'model_providers.chatgpt={name="chatgpt",base_url="https://chatgpt.com/backend-api/codex",wire_api="responses"}' -c model_provider=chatgpt --model gpt-5.5`
+- Same account works via this route — that is the provider the Codex desktop/web app uses internally
+- Encapsulated in `.claude/scripts/codex-implement.py` so `~/.codex/config.toml` stays default and the advisor stack is unchanged
+- Reference: `.claude/guides/codex-integration.md` "GPT-5.5 model access"
+
+### Codex Prompts Must Go Via stdin on Windows (2026-04-24, verified: 2026-04-24)
+- When: spawning `codex exec` from Python on Windows
+- Gotcha: passing multi-KB markdown prompt as argv silently truncates — `cmd.exe` (invoking the `codex.CMD` wrapper) mangles backticks, quotes, `#`, and other special chars. Codex sees only the opening header and replies "Provide the task specification."
+- Fix: pass prompt via stdin with sentinel `-` arg: `subprocess.run([..., "-"], input=prompt, ...)`
+- codex-implement.py does this by default; lesson applies to any `.CMD`-wrapped CLI on Windows
+
+### Opus as Memory Keeper for Stateless Codex (2026-04-24, verified: 2026-04-24)
+- When: running multi-iteration or parallel tasks via codex-implement.py
+- Fact: `codex exec` is stateless per call. No memory between runs unless you explicitly `codex exec resume` a saved session
+- Decision: DO NOT use `codex exec resume`. Keeps parallelism + determinism + debuggability
+- Pattern: Opus (1M context) reads the whole relevant codebase + memory + prior iterations in one coherent pass, then distills into a compact task-N.md (~4 KB). Codex sees a clean delta, not a state dump.
+- For multi-round: task-N.md gets `## Iteration History` section injected by Opus with "round K tried X, failed because Y"
+- Reference: `.claude/guides/codex-integration.md` "Stateless Codex + Opus as memory keeper"
+
+### Clean Tree Required Before codex-implement.py Runs (2026-04-24, verified: 2026-04-24)
+- When: invoking `codex-implement.py --worktree <path>` on any tree
+- Gotcha: if the worktree has uncommitted changes, `git diff HEAD` post-run sees ALL of them (not just Codex's). Scope-check fires false positives; rollback (`git reset --hard` + `git clean -fd`) destroys user work
+- Fix: `DirtyWorktreeError` in preflight refuses dirty trees with clear recovery hint
+- Workflow: always `git stash push -u` or commit before codex-implement runs. Dual-implement auto-creates clean worktrees via `git worktree add <path> -b <branch>` so this is implicit
+- History: this mechanism destroyed `codex-ask.py`, `codex-broker.py`, `codex-stop-opinion.py` during dual-1 before preflight check was added. Post-mortem: `work/codex-primary/dual-1-postmortem.md`
+
+### Codex Scope-Fence File Mode Needs Explicit @ Prefix (2026-04-24, verified: 2026-04-24)
+- When: calling `codex-scope-check.py --fence <spec>`
+- Gotcha: previously, if `<spec>` resolved to an existing file path on disk, parser silently read it as "fence file" (one entry per line). Single-file allow-lists like `--fence .claude/scripts/foo.py` became 42 bogus allowed entries (the 58 lines of the target file)
+- Fix: file mode is now opt-in via `@` prefix (curl-style). Without `@`, spec is always inline CSV
+- Contract: `--fence @fence.txt` → read file; `--fence path/to/x.py` → single inline allow; `--fence path/a.py,path/b.py` → two inline allows
+
+### Codex Sandbox Lacks py -3 on Windows (2026-04-24, verified: 2026-04-24)
+- When: Test Commands in task-N.md invoke `py -3 ...` under codex-implement.py
+- Gotcha: Codex's sandboxed shell does not inherit the `py` launcher path. Commands fail with exit 112 `No installed Python found!` even when Python is installed system-wide
+- Fix: use `python` (not `py -3`) in Test Commands for Codex-delegated tasks. `AGENTS.md` and `task-codex-template.md` codify this
+
+### Speed Profile as Single Knob for Codex Latency (2026-04-24, verified: 2026-04-24)
+- When: creating task-N.md or invoking codex-implement.py
+- Pattern: `speed_profile: fast | balanced | thorough` frontmatter maps to reasoning effort (low/medium/high). Precedence: `--reasoning` > `--speed` > `reasoning:` FM > `speed_profile:` FM > default `balanced`
+- Default is now `balanced` (medium), roughly halves Codex run time vs the old `high` default on routine tasks
+- Reference: `.claude/guides/codex-integration.md` "Speed optimization"
+
+### AGENTS.md as Shared Codex Project Context (2026-04-24, verified: 2026-04-24)
+- When: creating/maintaining tasks delegated to Codex
+- Pattern: `AGENTS.md` at repo root is auto-loaded by Codex via `~/.codex/config.toml` project_doc fallback (takes precedence over CLAUDE.md)
+- Contents: skill contract extracts (verification, logging, security, coding) + Windows gotchas + git invariants — things that apply to EVERY task
+- Win: individual task-N.md files no longer re-inline these contracts. ~40% prompt shrink per run. Meaningful speed win for any workflow that issues many codex exec calls
+- Claude Code reads CLAUDE.md (richer, project-wide), Codex reads AGENTS.md (compact, shared)

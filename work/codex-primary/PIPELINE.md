@@ -1,7 +1,7 @@
 # Pipeline: Codex Primary Implementer
 
-- Status: PAUSED (PoC found critical bugs in codex-implement.py — see work/codex-primary/poc-results.md)
-- Phase: PROOF_OF_CONCEPT (reworked to FIX_IMPLEMENT required)
+- Status: PIPELINE_COMPLETE 2026-04-24
+- Phase: DOCUMENT (final)
 - Mode: INTERACTIVE
 - Scope: LOCAL (this project only; NOT synced to new-project template or other bots until PoC passes)
 - Started: 2026-04-24
@@ -94,8 +94,8 @@
 - Outputs: work/codex-primary/poc-results.md, commits in a test branch
 - Checkpoint: pipeline-checkpoint-PROOF_OF_CONCEPT
 
-### Phase: DOCUMENT
-- Status: PENDING
+### Phase: DOCUMENT  <- CURRENT (complete)
+- Status: DONE — codex-integration.md + knowledge.md + activeContext.md + AGENTS.md + dual-2-judgment.md + speed_profile field all updated 2026-04-24
 - Mode: SOLO
 - Attempts: 0 of 1
 - On PASS: -> COMPLETE

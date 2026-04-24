@@ -3,11 +3,57 @@
 > Session bridge. Agent reads at start, updates at end. Max ~150 lines.
 > Old sessions → `.claude/memory/archive/`
 
-**Last updated:** 2026-04-23
+**Last updated:** 2026-04-24
 
 ---
 
 ## Current Focus
+
+### Codex Primary Implementer Pipeline — PIPELINE_COMPLETE 2026-04-24
+**Goal:** GPT-5.5 via Codex CLI as primary code implementer; Opus as planner + reviewer + memory keeper. Level 2 + Level 3 together. Local-to-this-project only until PoC validates on other boats.
+
+**Status:** End-to-end validated. Two live dual-implement rounds completed. 9 bugs found and fixed surgically. Speed layer added. All 98 unit tests green.
+
+**Key artifacts (local scope, NOT synced to new-project template yet):**
+- `.claude/scripts/codex-implement.py` (1120 lines) + 38 tests — single-task Codex executor
+- `.claude/scripts/codex-wave.py` (582 lines) + 23 tests — parallel launcher (architectural-ready, not yet live-exercised)
+- `.claude/scripts/codex-scope-check.py` (274 lines) + 23 tests — diff ↔ fence validator with `@path` file-mode prefix
+- `.claude/hooks/codex-gate.py` extended + 14 tests — recognizes task-result.md as valid opinion
+- `.claude/skills/dual-implement/SKILL.md` — Level 3 orchestration
+- `.claude/adr/adr-012-codex-primary-implementer.md` — decision record
+- `.claude/shared/work-templates/phases/{IMPLEMENT-CODEX,IMPLEMENT-HYBRID,DUAL-IMPLEMENT}.md` — phase-mode docs
+- `.claude/shared/work-templates/task-codex-template.md` — extended task-N.md format
+- `AGENTS.md` at repo root — shared Codex project_doc context (auto-loaded, ~40% prompt shrink)
+- Project `CLAUDE.md` — new opt-in section "Codex Primary Implementer (Experimental, Local)"
+
+**Live validations performed:**
+- PoC on gpt-5.4: status=pass, all tests passing
+- PoC on gpt-5.5 via chatgpt backend-api route: status=pass
+- Dual-1 (task-dual-1, add --json): bugs #7/#8/#9/#11 surfaced, Claude won by default
+- Dual-2 (task-dual-2, add --sort-by): both sides PASS with valid diffs, Claude won on merit (logging-standards + style consistency + docstring quality)
+
+**Speed layer:**
+- `speed_profile: fast | balanced | thorough` frontmatter + `--speed` CLI flag
+- Default `balanced` (reasoning=medium) — halves runtime vs old `high` default
+- Precedence: `--reasoning` > `--speed` > FM `reasoning` > FM `speed_profile` > default
+- AGENTS.md shared context cuts prompt size ~40%
+
+**Critical gotchas surfaced (see knowledge.md):**
+- GPT-5.5 via CLI blocked for ChatGPT accounts on default `openai` provider → use `chatgpt` provider route
+- Codex prompts via stdin not argv on Windows (cmd.exe quoting kills markdown)
+- Codex sandbox lacks `py -3` → use `python` in Test Commands
+- `codex-scope-check.py --fence` needs explicit `@` prefix for file mode
+- `codex-implement.py` preflight refuses dirty tree (rollback would destroy user work)
+
+**Git tags (checkpoint trail):**
+pipeline-checkpoint-PLAN → IMPLEMENT_WAVE_1 → IMPLEMENT_WAVE_2 → POC_FAIL → POC_FIX_v1 → POC_SUCCESS_GPT55 → POST_DUAL1_FIXES → DUAL2_COMPLETE → PIPELINE_COMPLETE
+
+**What's next (future sessions):**
+- `codex-wave.py` smoke test with 2 parallel tasks (architectural-ready)
+- Propagation to new-project template + other bot projects via fleet-sync
+- Iteration memory mechanism (`## Iteration History` section) automated when Opus re-runs same task
+
+---
 
 ### Watchdog Дnushnost Fix — COMPLETE (branch: `fix/watchdog-dushnost`)
 **Problem:** Codex Watchdog давал 10+ итерационные циклы ложных пробуждений. Два live FP пойманы за одну сессию: (1) «Linear MCP works with caveat» триггернул по словам works+fails; (2) codex-gate заблокировал write на 5 edits (by-design, не часть проблемы).
@@ -320,6 +366,36 @@
 ---
 
 ## Auto-Generated Summaries
+
+### 2026-04-24 16:47 (commit `995c5ff`)
+**Message:** codex-primary: speed layer + AGENTS.md shared context
+**Files:** 2
+
+
+### 2026-04-24 16:39 (commit `d55a8df`)
+**Message:** dual-2: judgment + archive of loser diff
+**Files:** 4
+
+
+### 2026-04-24 16:31 (commit `f36334a`)
+**Message:** dual-2: spec with python (not py -3) to avoid sandbox Finding #10
+**Files:** 1
+
+
+### 2026-04-24 16:30 (commit `b407c3a`)
+**Message:** codex-primary: fix 4 bugs surfaced by dual-1 live run
+**Files:** 4
+
+
+### 2026-04-24 16:22 (commit `89229ef`)
+**Message:** dual-1: post-mortem + 3 new bugs + 2 findings from Level 3 live run
+**Files:** 1
+
+
+### 2026-04-24 16:07 (commit `4502d9a`)
+**Message:** codex-primary: spec for Level 3 dual-implement live task (add --json to list_codex_scripts.py)
+**Files:** 1
+
 
 ### 2026-04-24 15:05 (commit `1dede16`)
 **Message:** codex-primary: recreate task-PoC.md (previously wiped by rollback)

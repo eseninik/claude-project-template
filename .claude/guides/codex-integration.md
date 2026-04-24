@@ -298,3 +298,111 @@ Skip когда ВСЕ условия истинны:
 | `AGENTS.md` | Shared project context (оба инструмента читают) |
 | `.codex/reviews/` | Directory с результатами ревью |
 | `.codex/reviews/latest.json` | Последний результат ревью |
+
+---
+
+# Codex as Primary Implementer (Level 2 + Level 3)
+
+> Experimental, local-to-this-project as of 2026-04-24. Not yet propagated to
+> new-project template or fleet. See ADR-012 and `work/codex-primary/tech-spec.md`.
+
+The advisor pattern above (Codex reviews Claude's code) is the **reviewer** role.
+This section documents the **implementer** role — Codex writes the code, Opus
+plans and reviews.
+
+## When to use which phase mode
+
+- `CODEX_IMPLEMENT` — all tasks in phase → Codex. Well-specified logic, clear tests.
+- `HYBRID_TEAMS` — per-task `executor:` hint picks `claude | codex | dual`. Most flexible.
+- `DUAL_IMPLEMENT` — high-stakes code; both sides implement in parallel, Opus judges.
+
+## Key tooling
+
+| File | Role |
+|------|------|
+| `.claude/scripts/codex-implement.py` | Single-task Codex executor (clean-tree preflight + scope fence + rollback + result.md) |
+| `.claude/scripts/codex-wave.py` | Parallel launcher for N `codex-implement.py` in isolated git worktrees |
+| `.claude/scripts/codex-scope-check.py` | Diff ↔ fence validator (inline CSV default; `@path` prefix for fence-file mode) |
+| `.claude/skills/dual-implement/SKILL.md` | Level 3 orchestration (2 worktrees + judge) |
+| `AGENTS.md` (repo root) | Shared skill contracts auto-loaded by Codex project_doc fallback |
+
+## GPT-5.5 model access (ChatGPT-account gate workaround)
+
+OpenAI's default `openai` CLI provider blocks gpt-5.5 for ChatGPT-account users
+("The model 'gpt-5.5' is not supported when using Codex with a ChatGPT account").
+The **same endpoint** that the Codex desktop/web app uses —
+`https://chatgpt.com/backend-api/codex` — does serve gpt-5.5 to the same
+account. `codex-implement.py` registers this as a `chatgpt` provider inline:
+
+```bash
+codex exec \
+  -c 'model_providers.chatgpt={name="chatgpt",base_url="https://chatgpt.com/backend-api/codex",wire_api="responses"}' \
+  -c model_provider=chatgpt \
+  --model gpt-5.5 \
+  --sandbox workspace-write \
+  --full-auto \
+  --cd <worktree> \
+  -
+```
+
+No changes to `~/.codex/config.toml` — the advisor stack (codex-ask.py etc.)
+keeps the default `openai` provider.
+
+## Speed optimization
+
+### Three-tier speed profile
+
+`task-N.md` frontmatter supports `speed_profile: fast | balanced | thorough`.
+`codex-implement.py` maps to reasoning effort. Precedence (highest wins):
+
+1. `--reasoning {high,medium,low}` CLI flag
+2. `--speed {fast,balanced,thorough}` CLI flag
+3. `reasoning:` frontmatter field
+4. `speed_profile:` frontmatter field
+5. default `balanced` → reasoning `medium`
+
+Typical time impact (Windows, gpt-5.5 via chatgpt provider, task ≈ 4 KB prompt):
+
+| Profile | Reasoning | Typical run time | Use for |
+|---------|-----------|------------------|---------|
+| fast | low | ~1-2 min | typo/rename/trivial refactor |
+| balanced (default) | medium | ~2-4 min | routine feature / bug fix |
+| thorough | high | ~4-8 min | novel algorithm / high-stakes / auth |
+
+### AGENTS.md shared context
+
+`AGENTS.md` at repo root holds skill contract extracts (verification, logging,
+security, coding standards) + Windows gotchas + git invariants. Codex reads it
+automatically via `project_doc` fallback. **Individual `task-N.md` files no
+longer need to re-inline these contracts** — ~40% prompt shrink per run.
+
+### Parallel waves
+
+`codex-wave.py --tasks T1.md,T2.md,T3.md --parallel 3` spawns N isolated
+worktrees + N parallel Codex sessions. Wall-time = max(task_i), not sum.
+Default `--parallel 3` — raise cautiously; $20 Codex plans may rate-limit at
+higher N.
+
+## Stateless Codex + Opus as memory keeper
+
+**Codex is stateless per `codex exec` invocation.** Each call is a fresh
+session; there is no implicit memory of previous task iterations. We do NOT
+use `codex exec resume` (session chaining) — keeps parallelism, determinism,
+and debuggability.
+
+**Opus's 1M context window is the memory layer.** On each new task, Opus reads
+the entire relevant codebase + memory (activeContext, knowledge, daily logs)
++ dual-implement history + previous iterations, then distills into a compact
+`task-N.md` for Codex. Codex sees a 4 KB delta, not a 1 MB state dump.
+
+For multi-round tasks, `task-N.md` has an `## Iteration History` section where
+Opus injects "round 1 tried X, failed because Y". Next round Codex reads this
+and avoids repeating the failed approach.
+
+## Post-mortems worth reading before changing this pipeline
+
+- `work/codex-primary/tech-spec.md` — full architecture, 17 sections.
+- `work/codex-primary/dual-1-postmortem.md` — bugs #7/#8/#9 discovered
+  by the first live Level 3 run.
+- `work/codex-primary/dual-2-judgment.md` — first real judge step with
+  two valid diffs.
