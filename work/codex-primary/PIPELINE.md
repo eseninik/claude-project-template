@@ -1,7 +1,7 @@
 # Pipeline: Codex Primary Implementer
 
-- Status: IN_PROGRESS
-- Phase: PLAN
+- Status: PAUSED (PoC found critical bugs in codex-implement.py — see work/codex-primary/poc-results.md)
+- Phase: PROOF_OF_CONCEPT (reworked to FIX_IMPLEMENT required)
 - Mode: INTERACTIVE
 - Scope: LOCAL (this project only; NOT synced to new-project template or other bots until PoC passes)
 - Started: 2026-04-24
@@ -16,7 +16,7 @@
 ## Phases
 
 ### Phase: PLAN
-- Status: DONE
+- Status: DONE (committed pipeline-checkpoint-PLAN)
 - Mode: SOLO (Opus writes tech-spec + tasks)
 - Attempts: 0 of 1
 - On PASS: -> IMPLEMENT_WAVE_1
@@ -28,8 +28,8 @@
 - Outputs: work/codex-primary/tech-spec.md, work/codex-primary/tasks/T*.md, work/codex-primary/waves.md
 - Checkpoint: pipeline-checkpoint-PLAN
 
-### Phase: IMPLEMENT_WAVE_1  <- CURRENT
-- Status: IN_PROGRESS
+### Phase: IMPLEMENT_WAVE_1
+- Status: DONE (committed pipeline-checkpoint-IMPLEMENT_WAVE_1, 89 unit tests passing)
 - Mode: AGENT_TEAMS
 - Attempts: 0 of 2
 - On PASS: -> IMPLEMENT_WAVE_2
@@ -43,7 +43,7 @@
 - Checkpoint: pipeline-checkpoint-IMPLEMENT_WAVE_1
 
 ### Phase: IMPLEMENT_WAVE_2
-- Status: PENDING
+- Status: DONE (committed pipeline-checkpoint-IMPLEMENT_WAVE_2, skill + ADR + CLAUDE.md section)
 - Mode: AGENT_TEAMS
 - Attempts: 0 of 2
 - On PASS: -> QA_REVIEW
