@@ -28,8 +28,10 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
+import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -100,6 +102,122 @@ def setup_logging(log_file: Optional[Path]) -> None:
 EXIT_OK = 0
 EXIT_TEST_FAIL = 1
 EXIT_SCOPE_OR_TIMEOUT = 2
+EXIT_DEGRADED = 3  # T9: circuit open - Codex not invoked
+
+# --- T8+T9 Stability: rate-limit backoff + circuit breaker ----------------- #
+
+RATE_LIMIT_PATTERNS = (
+    re.compile(r"rate[\s_-]*limit", re.IGNORECASE),
+    re.compile(r"\b429\b"),
+    re.compile(r"stream disconnected before completion", re.IGNORECASE),
+)
+BACKOFF_SEQUENCE_S = (1, 2, 4, 8)        # AC2
+MAX_RETRIES = 4                          # AC2
+CIRCUIT_FAILURE_WINDOW_S = 15 * 60       # AC4
+CIRCUIT_FAILURE_THRESHOLD = 3            # AC5
+CIRCUIT_OPEN_TTL_S = 5 * 60              # AC5
+
+
+def is_rate_limit_error(stderr: str) -> bool:
+    """AC1: True iff stderr matches rate-limit / 429 / stream-disconnect patterns."""
+    _log(logging.DEBUG, "entry: is_rate_limit_error", stderr_len=len(stderr or ""))
+    if not stderr:
+        return False
+    for pat in RATE_LIMIT_PATTERNS:
+        if pat.search(stderr):
+            _log(logging.DEBUG, "exit: is_rate_limit_error", matched=pat.pattern)
+            return True
+    return False
+
+
+def _atomic_write_json(path: Path, payload: dict) -> None:
+    """AC9: temp-file + os.replace (Windows-safe atomic)."""
+    _log(logging.DEBUG, "entry: _atomic_write_json", path=str(path))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=".circuit-", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, ensure_ascii=False, indent=2)
+        os.replace(tmp, path)
+    except Exception:
+        try: os.unlink(tmp)
+        except OSError: pass
+        logger.exception("_atomic_write_json failed"); raise
+
+
+def read_circuit_state(project_root: Path) -> dict:
+    """AC4: {failures: [...], updated_at: iso}; empty on missing/corrupt."""
+    state_path = project_root / ".codex" / "circuit-state.json"
+    _log(logging.DEBUG, "entry: read_circuit_state", path=str(state_path))
+    now_iso = datetime.now(timezone.utc).isoformat()
+    if not state_path.exists():
+        return {"failures": [], "updated_at": now_iso}
+    try:
+        data = json.loads(state_path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict) or not isinstance(data.get("failures"), list):
+            raise ValueError("bad schema")
+        data.setdefault("updated_at", now_iso)
+        return data
+    except (OSError, ValueError, json.JSONDecodeError):
+        _log(logging.WARNING, "circuit state corrupt, resetting", path=str(state_path))
+        return {"failures": [], "updated_at": now_iso}
+
+
+def record_codex_failure(project_root: Path, task_id: str, reason: str) -> int:
+    """AC3+AC5: append failure; open circuit when recent count >= threshold."""
+    _log(logging.INFO, "entry: record_codex_failure", task_id=task_id, reason=reason)
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(seconds=CIRCUIT_FAILURE_WINDOW_S)
+    state = read_circuit_state(project_root)
+    kept = []
+    for item in state.get("failures", []) or []:
+        if not isinstance(item, dict): continue
+        try: ts = datetime.fromisoformat(item.get("timestamp", ""))
+        except ValueError: continue
+        if ts >= cutoff: kept.append(item)
+    kept.append({"timestamp": now.isoformat(), "task_id": task_id})
+    state_path = project_root / ".codex" / "circuit-state.json"
+    _atomic_write_json(state_path, {"failures": kept, "updated_at": now.isoformat()})
+    count = len(kept)
+    _log(logging.WARNING, "codex failure recorded", task_id=task_id,
+         recent_failures=count, threshold=CIRCUIT_FAILURE_THRESHOLD)
+    if count >= CIRCUIT_FAILURE_THRESHOLD:
+        expires = now + timedelta(seconds=CIRCUIT_OPEN_TTL_S)
+        _atomic_write_json(project_root / ".codex" / "circuit-open",
+            {"opened_at": now.isoformat(), "expires_at": expires.isoformat(), "reason": reason})
+        _log(logging.ERROR, "circuit opened", expires_at=expires.isoformat(), reason=reason)
+    return count
+
+
+def record_codex_success(project_root: Path) -> None:
+    """AC8: reset failures list (circuit health restored)."""
+    _log(logging.INFO, "entry: record_codex_success")
+    _atomic_write_json(project_root / ".codex" / "circuit-state.json",
+        {"failures": [], "updated_at": datetime.now(timezone.utc).isoformat()})
+
+
+def check_circuit_open(project_root: Path) -> Optional[dict]:
+    """AC6+AC7: return flag payload if active; delete if expired; None if absent."""
+    flag = project_root / ".codex" / "circuit-open"
+    _log(logging.DEBUG, "entry: check_circuit_open", path=str(flag))
+    if not flag.exists():
+        return None
+    try:
+        payload = json.loads(flag.read_text(encoding="utf-8"))
+        expires = datetime.fromisoformat(payload["expires_at"])
+    except (OSError, ValueError, KeyError, json.JSONDecodeError):
+        _log(logging.WARNING, "circuit flag corrupt, removing", path=str(flag))
+        try: flag.unlink()
+        except OSError: pass
+        return None
+    if datetime.now(timezone.utc) >= expires:
+        _log(logging.INFO, "circuit flag expired, clearing", expires_at=payload["expires_at"])
+        try: flag.unlink()
+        except OSError: pass
+        return None
+    _log(logging.WARNING, "circuit_open_skip", expires_at=payload["expires_at"])
+    return payload
+
 
 
 # --------------------------------------------------------------------------- #
@@ -773,6 +891,36 @@ def run_codex(
         raise
 
 
+def run_codex_with_backoff(prompt: str, worktree: Path, reasoning: str,
+                           timeout: int, model: str = "gpt-5.5") -> CodexRunResult:
+    """T8: retry run_codex with 1/2/4/8s backoff on rate-limit; cumulative deadline=timeout (AC2+AC3)."""
+    _log(logging.INFO, "entry: run_codex_with_backoff", timeout=timeout, max_retries=MAX_RETRIES)
+    deadline = time.monotonic() + max(timeout, 1)
+    last: Optional[CodexRunResult] = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        remaining = int(deadline - time.monotonic())
+        if remaining <= 0:
+            _log(logging.ERROR, "codex backoff budget exhausted", attempt=attempt); break
+        last = run_codex(prompt=prompt, worktree=worktree, reasoning=reasoning,
+                         timeout=remaining, model=model)
+        if last.timed_out or not is_rate_limit_error(last.stderr):
+            _log(logging.INFO, "exit: run_codex_with_backoff",
+                 attempt=attempt, returncode=last.returncode, timed_out=last.timed_out)
+            return last
+        if attempt >= MAX_RETRIES:
+            _log(logging.ERROR, "codex rate-limit retries exhausted",
+                 attempt=attempt, backoff_s=0, reason="max-retries"); break
+        backoff_s = BACKOFF_SEQUENCE_S[attempt - 1]
+        if deadline - time.monotonic() - backoff_s <= 0:
+            _log(logging.WARNING, "backoff exceeds deadline; giving up",
+                 attempt=attempt, backoff_s=backoff_s, reason="deadline"); break
+        _log(logging.WARNING, "codex rate-limit, backing off",
+             attempt=attempt, backoff_s=backoff_s, reason="rate-limit")
+        time.sleep(backoff_s)
+    return last if last is not None else CodexRunResult(
+        returncode=-1, stdout="", stderr="no attempts made", timed_out=False, self_report=[])
+
+
 # --------------------------------------------------------------------------- #
 # Scope check                                                                 #
 # --------------------------------------------------------------------------- #
@@ -1174,8 +1322,30 @@ def main(argv: Optional[list[str]] = None) -> int:
     status = "pass"
     diff_text = ""
 
+    circuit = check_circuit_open(project_root)
+    if circuit is not None:
+        result_path = result_dir / f"task-{task.task_id}-result.md"
+        result_dir.mkdir(parents=True, exist_ok=True)
+        degraded_stderr = (f"circuit-open degraded_reason=circuit-open "
+                           f"opened_at={circuit.get('opened_at','')} "
+                           f"expires_at={circuit.get('expires_at','')} "
+                           f"reason={circuit.get('reason','')}")
+        write_result_file(
+            result_path=result_path, task=task, status="degraded",
+            diff="(codex skipped: circuit open)", test_run=None,
+            codex_run=CodexRunResult(returncode=-1, stdout="", stderr=degraded_stderr,
+                                     timed_out=False, self_report=[]),
+            scope=None, base_sha=base_sha,
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+        print(f"codex-implement: task={task.task_id} status=degraded "
+              f"reason=circuit-open exit={EXIT_DEGRADED}")
+        print(f"result: {result_path}")
+        _log(logging.WARNING, "exit: main (degraded)", exit_code=EXIT_DEGRADED)
+        return EXIT_DEGRADED
+
     try:
-        codex_run = run_codex(
+        codex_run = run_codex_with_backoff(
             prompt=prompt,
             worktree=worktree,
             reasoning=task.frontmatter.get("reasoning", "high"),
@@ -1228,6 +1398,15 @@ def main(argv: Optional[list[str]] = None) -> int:
         tests_ok = test_run.all_passed if test_run is not None else False
         scope_status = scope.status if scope else "skipped"
         exit_code = map_status_to_exit(status, scope_status, tests_ok)
+
+        try:
+            if exit_code == EXIT_OK:
+                record_codex_success(project_root)
+            else:
+                record_codex_failure(project_root, task.task_id,
+                                     reason=f"status={status} exit={exit_code}")
+        except Exception:
+            logger.exception("circuit state update failed (non-fatal)")
 
         print(
             f"codex-implement: task={task.task_id} status={status} "

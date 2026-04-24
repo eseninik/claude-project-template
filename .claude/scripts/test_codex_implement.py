@@ -613,5 +613,195 @@ diff --git a/.claude/scripts/bar.py b/.claude/scripts/bar.py
             )
 
 
+
+# --------------------------------------------------------------------------- #
+# T8+T9 Stability layer tests                                                 #
+# --------------------------------------------------------------------------- #
+
+
+def _ok_result():
+    return codex_impl.CodexRunResult(
+        returncode=0, stdout="", stderr="", timed_out=False, self_report=[]
+    )
+
+
+def _rl_result(stderr="HTTP 429: rate limit exceeded"):
+    return codex_impl.CodexRunResult(
+        returncode=1, stdout="", stderr=stderr, timed_out=False, self_report=[]
+    )
+
+
+class TestIsRateLimitError(unittest.TestCase):
+    def test_matches_rate_limit_phrase(self):
+        self.assertTrue(codex_impl.is_rate_limit_error("Error: RATE LIMIT exceeded"))
+        self.assertTrue(codex_impl.is_rate_limit_error("api returned rate_limit_error"))
+
+    def test_matches_429(self):
+        self.assertTrue(codex_impl.is_rate_limit_error("HTTP 429 Too Many Requests"))
+
+    def test_matches_stream_disconnect(self):
+        self.assertTrue(codex_impl.is_rate_limit_error(
+            "stream disconnected before completion"))
+
+    def test_empty_or_no_match_returns_false(self):
+        self.assertFalse(codex_impl.is_rate_limit_error(""))
+        self.assertFalse(codex_impl.is_rate_limit_error("some unrelated error"))
+        self.assertFalse(codex_impl.is_rate_limit_error("42 is the answer"))  # bare "42" must not match "\b429\b"
+
+
+class TestRunCodexWithBackoff(unittest.TestCase):
+    """AC2/AC3 — rate-limit backoff sequence + final failure preserved."""
+
+    def test_backoff_on_rate_limit_stderr(self):
+        """First call rate-limits, second succeeds -> one sleep of 1s."""
+        seq = [_rl_result("429 Too Many Requests"), _ok_result()]
+        with mock.patch.object(codex_impl, "run_codex", side_effect=seq) as m_run, \
+             mock.patch.object(codex_impl.time, "sleep") as m_sleep:
+            result = codex_impl.run_codex_with_backoff(
+                prompt="x", worktree=Path("."), reasoning="high", timeout=3600)
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(m_run.call_count, 2)
+            # Backoff of 1s between attempt 1 and 2
+            m_sleep.assert_called_once_with(1)
+
+    def test_backoff_on_stream_disconnect(self):
+        """Stream-disconnect stderr triggers same retry path (AC1 coverage)."""
+        seq = [_rl_result("stream disconnected before completion"), _ok_result()]
+        with mock.patch.object(codex_impl, "run_codex", side_effect=seq) as m_run, \
+             mock.patch.object(codex_impl.time, "sleep") as m_sleep:
+            result = codex_impl.run_codex_with_backoff(
+                prompt="x", worktree=Path("."), reasoning="high", timeout=3600)
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(m_run.call_count, 2)
+            m_sleep.assert_called_once_with(1)
+
+    def test_max_4_retries_then_final_failure_preserved(self):
+        """AC2: max 4 attempts. AC3: final stderr kept in returned result."""
+        rl = _rl_result("429 persistent")
+        with mock.patch.object(codex_impl, "run_codex", return_value=rl) as m_run, \
+             mock.patch.object(codex_impl.time, "sleep") as m_sleep:
+            result = codex_impl.run_codex_with_backoff(
+                prompt="x", worktree=Path("."), reasoning="high", timeout=3600)
+            self.assertEqual(m_run.call_count, codex_impl.MAX_RETRIES)
+            # 3 sleeps between 4 attempts: 1, 2, 4 (8 would only happen after a 5th)
+            self.assertEqual([c.args[0] for c in m_sleep.mock_calls], [1, 2, 4])
+            # Final rate-limit stderr preserved (AC3).
+            self.assertIn("429", result.stderr)
+
+
+class TestCircuitStateIO(unittest.TestCase):
+    """AC4 — schema round-trip for circuit-state.json."""
+
+    def test_read_missing_returns_empty(self):
+        with tempfile.TemporaryDirectory() as td:
+            state = codex_impl.read_circuit_state(Path(td))
+            self.assertEqual(state["failures"], [])
+            self.assertIn("updated_at", state)
+
+    def test_schema_round_trip(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            codex_impl.record_codex_failure(root, task_id="T1", reason="boom")
+            path = root / ".codex" / "circuit-state.json"
+            self.assertTrue(path.exists())
+            data = codex_impl.read_circuit_state(root)
+            self.assertEqual(len(data["failures"]), 1)
+            self.assertEqual(data["failures"][0]["task_id"], "T1")
+            self.assertIn("timestamp", data["failures"][0])
+            self.assertIn("updated_at", data)
+
+    def test_corrupt_state_file_falls_back_to_empty(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / ".codex").mkdir(parents=True)
+            (root / ".codex" / "circuit-state.json").write_text("{{not-json", encoding="utf-8")
+            state = codex_impl.read_circuit_state(root)
+            self.assertEqual(state["failures"], [])
+
+
+class TestCircuitBreakerFlag(unittest.TestCase):
+    """AC5/AC6/AC7/AC8 — flag lifecycle."""
+
+    def test_exactly_3_failures_opens_circuit(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            flag = root / ".codex" / "circuit-open"
+            codex_impl.record_codex_failure(root, task_id="T1", reason="r1")
+            self.assertFalse(flag.exists())
+            codex_impl.record_codex_failure(root, task_id="T2", reason="r2")
+            self.assertFalse(flag.exists())
+            codex_impl.record_codex_failure(root, task_id="T3", reason="r3")
+            self.assertTrue(flag.exists())
+            payload = json.loads(flag.read_text(encoding="utf-8"))
+            for key in ("opened_at", "expires_at", "reason"):
+                self.assertIn(key, payload)
+
+    def test_two_failures_no_flag(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            codex_impl.record_codex_failure(root, task_id="T1", reason="r1")
+            codex_impl.record_codex_failure(root, task_id="T2", reason="r2")
+            self.assertFalse((root / ".codex" / "circuit-open").exists())
+
+    def test_expired_flag_is_auto_deleted(self):
+        """AC7 — check_circuit_open clears expired flag on next invocation."""
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / ".codex").mkdir(parents=True)
+            flag = root / ".codex" / "circuit-open"
+            past = datetime.now(timezone.utc) - timedelta(seconds=10)
+            flag.write_text(json.dumps({
+                "opened_at": past.isoformat(),
+                "expires_at": past.isoformat(),
+                "reason": "old",
+            }), encoding="utf-8")
+            result = codex_impl.check_circuit_open(root)
+            self.assertIsNone(result)
+            self.assertFalse(flag.exists())
+
+    def test_active_flag_returns_payload(self):
+        """AC6 — check_circuit_open returns payload when active."""
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / ".codex").mkdir(parents=True)
+            flag = root / ".codex" / "circuit-open"
+            future = datetime.now(timezone.utc) + timedelta(seconds=60)
+            flag.write_text(json.dumps({
+                "opened_at": datetime.now(timezone.utc).isoformat(),
+                "expires_at": future.isoformat(),
+                "reason": "testing",
+            }), encoding="utf-8")
+            result = codex_impl.check_circuit_open(root)
+            self.assertIsNotNone(result)
+            self.assertEqual(result["reason"], "testing")
+            self.assertTrue(flag.exists())  # not deleted while active
+
+    def test_successful_run_resets_counter(self):
+        """AC8 — record_codex_success wipes failures list."""
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            codex_impl.record_codex_failure(root, task_id="T1", reason="r1")
+            codex_impl.record_codex_failure(root, task_id="T2", reason="r2")
+            codex_impl.record_codex_success(root)
+            state = codex_impl.read_circuit_state(root)
+            self.assertEqual(state["failures"], [])
+            # Third failure alone must not open the circuit
+            codex_impl.record_codex_failure(root, task_id="T3", reason="r3")
+            self.assertFalse((root / ".codex" / "circuit-open").exists())
+
+
+class TestExitDegradedConstant(unittest.TestCase):
+    def test_constant_value(self):
+        self.assertEqual(codex_impl.EXIT_DEGRADED, 3)
+        # Must not collide with existing exit codes.
+        self.assertNotIn(3, (codex_impl.EXIT_OK, codex_impl.EXIT_TEST_FAIL,
+                             codex_impl.EXIT_SCOPE_OR_TIMEOUT))
+
+
+# Imports used by T8+T9 tests (lifted after class defs so top-of-file stays
+# minimal; unittest discovers cases regardless of import location).
+import json  # noqa: E402
+from datetime import datetime, timedelta, timezone  # noqa: E402
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
