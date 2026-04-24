@@ -195,7 +195,8 @@ class ParseFenceTests(unittest.TestCase):
         self.assertEqual(len(allowed), 1)
         self.assertEqual(len(forbidden), 1)
 
-    def test_fence_from_file(self):
+    def test_fence_from_file_requires_at_prefix(self):
+        """File mode is opt-in via ``@`` prefix (post Bug #7 fix)."""
         fence_file = self.root / "fence.txt"
         fence_file.write_text(
             "# comment\n"
@@ -205,9 +206,30 @@ class ParseFenceTests(unittest.TestCase):
             "tests/\n",
             encoding="utf-8",
         )
-        allowed, forbidden = scope.parse_fence(str(fence_file), self.root)
+        allowed, forbidden = scope.parse_fence(f"@{fence_file}", self.root)
         self.assertEqual(len(allowed), 2)
         self.assertEqual(len(forbidden), 1)
+
+    def test_fence_path_without_at_prefix_is_inline(self):
+        """A plain path that happens to exist is treated as inline, NOT read.
+
+        Regression for Bug #7 from dual-1 post-mortem: previously a single
+        allowed path like ``.claude/scripts/list_codex_scripts.py`` was
+        silently read as a fence file (58 lines -> 42 allowed entries).
+        """
+        real_file = self.root / "src" / "main.py"
+        real_file.parent.mkdir(exist_ok=True)
+        real_file.write_text("# pretend code\n", encoding="utf-8")
+        allowed, forbidden = scope.parse_fence(str(real_file), self.root)
+        # Exactly one allowed entry — the path itself, taken literally.
+        self.assertEqual(len(allowed), 1)
+        self.assertEqual(len(forbidden), 0)
+        self.assertTrue(allowed[0].endswith("main.py"))
+
+    def test_fence_at_prefix_missing_file_raises(self):
+        """``@missing.txt`` must raise, not fall through to inline."""
+        with self.assertRaises(RuntimeError):
+            scope.parse_fence("@/definitely/does/not/exist.txt", self.root)
 
 
 class CliIntegrationTests(unittest.TestCase):

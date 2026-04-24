@@ -216,8 +216,19 @@ class TestAcceptanceCriteriaParser(unittest.TestCase):
 
 class TestTaskIdDerivation(unittest.TestCase):
     def test_t_prefix_with_number(self):
+        """`T7-impl.md` must yield `7-impl` (Finding #11 — preserve trailing segment)."""
         self.assertEqual(
-            codex_impl._derive_task_id(Path("T7-impl.md")), "7"
+            codex_impl._derive_task_id(Path("T7-impl.md")), "7-impl"
+        )
+
+    def test_t_prefix_bare_number(self):
+        """Bare `T7.md` without trailing segment still yields `7`."""
+        self.assertEqual(codex_impl._derive_task_id(Path("T7.md")), "7")
+
+    def test_task_prefix_compound_id(self):
+        """`task-dual-1.md` must yield `dual-1`, not `dual` (Finding #11)."""
+        self.assertEqual(
+            codex_impl._derive_task_id(Path("task-dual-1.md")), "dual-1"
         )
 
     def test_task_prefix_with_name(self):
@@ -242,7 +253,8 @@ class TestParseTaskFile(unittest.TestCase):
             p = Path(td) / "T42-sample.md"
             p.write_text(TASK_SAMPLE, encoding="utf-8")
             task = codex_impl.parse_task_file(p)
-            self.assertEqual(task.task_id, "42")
+            # Task id preserves the trailing segment after T<num>- (Finding #11).
+            self.assertEqual(task.task_id, "42-sample")
             self.assertEqual(task.frontmatter["executor"], "codex")
             self.assertIn("src/sample.py", task.scope_fence.allowed)
             self.assertIn("docs/", task.scope_fence.forbidden)

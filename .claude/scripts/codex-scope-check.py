@@ -90,17 +90,26 @@ def parse_fence(fence_spec: str, root: Path) -> tuple[list[str], list[str]]:
     """Parse a fence specification into (allowed, forbidden) realpath lists.
 
     ``fence_spec`` is either:
-      * path to a file (one entry per line), or
-      * inline comma-separated entries.
+      * inline comma-separated entries (DEFAULT), or
+      * path to a file (one entry per line) — ONLY when prefixed with ``@``.
+
+    The ``@`` prefix is required for file mode (curl-style). Without it, the
+    spec is always parsed as inline CSV. Rationale: a plain path like
+    ``.claude/scripts/foo.py`` that happens to exist on disk must NOT be
+    silently re-interpreted as a "fence file" — that bug produced 42 bogus
+    allowed entries in dual-implement run 1 (post-mortem: work/codex-primary/
+    dual-1-postmortem.md — Bug #7).
 
     Each entry may be prefixed with ``allow:`` or ``forbid:``.
     Unprefixed entries default to ``allow:``.
     Blank lines and lines starting with ``#`` are skipped.
     """
     logger.info("parse_fence_started fence_spec=%r root=%s", fence_spec, root)
-    fence_path = Path(fence_spec)
     raw_entries: list[str]
-    if fence_path.is_file():
+    if fence_spec.startswith("@"):
+        fence_path = Path(fence_spec[1:])
+        if not fence_path.is_file():
+            raise RuntimeError(f"fence file not found: {fence_path}")
         raw_entries = fence_path.read_text(encoding="utf-8").splitlines()
         logger.debug("parse_fence_source file=%s lines=%d", fence_path, len(raw_entries))
     else:
