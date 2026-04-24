@@ -220,3 +220,7 @@
 | 2026-04-24 16:52 | 4 | QA_REVIEW: reviewer + fixer agent chain | main | PASSED |
 | 2026-04-24 16:52 | 5 | PROOF_OF_CONCEPT: real end-to-end run of codex-imp | main | PASSED |
 | 2026-04-24 16:52 | 6 | DOCUMENT: update guides, memory, knowledge | main | PASSED |
+| 2026-04-24 18:42 | 8 | T2: IMPLEMENT-DUAL-TEAMS.md phase mode doc | main | PASSED |
+| 2026-04-24 18:42 | 13 | T7: AGENTS.md update вЂ” dual contract (SOLO-docs) | main | PASSED |
+| 2026-04-24 19:06 | 7 | T1: codex-delegate-enforcer.py hook (DUAL) | main | PASSED |
+| 2026-04-24 19:06 | 12 | T6: Wire enforcer in settings.json (SOLO-config) | main | PASSED |

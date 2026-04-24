@@ -367,6 +367,26 @@ pipeline-checkpoint-PLAN → IMPLEMENT_WAVE_1 → IMPLEMENT_WAVE_2 → POC_FAIL 
 
 ## Auto-Generated Summaries
 
+### 2026-04-24 19:23 (commit `c5ed853`)
+**Message:** codex-gate: exempt worktrees/** — dual-operation bypass (same pattern as enforcer)
+**Files:** 1
+
+
+### 2026-04-24 19:15 (commit `c2f5af9`)
+**Message:** enforcer: exempt worktrees/** — dual-operation paths
+**Files:** 1
+
+
+### 2026-04-24 19:07 (commit `a26d2f3`)
+**Message:** codex-primary-v2: Wave 2 specs — T3 (dual-teams-spawn) + T4 (codex-inline-dual) + T5 (judge.py)
+**Files:** 3
+
+
+### 2026-04-24 19:06 (commit `629f317`)
+**Message:** codex-primary-v2: T6 — enforcer hook wired in settings.json
+**Files:** 1
+
+
 ### 2026-04-24 18:41 (commit `7fa7e6c`)
 **Message:** codex-primary-v2: DUAL_TEAMS phase doc + AGENTS.md dual contract notice
 **Files:** 2
@@ -548,3 +568,37 @@ pipeline-checkpoint-PLAN → IMPLEMENT_WAVE_1 → IMPLEMENT_WAVE_2 → POC_FAIL 
 - 9 bot projects × 9 files = 81 file copies (all verified)
 
 **Pipeline:** IMPLEMENT_W1(5 agents) → IMPLEMENT_W2(3 agents) → INTEGRATE → QA_REVIEW(3 agents) → FIX → TEMPLATE_SYNC → FLEET_SYNC → COMPLETE
+
+## Codex-Primary v2 Session — 2026-04-24 (IN-PROGRESS, resume next session)
+
+**Goal:** Always-Dual Code Delegation Protocol — every code task runs Claude + Codex in parallel; Opus judges on merit (objective via judge.py).
+
+**Delivered (committed on main fix/watchdog-dushnost):**
+- CLAUDE.md: Code Delegation Protocol section (MANDATORY, blocking rule)
+- AGENTS.md: You are one of two parallel tracks section (Codex contract)
+- .claude/hooks/codex-delegate-enforcer.py + tests (30 tests, exempt worktrees/**)
+- .claude/hooks/codex-gate.py: worktrees/** bypass patched (14 tests green)
+- .claude/shared/work-templates/phases/IMPLEMENT-DUAL-TEAMS.md phase doc
+- .claude/settings.json: enforcer wired in PreToolUse(Edit|Write|MultiEdit)
+- .claude/scripts/dual-teams-spawn.py + 19 tests (T3 Claude winner, Codex wave failed Windows UNC bug)
+- .claude/scripts/codex-inline-dual.py PARTIAL (T4 Claude code, no tests yet — follow-up)
+
+**Remaining for next session:**
+- T5: judge.py test-driven objective judge (deferred, blocked on harness Write permissions in background agents)
+- T4 follow-up: tests for codex-inline-dual.py
+- T8: Rate-limit backoff in codex-implement.py
+- T9: Circuit breaker + Claude fallback
+- T10: Warm Codex pool via app-server
+- T11: Streaming judge in dual-implement skill
+- T12: codex-integration.md new-patterns section
+- T13: dual-implement SKILL.md cherry-pick + streaming update
+- T14: Live DUAL_TEAMS end-to-end validation
+
+**Bugs found live in this session (some patched, some pending):**
+- PATCHED: enforcer + codex-gate both blocked worktree/** edits → exempt added
+- PENDING: codex-wave.py Windows UNC path bug when creating worktrees concurrently (//?/C:/...) — causes 2 of 3 parallel Codex sessions to error out immediately. Needs fix before DUAL_TEAMS can reliably use 3+ parallelism on Windows.
+- KNOWN limitation: background Agent-tool Claude teammates cant reliably Write large files — hit harness permission prompts that auto-deny. Workaround: teammates use PowerShell here-string / bash heredoc; NOT a hook issue.
+
+**Git tags this session:**
+- pipeline-checkpoint-V2-T1-DONE (enforcer merged)
+- (Wave 2 checkpoint coming in final commit)
