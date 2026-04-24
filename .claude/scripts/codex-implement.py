@@ -955,7 +955,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
         p.add_argument("--worktree", default=Path("."), type=Path,
                        help="Path to worktree dir (defaults to cwd)")
         p.add_argument("--reasoning", default=None, choices=["high", "medium", "low"],
-                       help="Override frontmatter reasoning effort")
+                       help="Override frontmatter reasoning effort (wins over --speed and speed_profile)")
+        p.add_argument("--speed", default=None,
+                       choices=["fast", "balanced", "thorough"],
+                       help="Speed profile override: fast=reasoning low, balanced=medium, thorough=high. "
+                            "Wins over speed_profile frontmatter but loses to --reasoning.")
         p.add_argument("--model", default="gpt-5.5",
                        help="Codex model (default: gpt-5.5 via chatgpt provider; any model name accepted by that endpoint)")
         p.add_argument("--timeout", default=3600, type=int,
@@ -1012,8 +1016,27 @@ def main(argv: Optional[list[str]] = None) -> int:
         print(f"fatal: could not parse task file: {exc}", file=sys.stderr)
         return EXIT_SCOPE_OR_TIMEOUT
 
+    # Reasoning effort precedence (highest wins):
+    #   1. --reasoning CLI flag (explicit override, always)
+    #   2. --speed CLI flag (maps to reasoning: fast=low/balanced=medium/thorough=high)
+    #   3. `reasoning:` field in task-N.md frontmatter (explicit in spec)
+    #   4. `speed_profile:` field in task-N.md frontmatter (same mapping as --speed)
+    #   5. default "medium" (balanced — one step below old "high" default, for speed)
+    _SPEED_TO_REASONING = {"fast": "low", "balanced": "medium", "thorough": "high"}
     if args.reasoning:
         task.frontmatter["reasoning"] = args.reasoning
+    elif args.speed:
+        task.frontmatter["reasoning"] = _SPEED_TO_REASONING[args.speed]
+    elif "reasoning" not in task.frontmatter:
+        profile = task.frontmatter.get("speed_profile", "balanced")
+        task.frontmatter["reasoning"] = _SPEED_TO_REASONING.get(profile, "medium")
+    _log(
+        logging.INFO,
+        "effective reasoning resolved",
+        reasoning=task.frontmatter["reasoning"],
+        speed_cli=args.speed,
+        speed_profile_fm=task.frontmatter.get("speed_profile"),
+    )
 
     try:
         base_sha = preflight_worktree(worktree)
