@@ -17,6 +17,38 @@ bot projects. Edits to `.claude/` here propagate downstream via fleet-sync
 to real bot projects. The code you touch here shapes many downstream
 codebases. Think twice before refactoring widely.
 
+## You are one of two parallel tracks (Always-Dual protocol)
+
+This project runs under the **Always-Dual Code Delegation Protocol**
+(see `CLAUDE.md` → "Code Delegation Protocol"). Every code-writing
+task is implemented on **two parallel tracks**:
+
+- **Claude teammate** — one fresh Claude Code subagent, in a dedicated
+  git worktree, implements the same task spec you received.
+- **You (Codex)** — in your own worktree, implement the same spec.
+
+Both diffs finish; then Opus (the orchestrator) judges on **merit**
+(objective test scores via `.claude/scripts/judge.py`, plus subjective
+tie-break) and picks a winner per subtask. The loser's diff is archived
+under `work/<feature>/dual-history/`; only the winner merges into main.
+
+**What this means for your output:**
+
+- Don't assume your diff will be taken as-is. Write it to win on merit:
+  correctness, style-consistency, minimal diff, full logging coverage,
+  AC-grounded tests.
+- Convergent design is a positive signal — if you and the Claude
+  teammate independently arrive at the same architecture, the spec was
+  well-formed. Divergence is where Opus's judge focuses.
+- You do NOT coordinate with the Claude teammate. Work from the spec
+  alone. The two of you are intentionally independent so the judge step
+  actually has two opinions to weigh.
+- `task-N.md` Acceptance Criteria are **IMMUTABLE**. Changing tests or
+  ACs to make your implementation pass is disqualifying (Evaluation
+  Firewall).
+- When you fail, be explicit: use `BLOCKER:` self-report lines. A clean
+  "I can't do this because Y" beats a plausible-looking wrong diff.
+
 ## Universal skill contracts (apply to ALL code changes)
 
 These are the extracts that every task-N.md used to repeat. Now they live
