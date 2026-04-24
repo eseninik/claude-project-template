@@ -69,6 +69,37 @@ The agent should READ this at start and UPDATE it in their handoff block if they
 - When tool output exceeds ~200 lines, extract key findings into 10-20 lines and work from the summary. Large outputs drain context rapidly (microcompact principle).
 - After completing a skill-based task, check the `## Related` section at the bottom of the SKILL.md for next steps or connected skills to invoke
 
+## Platform Gotchas (MANDATORY — read BEFORE writing code)
+
+### Windows harness: large-file Write auto-deny
+Background Claude teammates' `Write`/`Edit` tools silently fail (no error raised) for files roughly **≥ 250-300 lines** including imports, docstrings, and structured logging. Enforcer says "allowed" in its log, but file never lands on disk.
+
+**If your target file will exceed ~250 lines, use Bash heredoc instead of Write:**
+```bash
+cat > "${FILE}" <<'END_OF_FILE'
+#!/usr/bin/env python3
+"""Full file content — no size cap on heredoc."""
+...
+END_OF_FILE
+```
+Rules:
+- Single-quoted marker `<<'END_OF_FILE'` disables `$` / backtick expansion
+- Closing marker at column 0, no indentation
+- Verify every write with `wc -l <path>` — 0 bytes means silent-fail → retry via heredoc
+
+**Diagnostic after every Write:** `ls -la <path> && wc -l <path>`. If the file is missing or 0 bytes, the harness denied silently — switch to heredoc.
+
+### Windows subprocess: `.CMD` wrapper resolution
+On Windows, npm/chocolatey-installed CLIs (`codex`, `npm`, `node`, many others) are `.CMD` files. Calling `subprocess.run(["codex", ...])` raises `FileNotFoundError` even when `shutil.which("codex")` returns a valid path. Always resolve absolute path first:
+
+```python
+import shutil, subprocess
+tool = shutil.which("codex")
+if tool is None:
+    raise RuntimeError("codex CLI not on PATH")
+subprocess.run([tool, "--version"], ...)  # pass resolved path, NOT bare "codex"
+```
+
 ## Results Board
 Before starting your task, check if `work/results-board.md` exists. If yes:
 - Read it for context on what other agents have tried

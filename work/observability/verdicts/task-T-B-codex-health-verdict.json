@@ -1,0 +1,133 @@
+{
+  "task_id": "T-B-codex-health",
+  "timestamp": "2026-04-24T18:39:16.720996+00:00",
+  "winner": "claude",
+  "delta": 0.2761,
+  "tie_delta": 0.02,
+  "scores": {
+    "claude": {
+      "aggregate": 0.9983,
+      "axes": {
+        "tests_passed": {
+          "name": "tests_passed",
+          "score": 1.0,
+          "weight": 10,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "passed": 3,
+            "total": 3
+          }
+        },
+        "diff_size": {
+          "name": "diff_size",
+          "score": 0.99,
+          "weight": 2,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "added": 5,
+            "removed": 0,
+            "cap_lines": 500,
+            "base": "HEAD"
+          }
+        },
+        "logging_coverage": {
+          "name": "logging_coverage",
+          "score": 0.0,
+          "weight": 3,
+          "skipped": true,
+          "skip_reason": "empty diff",
+          "raw": {}
+        },
+        "lint_clean": {
+          "name": "lint_clean",
+          "score": 0.0,
+          "weight": 2,
+          "skipped": true,
+          "skip_reason": "no modified .py files",
+          "raw": {}
+        },
+        "complexity": {
+          "name": "complexity",
+          "score": 0.0,
+          "weight": 1,
+          "skipped": true,
+          "skip_reason": "radon not installed",
+          "raw": {}
+        },
+        "type_check": {
+          "name": "type_check",
+          "score": 0.0,
+          "weight": 2,
+          "skipped": true,
+          "skip_reason": "no mypy config",
+          "raw": {}
+        }
+      }
+    },
+    "codex": {
+      "aggregate": 0.7222,
+      "axes": {
+        "tests_passed": {
+          "name": "tests_passed",
+          "score": 0.6667,
+          "weight": 10,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "passed": 2,
+            "total": 3
+          }
+        },
+        "diff_size": {
+          "name": "diff_size",
+          "score": 1.0,
+          "weight": 2,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "added": 0,
+            "removed": 0,
+            "cap_lines": 500,
+            "base": "HEAD"
+          }
+        },
+        "logging_coverage": {
+          "name": "logging_coverage",
+          "score": 0.0,
+          "weight": 3,
+          "skipped": true,
+          "skip_reason": "empty diff",
+          "raw": {}
+        },
+        "lint_clean": {
+          "name": "lint_clean",
+          "score": 0.0,
+          "weight": 2,
+          "skipped": true,
+          "skip_reason": "no modified .py files",
+          "raw": {}
+        },
+        "complexity": {
+          "name": "complexity",
+          "score": 0.0,
+          "weight": 1,
+          "skipped": true,
+          "skip_reason": "radon not installed",
+          "raw": {}
+        },
+        "type_check": {
+          "name": "type_check",
+          "score": 0.0,
+          "weight": 2,
+          "skipped": true,
+          "skip_reason": "no mypy config",
+          "raw": {}
+        }
+      }
+    }
+  },
+  "rationale_auto": "winner=claude — biggest axis delta on 'tests_passed' (claude=1.000, codex=0.667)",
+  "rationale_manual": null
+}

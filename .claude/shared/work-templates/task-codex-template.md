@@ -108,6 +108,36 @@ Codex cannot load our SKILL.md files. Keep each contract 2-5 bullets, concrete.
 - No drive-by refactors — every changed line must trace to this task's AC.
 - Early returns over deep nesting; single responsibility per function.
 
+### platform-gotchas (contract extract) — **READ IF YOUR TASK WRITES FILES OR SHELLS TO A CLI**
+
+**Windows harness — large file Writes:** Background Claude teammates' `Write`/`Edit` tools silently fail (no error) for files roughly ≥ 250-300 lines (including imports and logging). If your AC says "under 350 lines" and the file will exceed ~250 with realistic structured logging, you MUST use Bash heredoc instead:
+
+```bash
+# Write FULL file content via heredoc (harness does NOT cap size)
+cat > "${FILE}" <<'END_OF_FILE'
+#!/usr/bin/env python3
+"""Module docstring."""
+...full file content...
+END_OF_FILE
+```
+- Use single-quoted marker `<<'END_OF_FILE'` to disable variable expansion
+- The closing marker must be at column 0 on its own line
+- For files with $ or backticks in content, `<<'END_OF_FILE'` is mandatory
+
+Diagnostic: after a `Write`/`Edit`, always verify with `wc -l <path>` or `ls -la <path>`. If size is 0 bytes or absent, harness denied — fall back to heredoc.
+
+**Windows subprocess — `.CMD` wrapper resolution:** On Windows, CLI tools installed via npm (`codex`, `npm`, `node` wrappers) are `.CMD` files. `subprocess.run(["codex", ...])` raises `FileNotFoundError` even when `shutil.which("codex")` returns a valid path. Correct pattern:
+
+```python
+import shutil, subprocess
+codex = shutil.which("codex")              # returns e.g. codex.CMD on Windows
+if codex is None:
+    raise RuntimeError("codex CLI not on PATH")
+subprocess.run([codex, "--version"], ...)  # pass ABSOLUTE PATH, not bare name
+```
+
+Applies to ANY npm/chocolatey/scoop-wrapped CLI — not just codex.
+
 ## Read-Only Files (Evaluation Firewall)
 
 <!-- Executors CANNOT modify these. QA audits this post-execution. -->
