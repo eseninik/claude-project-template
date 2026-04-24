@@ -406,3 +406,92 @@ and avoids repeating the failed approach.
   by the first live Level 3 run.
 - `work/codex-primary/dual-2-judgment.md` — first real judge step with
   two valid diffs.
+
+---
+
+# Always-Dual Code Delegation Protocol (v2)
+
+> Elevated Level 3 from opt-in to mandatory default: every code-writing
+> task runs both Claude and Codex in parallel. See `CLAUDE.md` → "Code
+> Delegation Protocol" for the canonical rule + `ADR-012`.
+
+## Enforcement
+
+`.claude/hooks/codex-delegate-enforcer.py` blocks `Edit|Write|MultiEdit`
+on code files that lack a recent (< 15 min) Codex `task-*-result.md`
+with `status: pass` covering the target path. Exempt paths (edit freely):
+`.claude/memory/**`, `work/**`, `CLAUDE.md`, `AGENTS.md`, READMEs,
+`.claude/settings.json`, `.claude/adr/**/*.md`, `.claude/guides/**/*.md`,
+`.claude/skills/**/*.md`, any non-code extension, `worktrees/**`
+(dual-operation territory).
+
+Sibling hook `codex-gate.py` shares the same `worktrees/**` bypass so
+in-worktree Claude teammates don't deadlock on the dual pair's other
+half.
+
+## Task-size → execution mode
+
+| Size | Mode | Tool |
+|------|------|------|
+| Typo / 1-2 lines | `inline-dual` | `codex-inline-dual.py --describe ... --scope ... --test ...` |
+| One focused feature / bug | `dual-implement` skill (Level 3) | Manual worktree pair |
+| Big N-subtask phase | `DUAL_TEAMS` mode | `dual-teams-spawn.py --tasks T1.md,...,TN.md` + Opus spawns teammates + codex-wave |
+
+## `dual-teams-spawn.py` (orchestration prep)
+
+```bash
+py -3 .claude/scripts/dual-teams-spawn.py \
+  --tasks work/<feature>/tasks/T1.md,T2.md,T3.md \
+  --feature <feature> \
+  --parallel 3 \
+  --worktree-base worktrees/<feature>
+```
+
+Writes `work/<feature>/dual-teams-plan.md` with per-pair worktree paths,
+Claude-side prompt files, Codex-wave PID, and step-by-step instructions
+for Opus. Does NOT itself spawn the Agent tool — prep + report helper.
+
+## `codex-inline-dual.py` (micro-task helper)
+
+```bash
+py -3 .claude/scripts/codex-inline-dual.py \
+  --describe "Add --verbose flag to foo.py" \
+  --scope .claude/scripts/foo.py \
+  --test "python .claude/scripts/foo.py --verbose" \
+  --speed fast
+```
+
+Generates transient task-N.md spec, creates two worktrees, launches
+`codex-implement.py` in background, writes Claude-teammate prompt.
+
+## Streaming judge + cherry-pick hybrid
+
+See `dual-implement/SKILL.md` → "Streaming judge" + "Cherry-pick hybrid".
+Streaming cuts judge latency off critical path for N ≥ 3. Cherry-pick
+applies when aggregate scores are close but axes-level winners differ.
+
+## Stability layer (T8/T9)
+
+`codex-implement.py` retries on HTTP 429 with exponential backoff
+(1-2-4-8s, max 4) to handle $20 Codex tier rate limits. After 3
+consecutive Codex failures, `.codex/circuit-open` flag (5-min TTL)
+activates; dual-* helpers route Codex-side to Claude-only fallback
+with `DEGRADED` notice so the pipeline doesn't deadlock on outage.
+
+## Warm Codex pool (T10)
+
+`codex-pool.py` maintains 2 warm `codex app-server` instances on
+different ports; callers (codex-implement / -inline / -wave) prefer
+the pool before cold-starting. Saves ~5-10 s per invocation. Pool
+lifecycle tied to SessionStart/End hooks.
+
+## Known Windows limitations
+
+- `codex-wave.py` hit a UNC long-path race (`//?/C:/...`) on
+  `--parallel ≥ 3` during Wave 2 smoke. Workaround: `--parallel ≤ 2`
+  until the path-normalization fix lands. Details:
+  `work/codex-primary-v2/dual-history/T{4,5}/codex-wave-BUG-no-output.md`.
+- Background `Agent`-tool-spawned Claude teammates can hit harness
+  permission prompts on large `Write` calls (auto-deny for big files).
+  Workaround: PowerShell `[System.IO.File]::WriteAllText` with UTF-8
+  no-BOM, or `cat > file << 'EOF'` heredoc via Bash tool.

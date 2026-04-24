@@ -198,6 +198,48 @@ A typo fix in an error message string. User reflexively says "dual implement thi
 - Matching `When NOT to use` row: "Trivial / low-risk change (< 50 lines, docs, config)".
 - Skip this skill. Apply fix directly or via single `TeamCreate` teammate. Do not spawn two worktrees for a one-line edit.
 
+## Streaming judge (speed optimization)
+
+Default flow waits for ALL pairs to finish before judging any. **Streaming
+judge** starts per-pair judging the moment pair `i` finishes, regardless of
+whether pairs `j != i` are still running. Reduces wall-time by overlapping
+judge latency with remaining executor latency.
+
+When to use: when N ≥ 3 subtasks AND pair latencies are uneven (slowest
+dominates default wall-time; streaming hides judge latency inside slowest).
+
+How to use: `dual-teams-spawn.py` emits per-pair "ready" signals into
+`work/<feature>/dual-teams-plan.md` as each `(claude-T{i}, codex-T{i})`
+pair completes. Opus (orchestrator) polls the plan and calls `judge.py`
+on ready pairs immediately. Merge happens sequentially regardless.
+
+Implementation knob: `dual-teams-spawn.py --judge-mode=streaming`
+(default: `barrier`).
+
+## Cherry-pick hybrid (quality optimization)
+
+Instead of the binary `pick_a | pick_b` default, the judge may return
+`merge_hybrid` when the two sides excel on different axes (e.g., Claude's
+test coverage is better but Codex's algorithm is tighter). Opus then
+manually cherry-picks the strongest functions/sections from each diff.
+
+When to use: when `judge.py` (or `cross-model-review`) reports similar
+aggregate scores (delta < 0.05) but divergent axis-level winners.
+
+Mechanic:
+1. `judge.py` verdict JSON has `rationale_auto` naming the dominant axis
+   per side.
+2. If scores are close + axes are orthogonal: Opus invokes
+   `cross-model-review` skill to get a per-function/per-section pick list.
+3. Opus applies the pick list via manual `git cherry-pick -p` or explicit
+   file-level merge; both losing halves (the rejected parts) are archived
+   at `work/<feature>/dual-history/T{i}/` with annotation.
+4. Opus re-runs all Test Commands on the hybrid to confirm it passes both
+   sides' invariants before committing.
+
+When NOT to use: when judge verdict is decisive (delta ≥ 0.1) or when the
+task is small enough that the merge effort exceeds the quality gain.
+
 ## Related
 
 - [cross-model-review](../cross-model-review/SKILL.md) — judge uses this skill to compare the two diffs; core tool for Step 6
