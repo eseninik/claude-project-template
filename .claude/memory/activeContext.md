@@ -367,6 +367,11 @@ pipeline-checkpoint-PLAN → IMPLEMENT_WAVE_1 → IMPLEMENT_WAVE_2 → POC_FAIL 
 
 ## Auto-Generated Summaries
 
+### 2026-04-24 20:39 (commit `d0fb6f3`)
+**Message:** codex-wave: strip UNC prefix at all forward paths (edge case #2)
+**Files:** 1
+
+
 ### 2026-04-24 19:58 (commit `ba96cdd`)
 **Message:** Wave 3 specs: T8T9-stability + T10-warm-pool + T5-judge (retry, split into 3 files)
 **Files:** 3

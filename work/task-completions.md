@@ -229,3 +229,7 @@
 | 2026-04-24 19:55 | 17 | T11: Streaming judge in dual-implement skill (DUAL | main | PASSED |
 | 2026-04-24 19:55 | 18 | T12: codex-integration.md update вЂ” new patterns  | main | PASSED |
 | 2026-04-24 19:55 | 19 | T13: Update dual-implement SKILL.md for cherry-pic | main | PASSED |
+| 2026-04-24 20:18 | 11 | T5: judge.py test-driven objective judge (DUAL) | main | PASSED | no modified files |
+| 2026-04-24 20:18 | 14 | T8: Rate-limit backoff in codex-implement.py (DUAL | main | PASSED |
+| 2026-04-24 20:18 | 15 | T9: Circuit breaker + Claude-fallback (DUAL) | main | PASSED |
+| 2026-04-24 20:18 | 16 | T10: Warm Codex pool via app-server (DUAL) | main | PASSED |
