@@ -417,5 +417,83 @@ class TestWriteResultFile(unittest.TestCase):
             self.assertIn("NOTE: all good", content)
 
 
+class TestPreflightCleanTreeGuard(unittest.TestCase):
+    """Regression suite for the dirty-tree preflight check.
+
+    PoC 2026-04-24 surfaced that preflight used to return HEAD sha without
+    verifying a clean tree, so subsequent `git reset --hard` + `git clean -fd`
+    in rollback destroyed pre-existing uncommitted user work. Preflight now
+    refuses to proceed on any dirty worktree.
+    """
+
+    def _run(self, argv: list[str], cwd: Path) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            ["git", *argv],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    def _init_repo(self, path: Path) -> None:
+        self._run(["init", "--initial-branch=main"], path)
+        self._run(["config", "user.email", "t@t"], path)
+        self._run(["config", "user.name", "t"], path)
+        self._run(["config", "commit.gpgsign", "false"], path)
+        (path / "a.txt").write_text("a", encoding="utf-8")
+        self._run(["add", "."], path)
+        self._run(["commit", "-m", "init"], path)
+
+    def test_clean_tree_passes_preflight(self):
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            self._init_repo(repo)
+            sha = codex_impl.preflight_worktree(repo)
+            self.assertEqual(len(sha), 40)
+
+    def test_dirty_tracked_file_rejects(self):
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            self._init_repo(repo)
+            (repo / "a.txt").write_text("modified", encoding="utf-8")
+            with self.assertRaises(codex_impl.DirtyWorktreeError) as cm:
+                codex_impl.preflight_worktree(repo)
+            self.assertIn("dirty working tree", str(cm.exception).lower())
+            self.assertIn("a.txt", str(cm.exception))
+
+    def test_untracked_file_rejects(self):
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            self._init_repo(repo)
+            (repo / "new.py").write_text("print('hi')", encoding="utf-8")
+            with self.assertRaises(codex_impl.DirtyWorktreeError) as cm:
+                codex_impl.preflight_worktree(repo)
+            self.assertIn("new.py", str(cm.exception))
+
+    def test_staged_file_rejects(self):
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            self._init_repo(repo)
+            (repo / "b.txt").write_text("b", encoding="utf-8")
+            self._run(["add", "b.txt"], repo)
+            with self.assertRaises(codex_impl.DirtyWorktreeError) as cm:
+                codex_impl.preflight_worktree(repo)
+            self.assertIn("b.txt", str(cm.exception))
+
+    def test_check_tree_clean_returns_tuple(self):
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            self._init_repo(repo)
+            is_clean, lines = codex_impl.check_tree_clean(repo)
+            self.assertTrue(is_clean)
+            self.assertEqual(lines, [])
+
+            (repo / "dirty.txt").write_text("x", encoding="utf-8")
+            is_clean, lines = codex_impl.check_tree_clean(repo)
+            self.assertFalse(is_clean)
+            self.assertEqual(len(lines), 1)
+            self.assertIn("dirty.txt", lines[0])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

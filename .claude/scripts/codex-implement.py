@@ -400,8 +400,46 @@ def _run_git(args: list[str], cwd: Path, timeout: int = 60) -> subprocess.Comple
         raise
 
 
+class DirtyWorktreeError(RuntimeError):
+    """Raised when the worktree has uncommitted changes before Codex runs.
+
+    Rationale: codex-implement.py's rollback path (git reset --hard + git clean -fd)
+    is safe ONLY if the pre-run tree is clean. Otherwise rollback destroys user work
+    unrelated to the Codex run. Refuse at the gate rather than risk data loss.
+    """
+
+
+def check_tree_clean(worktree: Path) -> tuple[bool, list[str]]:
+    """Return (is_clean, list_of_dirty_lines). Dirty = any tracked mod OR untracked file.
+
+    Uses `git status --porcelain` (not --porcelain=2 — we only need emptiness + names).
+    Ignored files are excluded by default, which matches intent (untracked-ignored is OK).
+    """
+    _log(logging.DEBUG, "entry: check_tree_clean", worktree=str(worktree))
+    try:
+        r = _run_git(["status", "--porcelain"], cwd=worktree, timeout=30)
+        if r.returncode != 0:
+            raise RuntimeError(f"git status failed in {worktree}: {r.stderr.strip()}")
+        lines = [ln for ln in r.stdout.splitlines() if ln.strip()]
+        is_clean = len(lines) == 0
+        _log(
+            logging.DEBUG,
+            "exit: check_tree_clean",
+            is_clean=is_clean,
+            dirty_count=len(lines),
+        )
+        return is_clean, lines
+    except Exception:
+        logger.exception("check_tree_clean failed")
+        raise
+
+
 def preflight_worktree(worktree: Path) -> str:
-    """Verify worktree is a git dir; return HEAD sha."""
+    """Verify worktree is a git dir AND clean; return HEAD sha.
+
+    Refuses to proceed on a dirty tree — Codex rollback (git reset --hard + git clean -fd)
+    would destroy pre-existing uncommitted work. Users must commit/stash/discard first.
+    """
     _log(logging.DEBUG, "entry: preflight_worktree", worktree=str(worktree))
     try:
         if not worktree.exists():
@@ -419,8 +457,19 @@ def preflight_worktree(worktree: Path) -> str:
                 f"Could not read HEAD in {worktree}: {head.stderr.strip()}"
             )
 
+        is_clean, dirty_lines = check_tree_clean(worktree)
+        if not is_clean:
+            preview = "\n  ".join(dirty_lines[:15])
+            more = f"\n  ... +{len(dirty_lines) - 15} more" if len(dirty_lines) > 15 else ""
+            raise DirtyWorktreeError(
+                "Refusing to run codex-implement.py on a dirty working tree. "
+                "Rollback on scope violation would destroy unrelated uncommitted work.\n"
+                "Please commit, stash (`git stash push -u`), or discard changes first.\n"
+                f"Dirty entries ({len(dirty_lines)}):\n  {preview}{more}"
+            )
+
         sha = head.stdout.strip()
-        _log(logging.INFO, "preflight ok", head=sha, worktree=str(worktree))
+        _log(logging.INFO, "preflight ok", head=sha, worktree=str(worktree), tree="clean")
         _log(logging.DEBUG, "exit: preflight_worktree", head=sha)
         return sha
     except Exception:
