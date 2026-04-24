@@ -162,7 +162,9 @@ def create_worktree(project_root: Path, worktree_path: Path, branch: str, base: 
         "create_worktree_started path=%s branch=%s base=%s",
         worktree_path, branch, base,
     )
-    worktree_path.parent.mkdir(parents=True, exist_ok=True)
+    # Normalize UNC prefix before mkdir — Windows long-path resolve() may return \?\
+    _normalized_parent = Path(_strip_unc_prefix(worktree_path.parent))
+    _normalized_parent.mkdir(parents=True, exist_ok=True)
 
     # Best-effort cleanup of stale worktree registrations.
     if worktree_path.exists():
@@ -207,7 +209,7 @@ def run_codex_implement(
         sys.executable,
         str(implement_script),
         "--task", str(task_file),
-        "--worktree", str(worktree_path),
+        "--worktree", _strip_unc_prefix(worktree_path),
     ]
     if result_dir is not None:
         cmd += ["--result-dir", str(result_dir)]
