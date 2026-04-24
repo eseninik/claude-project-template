@@ -1,0 +1,65 @@
+diff --git a/.claude/scripts/list_codex_scripts.py b/.claude/scripts/list_codex_scripts.py
+index b7b6ac7..624292e 100644
+--- a/.claude/scripts/list_codex_scripts.py
++++ b/.claude/scripts/list_codex_scripts.py
+@@ -3,6 +3,7 @@
+ Default output is plain text (``name  line_count`` per file plus a ``total:``
+ summary line). Pass ``--json`` to emit a single JSON document instead with the
+ shape ``{"scripts": [{"name", "line_count"}], "total_files", "total_lines"}``.
++Pass ``--sort-by {name,lines}`` to order by filename or descending line count.
+ """
+ 
+ from __future__ import annotations
+@@ -42,6 +43,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+         action="store_true",
+         help="Emit a single JSON document instead of plain text.",
+     )
++    parser.add_argument(
++        "--sort-by",
++        choices=("name", "lines"),
++        default="name",
++        help="Sort by filename ascending or line count descending.",
++    )
+     return parser.parse_args(argv)
+ 
+ 
+@@ -55,6 +62,7 @@ def main(argv: list[str] | None = None) -> int:
+             "script_dir": str(script_dir),
+             "pattern": SCRIPT_PATTERN,
+             "as_json": args.as_json,
++            "sort_by": args.sort_by,
+         },
+     )
+ 
+@@ -69,8 +77,12 @@ def main(argv: list[str] | None = None) -> int:
+             extra={"filename": script_path.name, "line_count": line_count},
+         )
+         entries.append({"name": script_path.name, "line_count": line_count})
+-        if not args.as_json:
+-            print(f"{script_path.name}  {line_count}")
++
++    if args.sort_by == "lines":
++        # Ties for equal line counts are broken by filename ascending.
++        entries.sort(key=lambda entry: (-int(entry["line_count"]), str(entry["name"])))
++    else:
++        entries.sort(key=lambda entry: str(entry["name"]))
+ 
+     if args.as_json:
+         payload = {
+@@ -80,6 +92,8 @@ def main(argv: list[str] | None = None) -> int:
+         }
+         print(json.dumps(payload, indent=2))
+     else:
++        for entry in entries:
++            print(f"{entry['name']}  {entry['line_count']}")
+         print(f"total: {len(scripts)} files, {total_lines} lines")
+ 
+     LOGGER.info(
+@@ -88,6 +102,7 @@ def main(argv: list[str] | None = None) -> int:
+             "file_count": len(scripts),
+             "line_count": total_lines,
+             "as_json": args.as_json,
++            "sort_by": args.sort_by,
+         },
+     )
+     return 0
