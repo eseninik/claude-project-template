@@ -546,13 +546,18 @@ def run_codex(
     worktree: Path,
     reasoning: str,
     timeout: int,
-    model: str = "gpt-5.4",
+    model: str = "gpt-5.5",
 ) -> CodexRunResult:
     """Invoke `codex exec` in workspace-write mode. Returns structured result.
 
-    Default model = "gpt-5.4" because as of 2026-04-24 the Codex CLI API path
-    does not yet serve "gpt-5.5" (it is available in ChatGPT / Codex-app but
-    gated for CLI). Override via --model flag once rollout reaches CLI.
+    Default model = "gpt-5.5". The default Codex CLI `openai` provider blocks
+    gpt-5.5 for ChatGPT-account users ("not supported when using Codex with a
+    ChatGPT account"). We route through the `chatgpt` provider which targets
+    `https://chatgpt.com/backend-api/codex` — the same endpoint the Codex
+    desktop/web app uses — where gpt-5.5 IS available to ChatGPT-account users.
+    Overrides are passed inline via `-c` so no global ~/.codex/config.toml
+    changes are required (preserves unmodified default behavior for existing
+    advisor tools: codex-ask.py, codex-parallel.py, codex-watchdog.py, etc.).
     """
     _log(
         logging.INFO,
@@ -571,9 +576,21 @@ def run_codex(
         # Pass prompt via stdin (not argv) — multi-KB prompts with markdown special
         # chars get mangled through Windows cmd.exe when invoking the codex.CMD
         # wrapper. `codex exec` reads stdin when prompt arg is absent or equals '-'.
+        #
+        # Route via the `chatgpt` provider (chatgpt.com/backend-api/codex endpoint)
+        # so gpt-5.5 works for ChatGPT-account users. The default `openai` provider
+        # blocks gpt-5.5 for ChatGPT-account auth. See run_codex docstring.
+        chatgpt_provider = (
+            'model_providers.chatgpt='
+            '{name="chatgpt",'
+            'base_url="https://chatgpt.com/backend-api/codex",'
+            'wire_api="responses"}'
+        )
         cmd = [
             codex,
             "exec",
+            "-c", chatgpt_provider,
+            "-c", "model_provider=chatgpt",
             "--model",
             model,
             "--sandbox",
@@ -922,8 +939,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
                        help="Path to worktree dir (defaults to cwd)")
         p.add_argument("--reasoning", default=None, choices=["high", "medium", "low"],
                        help="Override frontmatter reasoning effort")
-        p.add_argument("--model", default="gpt-5.4",
-                       help="Codex model (default: gpt-5.4; switch to gpt-5.5 when CLI API rollout lands)")
+        p.add_argument("--model", default="gpt-5.5",
+                       help="Codex model (default: gpt-5.5 via chatgpt provider; any model name accepted by that endpoint)")
         p.add_argument("--timeout", default=3600, type=int,
                        help="Timeout in seconds for codex exec (default 3600)")
         p.add_argument("--result-dir", default=Path("work/codex-implementations"), type=Path,
