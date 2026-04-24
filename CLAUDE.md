@@ -42,3 +42,114 @@ Opus plans, decomposes, and reviews; **Codex (GPT-5.5) executes** well-defined, 
 
 ### Compatibility (unchanged — fully supported)
 Agent Teams (TeamCreate), skills injection, memory (activeContext / knowledge / daily), `codex-ask` second opinion, existing codex-advisor hooks (`codex-parallel`, `codex-watchdog`, `codex-broker`, `codex-review`, `codex-stop-opinion`, `codex-gate`) — **all unchanged and fully supported**. The new modes compose with existing infrastructure; they do not replace or disable any of it.
+
+---
+
+## Code Delegation Protocol — Always Dual (MANDATORY, blocking)
+
+> **Every code-writing task runs on TWO parallel tracks by default: Claude
+> and Codex both implement the same plan independently; Claude judges the
+> results and picks the winner.** This is "Level 3" applied universally,
+> not opt-in. Claude's role stays "writer + planner + judge", but every
+> diff Claude commits has a Codex counterpart that was weighed against it.
+
+### Why
+
+- **Per-task quality.** GPT-5.5 benchmarks higher than Opus 4.7 on coding
+  (Terminal-Bench 82.7 %, SWE-Bench Pro 58.6 % vs 53.4 %). Running both
+  gives us Claude's contextual strength plus Codex's raw coding edge.
+- **Convergent-design signal.** When both independent implementations
+  converge on the same architecture, the spec was good. When they diverge,
+  that is the richest reviewable moment.
+- **No default bypass.** Discipline alone gave us ~30-40 % compliance on
+  "remember to also run Codex". A harness-level enforcer closes that gap
+  so the dual track is the default, not an afterthought.
+
+### Rule
+
+For any `Edit`, `Write`, or `MultiEdit` operation that targets a **code
+file**, Claude MUST have a matching Codex run (from `codex-implement.py`,
+`codex-inline.py`, `codex-wave.py`, or the `dual-implement` skill) covering
+the same path, with `status: pass`, produced in the last 15 minutes.
+
+The `codex-delegate-enforcer.py` hook validates this at `PreToolUse` and
+blocks the edit (exit 2) if no matching Codex artifact exists. Claude is
+still free to write — but only **in parallel with or after** a Codex run
+on the same scope. The hand-edit without Codex is what gets blocked.
+
+### Task size → execution mode
+
+| Task scope | Mode | How it runs |
+|------------|------|-------------|
+| 1-2 files, small diff (feature flag, typo, local bug) | **`codex-inline` + Claude hand-edit** | Claude writes own version, `codex-inline.py --describe "…"` produces Codex version in parallel, Claude picks winner |
+| One focused task, non-trivial | **`dual-implement` skill (Level 3)** | Two git worktrees; Claude teammate in A, `codex-implement.py` in B; Opus judges |
+| Big feature / refactor / N subtasks | **`DUAL_TEAMS` mode** (below) | N Claude teammates via `TeamCreate` **AND** N Codex sessions via `codex-wave.py`, both consuming the same `tasks/T*.md` specs in parallel; Opus judges N pairs |
+
+### DUAL_TEAMS mode (Agent Teams + codex-wave running as twins)
+
+For big work (`IMPLEMENT` phase with 3+ independent subtasks), instead of
+either `AGENT_TEAMS` alone or `CODEX_IMPLEMENT` alone, Claude runs **both
+in parallel** against the same task specs:
+
+1. Claude (planner) writes `tasks/T1.md … TN.md` with Scope Fence + tests
+   + Skill Contracts, as usual.
+2. Claude spawns N Claude teammates via `TeamCreate` + `spawn-agent.py`
+   (existing Agent Teams flow). Each lives in its own git worktree or
+   agreed file scope, produces a diff + handoff.
+3. **In parallel**, Claude runs `codex-wave.py --tasks T1.md,...,TN.md
+   --parallel N`. Each Codex session lives in its own worktree, consumes
+   its assigned `T{i}.md`, produces its own `task-T{i}-result.md`.
+4. All 2N agents finish in wall-time ≈ `max(task_i)`.
+5. Claude (as judge, using `cross-model-review` skill) compares each
+   Claude-diff vs Codex-diff pair against the `T{i}.md` spec, picks the
+   winner or cherry-picks hybrid. Repeats for all N subtasks.
+6. Winners merged, losers archived under `work/codex-primary/dual-history/`
+   for reference.
+
+When to use:
+- Any `IMPLEMENT` phase with 3+ independent subtasks — default to this
+- Any high-stakes subtask within any phase — always include it in dual
+
+When not to use:
+- Pure documentation / spec writing — Claude solo
+- Research / exploration / reading — no code, no Codex
+- Truly trivial (< ~5 lines, single location, obvious) — inline-dual is
+  still expected; only skip if the enforcer explicitly allows (see below)
+
+### Code file extensions (delegated / enforced)
+
+`.py .pyi .js .jsx .mjs .cjs .ts .tsx .sh .bash .zsh .go .rs .rb .java
+.kt .swift .c .cpp .cc .h .hpp .cs .php .sql .lua .r`
+
+### Exempt paths (Claude may edit freely — no Codex counterpart required)
+
+- Any file whose extension is NOT in the list above
+- `.claude/memory/**` — session memory (activeContext, knowledge, daily logs)
+- `work/**` — planning artifacts (task specs, post-mortems, judgments, PIPELINE.md)
+- `CLAUDE.md`, `AGENTS.md`, `README.md`, `CHANGELOG.md`, `LICENSE`, `.gitignore`
+- `.claude/settings.json`, `.claude/ops/*.yaml`, `.mcp.json` — config
+- `.claude/adr/**/*.md` — architecture decisions
+- `.claude/guides/**/*.md`, `.claude/skills/**/*.md` — documentation
+
+### Workflow summary
+
+1. Claude writes the plan (task-N.md or inline description).
+2. Claude starts **both** tracks in parallel:
+   - Claude-side implementation (via `TeamCreate`, direct hand-write after
+     the Codex run starts, or a second worktree).
+   - Codex-side implementation (via `codex-implement.py`, `codex-wave.py`,
+     or `codex-inline.py`).
+3. Both tracks finish — Claude reviews both diffs against the spec.
+4. Claude picks winner (or merges hybrid), commits, archives loser.
+
+### Enforcement artefact
+
+`.claude/hooks/codex-delegate-enforcer.py` runs on `PreToolUse(Edit|Write|MultiEdit)`:
+- If target has a code extension AND is NOT in exempt paths
+- → Looks for a recent (< 15 min) `work/codex-implementations/task-*-result.md`
+  with `status: pass` whose Scope Fence covers this path
+- → Allows the edit when found; blocks with a clear recovery hint otherwise
+
+The hook only guarantees Codex-side participation. The Claude-side half
+of the dual pair is Claude's own discipline — it is expected by this
+protocol, and reviewed in handoff blocks.
