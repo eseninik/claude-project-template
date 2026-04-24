@@ -15,8 +15,8 @@
 
 ## Phases
 
-### Phase: PLAN  <- CURRENT
-- Status: IN_PROGRESS
+### Phase: PLAN
+- Status: DONE
 - Mode: SOLO (Opus writes tech-spec + tasks)
 - Attempts: 0 of 1
 - On PASS: -> IMPLEMENT_WAVE_1
@@ -28,8 +28,8 @@
 - Outputs: work/codex-primary/tech-spec.md, work/codex-primary/tasks/T*.md, work/codex-primary/waves.md
 - Checkpoint: pipeline-checkpoint-PLAN
 
-### Phase: IMPLEMENT_WAVE_1
-- Status: PENDING
+### Phase: IMPLEMENT_WAVE_1  <- CURRENT
+- Status: IN_PROGRESS
 - Mode: AGENT_TEAMS
 - Attempts: 0 of 2
 - On PASS: -> IMPLEMENT_WAVE_2
