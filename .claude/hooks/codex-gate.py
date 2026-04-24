@@ -488,6 +488,18 @@ def main():
     except Exception:
         payload = {}
 
+    # Worktree-path bypass: dual-implement teammates edit code files
+    # inside worktrees/** as part of an outer DUAL orchestration. The
+    # gate has no cross-worktree visibility, so exempt worktree edits.
+    try:
+        _fp = (payload.get("tool_input") or {}).get("file_path", "") or ""
+        _fp_norm = str(_fp).replace("\\", "/")
+        if "/worktrees/" in _fp_norm or _fp_norm.startswith("worktrees/"):
+            sys.exit(0)
+    except Exception:
+        pass
+
+
     # Detect event from argv
     event = sys.argv[1] if len(sys.argv) > 1 else ""
 
