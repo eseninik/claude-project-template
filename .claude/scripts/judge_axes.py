@@ -103,9 +103,62 @@ def score_tests_passed(runs: list[TestRun], weight: int = 10) -> AxisResult:
         raise
 
 
+def _ensure_untracked_visible(worktree: Path) -> int:
+    """Register untracked .py files with ``git add -N`` so they appear in diffs.
+
+    Intent-to-add stages only the filename (not content), which makes
+    ``git diff <base>`` include the file as a new-file diff. Idempotent:
+    ``git add -N`` on an already-registered file is a no-op. Swallows every
+    exception and returns 0 - this helper MUST NOT break axis scoring.
+    """
+    _log(logging.DEBUG, "entry: _ensure_untracked_visible", worktree=str(worktree))
+    try:
+        proc = subprocess.run(
+            ["git", "ls-files", "--others", "--exclude-standard"],
+            cwd=str(worktree), check=False, capture_output=True,
+            text=True, timeout=30,
+        )
+        if proc.returncode != 0:
+            _log(logging.WARNING, "_ensure_untracked_visible ls-files failed",
+                 rc=proc.returncode, stderr=proc.stderr[:200])
+            return 0
+        py_files = [ln.strip() for ln in proc.stdout.splitlines()
+                    if ln.strip().endswith(".py")]
+        if not py_files:
+            _log(logging.DEBUG, "exit: _ensure_untracked_visible", count=0)
+            return 0
+        add_proc = subprocess.run(
+            ["git", "add", "-N", "--", *py_files],
+            cwd=str(worktree), check=False, capture_output=True,
+            text=True, timeout=30,
+        )
+        if add_proc.returncode != 0:
+            _log(logging.WARNING, "_ensure_untracked_visible add -N failed",
+                 rc=add_proc.returncode, stderr=add_proc.stderr[:200])
+            return 0
+        count = len(py_files)
+        _log(logging.INFO, "exit: _ensure_untracked_visible", count=count,
+             sample=py_files[:5])
+        return count
+    except subprocess.TimeoutExpired:
+        _log(logging.WARNING, "_ensure_untracked_visible timeout",
+             worktree=str(worktree))
+        return 0
+    except Exception:
+        logger.exception("_ensure_untracked_visible failed")
+        return 0
+
+
 def _git_diff_numstat(worktree: Path, base: str = "HEAD") -> tuple[int, int]:
+    """Return (added, removed) for working-tree-vs-base.
+
+    Uses ``git diff <base>`` form (NOT ``<base>..HEAD``) so committed +
+    staged + unstaged + intent-to-add changes are all captured. Calls
+    ``_ensure_untracked_visible`` first to register untracked .py files.
+    """
     _log(logging.DEBUG, "entry: _git_diff_numstat", worktree=str(worktree), base=base)
     try:
+        _ensure_untracked_visible(worktree)
         proc = subprocess.run(["git", "diff", "--numstat", base],
                               cwd=str(worktree), check=False, capture_output=True,
                               text=True, timeout=30)
@@ -146,8 +199,14 @@ _LOGGER_RE = re.compile(r"logger\.|structlog\.|_log\(")
 
 
 def _git_diff_text(worktree: Path, base: str = "HEAD") -> str:
+    """Return unified diff text for working-tree-vs-base (``git diff <base>``).
+
+    Captures committed + staged + unstaged + intent-to-add diffs; calls
+    ``_ensure_untracked_visible`` first so untracked .py files are included.
+    """
     _log(logging.DEBUG, "entry: _git_diff_text", worktree=str(worktree), base=base)
     try:
+        _ensure_untracked_visible(worktree)
         proc = subprocess.run(["git", "diff", base, "--", "*.py"],
                               cwd=str(worktree), check=False, capture_output=True,
                               text=True, timeout=30)
@@ -204,8 +263,13 @@ def score_logging_coverage(worktree: Path, weight: int = 3, base: str = "HEAD",
 
 
 def _list_modified_py(worktree: Path, base: str = "HEAD") -> list[Path]:
+    """List modified .py files for working-tree-vs-base (``git diff --name-only <base>``).
+
+    Calls ``_ensure_untracked_visible`` first so untracked .py files are listed.
+    """
     _log(logging.DEBUG, "entry: _list_modified_py", worktree=str(worktree))
     try:
+        _ensure_untracked_visible(worktree)
         proc = subprocess.run(["git", "diff", "--name-only", base],
                               cwd=str(worktree), check=False, capture_output=True,
                               text=True, timeout=30)

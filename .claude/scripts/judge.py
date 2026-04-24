@@ -39,6 +39,8 @@ from judge_axes import (  # noqa: E402
 logger = logging.getLogger("judge")
 EXIT_OK, EXIT_INFRA = 0, 1
 
+_MAIN_BRANCHES = ("main", "master", "dev")
+
 
 def _log(level: int, msg: str, **fields: object) -> None:
     logger.log(level, msg, extra={"extra_fields": fields})
@@ -178,10 +180,69 @@ def run_test_commands(commands: list[str], worktree: Path,
         raise
 
 
+def _resolve_base(worktree: Path, cli_base: str) -> str:
+    """Resolve the diff base for one side's worktree.
+
+    Priority (first match wins):
+      1. Explicit CLI arg (not ``"HEAD"`` or ``"auto"``) - pass-through verbatim.
+      2. Sidecar file ``<worktree>/.dual-base-ref`` (first non-empty line).
+      3. ``git merge-base HEAD <branch>`` for branch in (main, master, dev).
+      4. Literal ``"HEAD"`` fallback.
+
+    Logs which level hit at INFO. Swallows per-step errors so a broken sidecar
+    or missing git CLI cannot break scoring - always returns a usable string.
+    """
+    _log(logging.DEBUG, "entry: _resolve_base", worktree=str(worktree),
+         cli_base=cli_base)
+    try:
+        if cli_base and cli_base not in ("HEAD", "auto"):
+            _log(logging.INFO, "resolve_base hit=cli", base=cli_base,
+                 worktree=str(worktree))
+            return cli_base
+        sidecar = worktree / ".dual-base-ref"
+        if sidecar.exists():
+            try:
+                for ln in sidecar.read_text(encoding="utf-8").splitlines():
+                    s = ln.strip()
+                    if s and not s.startswith("#"):
+                        _log(logging.INFO, "resolve_base hit=sidecar",
+                             base=s, worktree=str(worktree))
+                        return s
+            except Exception:
+                logger.exception("_resolve_base sidecar read failed")
+        for branch in _MAIN_BRANCHES:
+            try:
+                proc = subprocess.run(
+                    ["git", "merge-base", "HEAD", branch],
+                    cwd=str(worktree), check=False, capture_output=True,
+                    text=True, timeout=15,
+                )
+                if proc.returncode == 0:
+                    sha = proc.stdout.strip()
+                    if sha:
+                        _log(logging.INFO, "resolve_base hit=merge-base",
+                             branch=branch, base=sha[:12],
+                             worktree=str(worktree))
+                        return sha
+            except subprocess.TimeoutExpired:
+                _log(logging.WARNING, "_resolve_base merge-base timeout",
+                     branch=branch)
+                continue
+            except Exception:
+                logger.exception("_resolve_base merge-base error branch=%s", branch)
+                continue
+        _log(logging.INFO, "resolve_base hit=fallback", base="HEAD",
+             worktree=str(worktree))
+        return "HEAD"
+    except Exception:
+        logger.exception("_resolve_base unexpected error")
+        return "HEAD"
+
+
 def score_side(worktree: Path, test_runs: list[TestRun],
                base: str = "HEAD") -> list[AxisResult]:
     """Compute all six axes for one side."""
-    _log(logging.DEBUG, "entry: score_side", worktree=str(worktree))
+    _log(logging.DEBUG, "entry: score_side", worktree=str(worktree), base=base)
     try:
         axes = [score_tests_passed(test_runs, weight=10),
                 score_diff_size(worktree, weight=2, base=base),
@@ -239,7 +300,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--codex-worktree", required=True, type=Path, help="Codex worktree")
     p.add_argument("--output", type=Path, default=None, help="Verdict JSON path")
     p.add_argument("--tie-delta", type=float, default=0.02, help="Tie threshold (0.02)")
-    p.add_argument("--base", default="HEAD", help="Git diff base (HEAD)")
+    p.add_argument("--base", default="auto",
+                   help="Git diff base. 'auto' = auto-resolve per side via "
+                        "sidecar .dual-base-ref then merge-base HEAD <main|master|dev> "
+                        "then HEAD fallback. 'HEAD' = literal HEAD pass-through. "
+                        "Any other value = explicit base (commit sha / ref).")
     p.add_argument("--per-timeout", type=int, default=600, help="Per-cmd timeout (s)")
     p.add_argument("--dry-run", action="store_true", help="Print plan, skip tests")
     return p
@@ -250,7 +315,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_arg_parser().parse_args(argv)
     _log(logging.INFO, "judge_start", task=str(args.task),
          claude=str(args.claude_worktree), codex=str(args.codex_worktree),
-         tie_delta=args.tie_delta, dry_run=args.dry_run)
+         tie_delta=args.tie_delta, dry_run=args.dry_run, base_arg=args.base)
     try:
         try:
             task = parse_task(args.task)
@@ -268,16 +333,21 @@ def main(argv: list[str] | None = None) -> int:
             plan = {"task_id": task.task_id, "test_commands": task.test_commands,
                     "claude_worktree": str(args.claude_worktree),
                     "codex_worktree": str(args.codex_worktree),
-                    "output": str(output), "tie_delta": args.tie_delta}
+                    "output": str(output), "tie_delta": args.tie_delta,
+                    "base_arg": args.base}
             print(json.dumps(plan, indent=2))
             _log(logging.INFO, "dry_run_complete", task_id=task.task_id)
             return EXIT_OK
-        _log(logging.INFO, "running_claude_side", n_cmds=len(task.test_commands))
+        claude_base = _resolve_base(args.claude_worktree, args.base)
+        codex_base = _resolve_base(args.codex_worktree, args.base)
+        _log(logging.INFO, "running_claude_side", n_cmds=len(task.test_commands),
+             base=claude_base)
         c_runs = run_test_commands(task.test_commands, args.claude_worktree, args.per_timeout)
-        c_axes = score_side(args.claude_worktree, c_runs, base=args.base)
-        _log(logging.INFO, "running_codex_side", n_cmds=len(task.test_commands))
+        c_axes = score_side(args.claude_worktree, c_runs, base=claude_base)
+        _log(logging.INFO, "running_codex_side", n_cmds=len(task.test_commands),
+             base=codex_base)
         k_runs = run_test_commands(task.test_commands, args.codex_worktree, args.per_timeout)
-        k_axes = score_side(args.codex_worktree, k_runs, base=args.base)
+        k_axes = score_side(args.codex_worktree, k_runs, base=codex_base)
         verdict = build_verdict(task.task_id, c_axes, k_axes, tie_delta=args.tie_delta)
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(verdict, indent=2, ensure_ascii=False), encoding="utf-8")

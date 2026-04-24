@@ -300,6 +300,16 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(proc.returncode, 0)
         self.assertIn("Objective judge", proc.stdout)
 
+    def test_help_mentions_auto_base(self) -> None:
+        """AC6: --help text must mention auto-resolve for --base."""
+        proc = subprocess.run(
+            [sys.executable, str(_THIS_DIR / "judge.py"), "--help"],
+            check=False, capture_output=True, text=True, timeout=30,
+        )
+        self.assertEqual(proc.returncode, 0)
+        self.assertIn("--base", proc.stdout)
+        self.assertIn("auto", proc.stdout)
+
     def test_malformed_task_exit_1(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             missing = Path(td) / "nope.md"
@@ -358,6 +368,141 @@ class TestStructuredLogging(unittest.TestCase):
         self.assertEqual(parsed["msg"], "hello")
         self.assertEqual(parsed["level"], "INFO")
         self.assertIn("ts", parsed)
+
+
+# ------------------------ FIX-A: diff-baseline AC7 coverage ------------------------ #
+
+
+class TestEnsureUntrackedVisible(unittest.TestCase):
+    """AC1/AC7b: _ensure_untracked_visible registers untracked .py files.
+
+    Ensures the helper makes `git diff` see files that were previously
+    invisible because they were never tracked.
+    """
+
+    def test_idempotent_no_untracked(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            _init_git_repo(repo)
+            # No untracked files - should return 0 both times.
+            self.assertEqual(judge_axes._ensure_untracked_visible(repo), 0)
+            self.assertEqual(judge_axes._ensure_untracked_visible(repo), 0)
+
+    def test_registers_untracked_py(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            _init_git_repo(repo)
+            _add_file(repo, "newfile.py", "x = 1\n")
+            _add_file(repo, "skip.txt", "not python\n")
+            n = judge_axes._ensure_untracked_visible(repo)
+            self.assertEqual(n, 1)
+            # Second call is idempotent (safe - git add -N already registered;
+            # git ls-files --others now returns empty, so return 0 not 1).
+            n2 = judge_axes._ensure_untracked_visible(repo)
+            self.assertEqual(n2, 0)
+            # File is still visible in diff after both calls.
+            added, _ = judge_axes._git_diff_numstat(repo, base="HEAD")
+            self.assertGreater(added, 0)
+
+    def test_never_raises_on_missing_git(self) -> None:
+        # Non-git directory: git ls-files fails; helper must return 0.
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            self.assertEqual(judge_axes._ensure_untracked_visible(repo), 0)
+
+
+class TestDiffBaselineCommitted(unittest.TestCase):
+    """AC7a: committed-only worktree produces non-empty numstat.
+
+    After a commit, `git diff HEAD` is empty. Using merge-base against
+    the parent commit makes changes visible again.
+    """
+
+    def test_committed_diff_visible_with_merge_base(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            _init_git_repo(repo)
+            # Capture initial commit sha as the base.
+            proc = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=str(repo), check=True, capture_output=True, text=True,
+            )
+            base = proc.stdout.strip()
+            # Now commit a change on top of base.
+            _add_file(repo, "committed.py", "x = 1\ny = 2\ny = 3\n", commit=True)
+            # Against HEAD diff is empty; against base (parent) it should NOT be empty.
+            added_head, _ = judge_axes._git_diff_numstat(repo, base="HEAD")
+            added_base, _ = judge_axes._git_diff_numstat(repo, base=base)
+            self.assertEqual(added_head, 0)
+            self.assertGreater(added_base, 0)
+
+
+class TestDiffBaselineUntracked(unittest.TestCase):
+    """AC7b: untracked-only worktree produces non-empty numstat after helper."""
+
+    def test_untracked_numstat_after_ensure(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            _init_git_repo(repo)
+            _add_file(repo, "newfile.py", "x = 1\ny = 2\nz = 3\n")
+            # _git_diff_numstat internally calls _ensure_untracked_visible first,
+            # so the untracked file should show up in the numstat.
+            added, _ = judge_axes._git_diff_numstat(repo, base="HEAD")
+            self.assertGreater(added, 0)
+            # Modified file list should include the new file too.
+            files = judge_axes._list_modified_py(repo, base="HEAD")
+            self.assertTrue(any(f.name == "newfile.py" for f in files))
+
+
+class TestResolveBase(unittest.TestCase):
+    """AC7c/AC7d: _resolve_base priority order."""
+
+    def test_sidecar_wins_over_auto_fallback(self) -> None:
+        """AC7c: sidecar beats CLI='auto' and merge-base fallback."""
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            _init_git_repo(repo)
+            (repo / ".dual-base-ref").write_text("abc123def456\n", encoding="utf-8")
+            resolved = judge._resolve_base(repo, "auto")
+            self.assertEqual(resolved, "abc123def456")
+
+    def test_cli_explicit_wins_over_sidecar(self) -> None:
+        """Explicit CLI arg other than HEAD/auto is pass-through verbatim."""
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            _init_git_repo(repo)
+            (repo / ".dual-base-ref").write_text("sidecar-sha\n", encoding="utf-8")
+            resolved = judge._resolve_base(repo, "explicit-ref")
+            self.assertEqual(resolved, "explicit-ref")
+
+    def test_merge_base_when_no_sidecar_and_auto(self) -> None:
+        """AC7d: without sidecar + CLI=auto, picks merge-base HEAD <branch>."""
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            _init_git_repo(repo)  # main branch already exists
+            # Extra commit on main so HEAD != merge-base(HEAD, main) is well-defined.
+            _add_file(repo, "seed.py", "x = 1\n", commit=True)
+            resolved = judge._resolve_base(repo, "auto")
+            # Should be a 40-char sha (merge-base output), not the literal string.
+            self.assertNotIn(resolved, ("HEAD", "auto"))
+            self.assertTrue(len(resolved) >= 7 and all(c in "0123456789abcdef" for c in resolved))
+
+    def test_head_fallback_in_non_git(self) -> None:
+        """Non-git directory + CLI=auto falls back to literal 'HEAD'."""
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            # No git init.
+            resolved = judge._resolve_base(repo, "auto")
+            self.assertEqual(resolved, "HEAD")
+
+    def test_head_literal_passes_through_to_fallback(self) -> None:
+        """CLI='HEAD' triggers resolution logic; if no sidecar and no merge-base,
+        the result is literal 'HEAD'."""
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            # Non-git: skip sidecar + merge-base -> literal HEAD.
+            resolved = judge._resolve_base(repo, "HEAD")
+            self.assertEqual(resolved, "HEAD")
 
 
 if __name__ == "__main__":
