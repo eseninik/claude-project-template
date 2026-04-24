@@ -65,6 +65,24 @@ class TaskResult:
 
 # ---------- helpers ---------------------------------------------------------
 
+
+def _strip_unc_prefix(p: Path) -> str:
+    """Strip Windows UNC long-path prefix (\?\ or //?/) for git compatibility.
+
+    Windows Path.resolve() returns UNC extended paths (\?\C:\...) for
+    long paths; git worktree add fails with 'Invalid argument' when passed
+    the forward-slash form (//?/C:/...) through subprocess. Strip the
+    prefix before passing to git; the absolute path without UNC works.
+
+    Caught by dual-1 Wave 2 smoke on --parallel 3 (Windows UNC race).
+    """
+    s = str(p)
+    for prefix in ("\\?\\\\", "//?/"):
+        if s.startswith(prefix):
+            return s[len(prefix):]
+    return s
+
+
 def _configure_logging(verbose: bool = False) -> None:
     level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(
@@ -149,13 +167,13 @@ def create_worktree(project_root: Path, worktree_path: Path, branch: str, base: 
     # Best-effort cleanup of stale worktree registrations.
     if worktree_path.exists():
         logger.warning("create_worktree_stale_path exists=%s removing_registration", worktree_path)
-        _run(["git", "worktree", "remove", "--force", str(worktree_path)], cwd=project_root)
+        _run(["git", "worktree", "remove", "--force", _strip_unc_prefix(worktree_path)], cwd=project_root)
 
     rc, out, err = _run(
         [
             "git", "worktree", "add",
             "-b", branch,
-            str(worktree_path),
+            _strip_unc_prefix(worktree_path),
             base,
         ],
         cwd=project_root,
