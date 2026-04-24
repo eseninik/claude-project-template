@@ -27,7 +27,7 @@
 - Project `CLAUDE.md` — new opt-in section "Codex Primary Implementer (Experimental, Local)"
 
 **Live validations performed:**
-- PoC on gpt-5.4: status=pass, all tests passing
+- PoC on gpt-5.5: status=pass, all tests passing
 - PoC on gpt-5.5 via chatgpt backend-api route: status=pass
 - Dual-1 (task-dual-1, add --json): bugs #7/#8/#9/#11 surfaced, Claude won by default
 - Dual-2 (task-dual-2, add --sort-by): both sides PASS with valid diffs, Claude won on merit (logging-standards + style consistency + docstring quality)
@@ -200,13 +200,13 @@ pipeline-checkpoint-PLAN → IMPLEMENT_WAVE_1 → IMPLEMENT_WAVE_2 → POC_FAIL 
 - Fixed `codex-review.py` hook — v0.117.0 flags, structured logging, untracked files detection
 - Added Stop hook to `settings.json`
 - Updated `codex-integration.md` guide — v0.117.0 flags, Parallel Advisor architecture
-- Created `~/.codex/config.toml` (model=gpt-5.4)
+- Created `~/.codex/config.toml` (model=gpt-5.5)
 - Created 2 Codex global skills: `code-review-standards`, `project-conventions`
 - Deployed `cross-model-review` skill to main project + global (`~/.claude/skills/`)
 - Updated `~/.claude/skills/INDEX.md` with cross-model-review entry
 - Updated `~/.claude/CLAUDE.md` — Hard Rule #3, AUTO-BEHAVIORS, HARD CONSTRAINTS, triggers, knowledge
 - Fixed CLI flags in qa-validation-loop and verification-before-completion skills
-- E2E tested: structured JSON output from Codex gpt-5.4 works, schema validates
+- E2E tested: structured JSON output from Codex gpt-5.5 works, schema validates
 - Codex found real bug (untracked files invisible to hook) — fixed immediately
 - Used Agent Teams (5 parallel agents Wave 1, then Wave 2 sequential)
 - Fleet synced to 11 projects (6 parallel agents): 10 bots + Freelance — all verified OK
@@ -214,7 +214,7 @@ pipeline-checkpoint-PLAN → IMPLEMENT_WAVE_1 → IMPLEMENT_WAVE_2 → POC_FAIL 
 - Updated new-project template with all Codex files (hook, guide, schema, settings, skills)
 
 **Decisions:**
-- Model: always gpt-5.4 (user preference, Plus subscription)
+- Model: always gpt-5.5 (user preference, Plus subscription)
 - Codex = read-only verifier, NEVER modifies code
 - Stop hook REMOVED — was blocking UI for 60-90 seconds waiting for Codex response
 - Replaced with UserPromptSubmit hook (parallel, non-blocking) — `codex-parallel.py` runs in background on every user request, writes opinion to `.codex/reviews/parallel-opinion.md`

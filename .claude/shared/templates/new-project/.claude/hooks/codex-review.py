@@ -6,7 +6,7 @@ Two modes:
   2. CONTEXT OPINION: .codex/current-task.md exists → free-form Codex opinion on any task
 
 Codex CLI v0.117.0 flags:
-  --sandbox read-only, --full-auto, -m gpt-5.4,
+  --sandbox read-only, --full-auto, -m gpt-5.5,
   --output-schema FILE, -o FILE, --ephemeral
   NO --ask-for-approval (removed in v0.117.0)
 """
@@ -101,7 +101,7 @@ def run_code_review(project_dir, schema, out_dir, codex_bin="codex"):
         "Return JSON matching the schema.",
         "--sandbox", "read-only",
         "--full-auto",
-        "-m", "gpt-5.4",
+        "-m", "gpt-5.5",
         "--output-schema", str(schema),
         "-o", str(out_file),
         "--ephemeral",
@@ -141,7 +141,7 @@ def run_context_opinion(project_dir, context_text, codex_bin="codex"):
         codex_bin, "exec", prompt,
         "--sandbox", "read-only",
         "--full-auto",
-        "-m", "gpt-5.4",
+        "-m", "gpt-5.5",
         "-o", str(out_file),
         "--ephemeral",
     ]
@@ -252,7 +252,7 @@ def main():
                     output = {
                         "decision": "block",
                         "reason": (
-                            f"--- Codex gpt-5.4 Code Review ---\n"
+                            f"--- Codex gpt-5.5 Code Review ---\n"
                             f"Verdict: {verdict} | BLOCKERs: {len(blockers)} | IMPORTANTs: {important_count}\n"
                             f"{details}\n"
                             f"Read .codex/reviews/latest.json for full details. Fix blockers before completing.\n"
@@ -272,7 +272,7 @@ def main():
                     )
                     # Print as stderr info for Claude to see, but don't block
                     print(
-                        f"--- Codex gpt-5.4 Code Review ---\n"
+                        f"--- Codex gpt-5.5 Code Review ---\n"
                         f"Verdict: {verdict} | IMPORTANTs: {important_count}\n"
                         f"{important_summary}\n"
                         f"See .codex/reviews/latest.json for details\n---",
@@ -295,7 +295,7 @@ def main():
                 # Non-blocking: surface opinion as stderr info, NOT as block
                 logger.info("codex context opinion received (%d chars)", len(opinion))
                 print(
-                    f"--- Codex gpt-5.4 Opinion ---\n"
+                    f"--- Codex gpt-5.5 Opinion ---\n"
                     f"{opinion}\n"
                     f"---",
                     file=sys.stderr,

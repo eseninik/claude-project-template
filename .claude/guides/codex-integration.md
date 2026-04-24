@@ -153,7 +153,7 @@ git diff HEAD~1 | codex exec "Review this diff for bugs, security issues, and mi
 |--------|--------|-----------|----------|
 | Quick syntax/lint check | codex-mini-latest | Low | Fast |
 | Standard code review | gpt-5.3-codex | Medium | Medium |
-| Deep security/architecture | gpt-5.4 | High | Slow |
+| Deep security/architecture | gpt-5.5 | High | Slow |
 | Pre-commit hook | codex-mini-latest | Low | Fast |
 
 **Правило выбора:** начинай с `codex-mini-latest`, переключайся на `gpt-5.3-codex` для

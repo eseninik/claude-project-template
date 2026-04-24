@@ -108,7 +108,7 @@ def ask_via_exec(prompt):
         return None
     try:
         r = subprocess.run(
-            [codex, "exec", prompt[:3000], "-m", "gpt-5.4",
+            [codex, "exec", prompt[:3000], "-m", "gpt-5.5",
              "--sandbox", "read-only", "--full-auto", "--ephemeral"],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
             timeout=120,
@@ -150,7 +150,7 @@ def main():
         result = ask_via_exec(prompt)
 
     if result:
-        print(f"--- Codex gpt-5.4 opinion ---")
+        print(f"--- Codex gpt-5.5 opinion ---")
         print(result)
         print(f"---")
         # Mark as consulted for codex-gate.py

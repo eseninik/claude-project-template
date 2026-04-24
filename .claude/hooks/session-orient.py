@@ -157,7 +157,7 @@ def section_workspace_tree(cwd: Path) -> str:
 def codex_warmup(cwd: Path):
     """Launch Codex warm-up in background so first UserPromptSubmit has opinion ready.
 
-    Reads project context, sends it to Codex gpt-5.4 with a generic
+    Reads project context, sends it to Codex gpt-5.5 with a generic
     'review project state' prompt. Opinion is written to
     .codex/reviews/parallel-opinion.md — same file that codex-parallel.py uses.
     """
@@ -225,7 +225,7 @@ params = json.loads(params_path.read_text(encoding="utf-8"))
 prompt = pathlib.Path(params["prompt_file"]).read_text(encoding="utf-8")
 opinion_path = pathlib.Path(params["opinion_file"])
 log_path = pathlib.Path(params["log_file"])
-args = [params["codex_bin"], "exec", "-", "-m", "gpt-5.4",
+args = [params["codex_bin"], "exec", "-", "-m", "gpt-5.5",
         "-c", f"reasoning.effort={params['effort']}",
         "--full-auto", "--ephemeral",
         "-o", str(opinion_path)]

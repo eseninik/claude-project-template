@@ -66,7 +66,7 @@ def main():
 
         # Output opinion via BOTH channels for maximum visibility:
         # 1. stdout JSON — Claude sees this as structured hook output
-        opinion_block = f"--- Codex gpt-5.4 (parallel opinion) ---\n{content}\n---"
+        opinion_block = f"--- Codex gpt-5.5 (parallel opinion) ---\n{content}\n---"
         output = {"additionalContext": opinion_block}
         print(json.dumps(output, ensure_ascii=False))
         # 2. stderr — shows directly in terminal

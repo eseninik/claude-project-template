@@ -73,7 +73,7 @@ Check if bypass criteria are met. If yes, skip to Step 6.
 ```bash
 codex exec \
   "Review all uncommitted changes. Focus on correctness, security, performance, test coverage, and logging. Use AGENTS.md rubric. Return JSON matching the schema." \
-  -m gpt-5.4 \
+  -m gpt-5.5 \
   --sandbox read-only \
   --full-auto \
   --ephemeral \
@@ -85,7 +85,7 @@ codex exec \
 ```bash
 codex exec \
   "Review uncommitted changes for obvious bugs and security issues." \
-  -m gpt-5.4-mini \
+  -m gpt-5.5-mini \
   --sandbox read-only \
   --full-auto \
   --ephemeral
@@ -95,7 +95,7 @@ codex exec \
 ```bash
 codex exec \
   "Review all changes on current branch vs main. Focus on architecture, security, and edge cases." \
-  -m gpt-5.4 \
+  -m gpt-5.5 \
   --sandbox read-only \
   --full-auto \
   --ephemeral \
@@ -148,10 +148,10 @@ Cross-Model Review (Codex): [PASS/FAIL/SKIPPED]
 
 | Scenario | Model | Rationale |
 |----------|-------|-----------|
-| Pre-commit quick check | `gpt-5.4-mini` | Fast, cheap, catches obvious errors |
-| Standard code review | `gpt-5.4` | Good balance of depth and speed |
-| Security audit | `gpt-5.4` | Strong at finding vulnerabilities |
-| Architecture review | `gpt-5.4` | Best reasoning for complex decisions |
+| Pre-commit quick check | `gpt-5.5-mini` | Fast, cheap, catches obvious errors |
+| Standard code review | `gpt-5.5` | Good balance of depth and speed |
+| Security audit | `gpt-5.5` | Strong at finding vulnerabilities |
+| Architecture review | `gpt-5.5` | Best reasoning for complex decisions |
 
 ## Related
 

@@ -290,7 +290,7 @@ log_path = pathlib.Path(params["log_file"])
 
 args = [
     params["codex_bin"], "exec", "-",
-    "-m", "gpt-5.4",
+    "-m", "gpt-5.5",
     "-c", f"reasoning.effort={params['effort']}",
     "--sandbox", "read-only",
     "--full-auto", "--ephemeral",
@@ -399,7 +399,7 @@ def main():
         if previous_opinion:
             output = {
                 "additionalContext": (
-                    f"--- Codex gpt-5.4 (parallel advisor) ---\n"
+                    f"--- Codex gpt-5.5 (parallel advisor) ---\n"
                     f"{previous_opinion}\n"
                     f"--- end Codex opinion ---\n"
                     f"Consider this Codex opinion in your response. "

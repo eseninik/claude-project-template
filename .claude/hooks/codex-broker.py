@@ -125,7 +125,7 @@ def start_broker(project_dir):
     args = [
         codex_bin, "app-server",
         "--listen", BROKER_URL,
-        "-c", "model=gpt-5.4",
+        "-c", "model=gpt-5.5",
     ]
 
     logger.info("starting broker: %s", " ".join(args[:5]))
@@ -496,7 +496,7 @@ def handle_user_prompt(payload):
     if opinion:
         output = {
             "additionalContext": (
-                f"--- Codex gpt-5.4 (parallel advisor — BEFORE your work) ---\n"
+                f"--- Codex gpt-5.5 (parallel advisor — BEFORE your work) ---\n"
                 f"{opinion}\n"
                 f"--- end Codex opinion ---\n"
                 f"IMPORTANT: Consider this Codex opinion BEFORE you start working. "
@@ -516,7 +516,7 @@ def handle_stop(payload):
     opinion = read_opinion(project_dir, max_wait=OPINION_TIMEOUT)
 
     if opinion:
-        block = f"--- Codex gpt-5.4 (parallel opinion) ---\n{opinion}\n---"
+        block = f"--- Codex gpt-5.5 (parallel opinion) ---\n{opinion}\n---"
         # systemMessage — shown DIRECTLY to user in terminal (100% visible)
         output = {"systemMessage": block}
         print(json.dumps(output, ensure_ascii=False))

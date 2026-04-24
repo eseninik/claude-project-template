@@ -62,7 +62,7 @@ Our hooks run via `py -3` on Windows. Specific concerns:
 
 ### Codex Parallel Integration
 
-Codex gpt-5.4 runs as parallel reviewer on every request. Security considerations:
+Codex gpt-5.5 runs as parallel reviewer on every request. Security considerations:
 
 1. **Codex reads our code**: It runs in `--sandbox read-only` mode. It CANNOT modify files. But it reads them, including any secrets in the workspace.
    - **Mitigation**: Never store secrets in tracked files. `.env` + `.gitignore` always. The `--ephemeral` flag prevents Codex from persisting context.
