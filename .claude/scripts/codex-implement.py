@@ -546,14 +546,21 @@ def run_codex(
     worktree: Path,
     reasoning: str,
     timeout: int,
+    model: str = "gpt-5.4",
 ) -> CodexRunResult:
-    """Invoke `codex exec` in workspace-write mode. Returns structured result."""
+    """Invoke `codex exec` in workspace-write mode. Returns structured result.
+
+    Default model = "gpt-5.4" because as of 2026-04-24 the Codex CLI API path
+    does not yet serve "gpt-5.5" (it is available in ChatGPT / Codex-app but
+    gated for CLI). Override via --model flag once rollout reaches CLI.
+    """
     _log(
         logging.INFO,
         "entry: run_codex",
         worktree=str(worktree),
         reasoning=reasoning,
         timeout=timeout,
+        model=model,
         prompt_len=len(prompt),
     )
     try:
@@ -565,7 +572,7 @@ def run_codex(
             codex,
             "exec",
             "--model",
-            "gpt-5.5",
+            model,
             "--sandbox",
             "workspace-write",
             "--full-auto",
@@ -911,6 +918,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
                        help="Path to worktree dir (defaults to cwd)")
         p.add_argument("--reasoning", default=None, choices=["high", "medium", "low"],
                        help="Override frontmatter reasoning effort")
+        p.add_argument("--model", default="gpt-5.4",
+                       help="Codex model (default: gpt-5.4; switch to gpt-5.5 when CLI API rollout lands)")
         p.add_argument("--timeout", default=3600, type=int,
                        help="Timeout in seconds for codex exec (default 3600)")
         p.add_argument("--result-dir", default=Path("work/codex-implementations"), type=Path,
@@ -991,6 +1000,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             worktree=worktree,
             reasoning=task.frontmatter.get("reasoning", "high"),
             timeout=args.timeout,
+            model=args.model,
         )
 
         if codex_run.timed_out:
