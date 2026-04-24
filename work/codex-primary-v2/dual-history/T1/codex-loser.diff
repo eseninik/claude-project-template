@@ -1,0 +1,408 @@
+diff --git a/.claude/hooks/codex-delegate-enforcer.py b/.claude/hooks/codex-delegate-enforcer.py
+index a991c73..03bebbe 100644
+--- a/.claude/hooks/codex-delegate-enforcer.py
++++ b/.claude/hooks/codex-delegate-enforcer.py
+@@ -1,10 +1,396 @@
+ #!/usr/bin/env python3
+-"""Codex Delegate Enforcer — minimal bootstrap stub.
++"""Always-Dual Code Delegation Protocol PreToolUse enforcer."""
+ 
+-Full implementation pending via dual-implement in this session.
+-Current behavior: pass-through (exit 0) on every call so bootstrap
+-works. Once full implementation lands, this file is overwritten
+-with the real enforcer.
+-"""
++from __future__ import annotations
++
++import fnmatch
++import json
++import logging
++import os
++import re
+ import sys
+-sys.exit(0)
++import time
++from pathlib import Path
++from typing import Any, NamedTuple
++
++if sys.platform == "win32":
++    for stream in (sys.stdin, sys.stdout, sys.stderr):
++        if hasattr(stream, "reconfigure"):
++            stream.reconfigure(encoding="utf-8", errors="replace")
++
++LOGGER_NAME = "codex-delegate-enforcer"
++logger = logging.getLogger(LOGGER_NAME)
++
++CODE_EXTENSIONS: set[str] = {
++    ".py", ".pyi", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx",
++    ".sh", ".bash", ".zsh", ".go", ".rs", ".rb", ".java", ".kt",
++    ".swift", ".c", ".cpp", ".cc", ".h", ".hpp", ".cs", ".php",
++    ".sql", ".lua", ".r",
++}
++EXEMPT_PATH_PATTERNS: list[str] = [
++    ".claude/memory/**",
++    "work/**",
++    "CLAUDE.md",
++    "AGENTS.md",
++    "README.md",
++    "CHANGELOG.md",
++    "LICENSE",
++    ".gitignore",
++    ".claude/settings.json",
++    ".claude/ops/*.yaml",
++    ".mcp.json",
++    ".claude/adr/**/*.md",
++    ".claude/guides/**/*.md",
++    ".claude/skills/**/*.md",
++]
++EDIT_TOOLS = {"Edit", "Write", "MultiEdit"}
++RESULTS_RELATIVE_DIR = Path("work") / "codex-implementations"
++RESULT_GLOB = "task-*-result.md"
++RESULT_MAX_AGE_SECONDS = 15 * 60
++RESULT_SCAN_LIMIT = 50
++RECOVERY_HINT = (
++    "Use .claude/scripts/codex-inline-dual.py --describe \"...\" --scope <path> "
++    "for micro-task, or write work/<feature>/tasks/task-N.md and run "
++    "codex-implement.py. See CLAUDE.md \"Code Delegation Protocol\"."
++)
++STATUS_RE = re.compile(r"(?im)^\s*-\s*status\s*:\s*([^\s]+)\s*$")
++TASK_FILE_RE = re.compile(r"(?im)^\s*-\s*task_file\s*:\s*(.+?)\s*$")
++SCOPE_RE = re.compile(r"(?im)^##\s+Scope\s+Fence\s*$")
++NEXT_SECTION_RE = re.compile(r"(?m)^##\s+")
++ALLOWED_RE = re.compile(
++    r"(?is)allowed\s+paths[^\n]*\n(.+?)(?:\n\s*\*{0,2}forbidden|\n\s*##\s+|\Z)"
++)
++TRAILING_PAREN_RE = re.compile(r"\s*\([^)]*\)\s*$")
++GLOB_TAIL_RE = re.compile(r"(?:/)?\*\*?$")
++
++
++class TargetPath(NamedTuple):
++    raw: str
++    absolute: Path
++    relative: str
++
++
++class ResultSummary(NamedTuple):
++    found_recent: bool = False
++    found_fail_status: bool = False
++    found_scope_miss: bool = False
++
++
++class CoverDecision(NamedTuple):
++    allowed: bool
++    reason: str = "allowed"
++
++
++def _configure_logging() -> None:
++    logger.info("event=enter function=_configure_logging")
++    if logger.handlers:
++        logger.info("event=exit function=_configure_logging result=already-configured")
++        return
++    logger.setLevel(logging.INFO)
++    formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s")
++    stderr_handler = logging.StreamHandler(sys.stderr)
++    stderr_handler.setFormatter(formatter)
++    logger.addHandler(stderr_handler)
++    logs_dir = Path(os.environ.get("CLAUDE_PROJECT_DIR", ".")).resolve() / ".claude" / "logs"
++    try:
++        if logs_dir.is_dir() and os.access(logs_dir, os.W_OK):
++            file_handler = logging.FileHandler(
++                logs_dir / "codex-delegate-enforcer.log", encoding="utf-8"
++            )
++            file_handler.setFormatter(formatter)
++            logger.addHandler(file_handler)
++    except OSError:
++        logger.exception("event=error function=_configure_logging result=stderr-fallback")
++    logger.info("event=exit function=_configure_logging result=ok")
++
++
++def get_project_dir() -> Path:
++    logger.info("event=enter function=get_project_dir")
++    project_dir = Path(os.environ.get("CLAUDE_PROJECT_DIR", ".")).resolve()
++    logger.info("event=exit function=get_project_dir result=ok")
++    return project_dir
++
++
++def read_payload() -> dict[str, Any] | None:
++    logger.info("event=enter function=read_payload")
++    raw = sys.stdin.read()
++    if not raw.strip():
++        logger.info("event=exit function=read_payload result=empty")
++        return {}
++    payload = json.loads(raw)
++    if not isinstance(payload, dict):
++        logger.info("event=exit function=read_payload result=non-dict")
++        return None
++    logger.info("event=exit function=read_payload result=ok")
++    return payload
++
++
++def is_relevant_payload(payload: dict[str, Any] | None) -> bool:
++    logger.info("event=enter function=is_relevant_payload")
++    if not isinstance(payload, dict):
++        logger.info("event=exit function=is_relevant_payload result=false")
++        return False
++    relevant = (
++        payload.get("hook_event_name") == "PreToolUse"
++        and payload.get("tool_name") in EDIT_TOOLS
++    )
++    logger.info("event=exit function=is_relevant_payload result=%s", relevant)
++    return relevant
++
++
++def extract_target_paths(payload: dict[str, Any]) -> list[str]:
++    logger.info("event=enter function=extract_target_paths")
++    tool_name = payload.get("tool_name", "")
++    tool_input = payload.get("tool_input") or {}
++    if not isinstance(tool_input, dict):
++        logger.info("event=exit function=extract_target_paths result=0")
++        return []
++    paths: list[str] = []
++    if tool_name == "MultiEdit":
++        edits = tool_input.get("edits")
++        if isinstance(edits, list):
++            for edit in edits:
++                if isinstance(edit, dict) and isinstance(edit.get("file_path"), str):
++                    paths.append(edit["file_path"])
++        if not paths and isinstance(tool_input.get("file_path"), str):
++            paths.append(tool_input["file_path"])
++    elif isinstance(tool_input.get("file_path"), str):
++        paths.append(tool_input["file_path"])
++    unique_paths = list(dict.fromkeys(paths))
++    logger.info("event=exit function=extract_target_paths result=%d", len(unique_paths))
++    return unique_paths
++
++
++def resolve_target(project_dir: Path, raw_path: str) -> TargetPath | None:
++    logger.info("event=enter function=resolve_target")
++    if not raw_path:
++        logger.info("event=exit function=resolve_target result=empty")
++        return None
++    candidate = Path(raw_path)
++    if not candidate.is_absolute():
++        candidate = project_dir / candidate
++    resolved = candidate.resolve()
++    relative = resolved.relative_to(project_dir).as_posix()
++    logger.info("event=exit function=resolve_target result=ok")
++    return TargetPath(raw=raw_path, absolute=resolved, relative=relative)
++
++
++def is_exempt_target(target: TargetPath) -> bool:
++    logger.info("event=enter function=is_exempt_target")
++    if target.absolute.suffix.lower() not in CODE_EXTENSIONS:
++        logger.info("event=exit function=is_exempt_target result=true reason=non-code")
++        return True
++    relative = target.relative
++    for pattern in EXEMPT_PATH_PATTERNS:
++        prefix = pattern[:-3] if pattern.endswith("/**") else ""
++        if prefix and (relative == prefix or relative.startswith(prefix + "/")):
++            logger.info("event=exit function=is_exempt_target result=true reason=prefix")
++            return True
++        if fnmatch.fnmatchcase(relative, pattern):
++            logger.info("event=exit function=is_exempt_target result=true reason=pattern")
++            return True
++    logger.info("event=exit function=is_exempt_target result=false")
++    return False
++
++
++def parse_result_file(result_path: Path) -> tuple[str | None, Path | None]:
++    logger.info("event=enter function=parse_result_file")
++    text = result_path.read_text(encoding="utf-8", errors="replace")
++    status_match = STATUS_RE.search(text)
++    task_match = TASK_FILE_RE.search(text)
++    status = status_match.group(1).strip().lower() if status_match else None
++    task_file = None
++    if task_match:
++        task_value = task_match.group(1).strip().strip("`").strip()
++        task_file = Path(task_value)
++    logger.info("event=exit function=parse_result_file result=status-%s", status or "missing")
++    return status, task_file
++
++
++def parse_scope_fence(task_path: Path) -> list[str]:
++    logger.info("event=enter function=parse_scope_fence")
++    text = task_path.read_text(encoding="utf-8", errors="replace")
++    fence_match = SCOPE_RE.search(text)
++    if not fence_match:
++        logger.info("event=exit function=parse_scope_fence result=0")
++        return []
++    tail = text[fence_match.end():]
++    next_match = NEXT_SECTION_RE.search(tail)
++    section = tail[: next_match.start()] if next_match else tail
++    allowed_match = ALLOWED_RE.search(section)
++    if not allowed_match:
++        logger.info("event=exit function=parse_scope_fence result=0")
++        return []
++    entries: list[str] = []
++    for raw_line in allowed_match.group(1).splitlines():
++        line = raw_line.strip()
++        if not line.startswith("-"):
++            continue
++        entry = line.lstrip("-").strip().strip("`").strip()
++        entry = TRAILING_PAREN_RE.sub("", entry).strip().strip("`").strip()
++        if entry:
++            entries.append(entry.replace("\\", "/"))
++    logger.info("event=exit function=parse_scope_fence result=%d", len(entries))
++    return entries
++
++
++def resolve_fence_entry(project_dir: Path, entry: str) -> tuple[Path, bool] | None:
++    logger.info("event=enter function=resolve_fence_entry")
++    normalized = entry.replace("\\", "/").strip()
++    if not normalized:
++        logger.info("event=exit function=resolve_fence_entry result=empty")
++        return None
++    is_directory = normalized.endswith("/") or normalized.endswith("/**") or normalized.endswith("/*")
++    normalized = GLOB_TAIL_RE.sub("", normalized).rstrip("/")
++    if not normalized:
++        logger.info("event=exit function=resolve_fence_entry result=empty")
++        return None
++    entry_path = Path(normalized)
++    if not entry_path.is_absolute():
++        entry_path = project_dir / entry_path
++    resolved = entry_path.resolve()
++    resolved.relative_to(project_dir)
++    logger.info("event=exit function=resolve_fence_entry result=ok")
++    return resolved, is_directory
++
++
++def target_is_covered(project_dir: Path, target: TargetPath, entries: list[str]) -> bool:
++    logger.info("event=enter function=target_is_covered")
++    for entry in entries:
++        resolved_entry = resolve_fence_entry(project_dir, entry)
++        if resolved_entry is None:
++            continue
++        entry_path, is_directory = resolved_entry
++        if target.absolute == entry_path:
++            logger.info("event=exit function=target_is_covered result=true reason=exact")
++            return True
++        if is_directory:
++            try:
++                target.absolute.relative_to(entry_path)
++                logger.info("event=exit function=target_is_covered result=true reason=prefix")
++                return True
++            except ValueError:
++                logger.exception("event=error function=target_is_covered result=not-prefix")
++                continue
++    logger.info("event=exit function=target_is_covered result=false")
++    return False
++
++
++def recent_result_paths(project_dir: Path) -> list[tuple[Path, float]]:
++    logger.info("event=enter function=recent_result_paths")
++    results_dir = project_dir / RESULTS_RELATIVE_DIR
++    if not results_dir.is_dir():
++        logger.info("event=exit function=recent_result_paths result=missing-dir")
++        return []
++    paths: list[tuple[Path, float]] = []
++    for result_path in results_dir.glob(RESULT_GLOB):
++        resolved = result_path.resolve()
++        resolved.relative_to(project_dir)
++        paths.append((resolved, resolved.stat().st_mtime))
++    paths.sort(key=lambda item: item[1], reverse=True)
++    limited = paths[:RESULT_SCAN_LIMIT]
++    logger.info("event=exit function=recent_result_paths result=%d", len(limited))
++    return limited
++
++
++def check_target_cover(project_dir: Path, target: TargetPath) -> CoverDecision:
++    logger.info("event=enter function=check_target_cover")
++    now = time.time()
++    summary = ResultSummary()
++    all_results = recent_result_paths(project_dir)
++    if not all_results:
++        logger.info("event=exit function=check_target_cover result=no-cover")
++        return CoverDecision(False, "no-cover")
++    found_recent = False
++    found_fail_status = False
++    found_scope_miss = False
++    found_stale = False
++    for result_path, mtime in all_results:
++        age = now - mtime
++        if age >= RESULT_MAX_AGE_SECONDS:
++            found_stale = True
++            continue
++        found_recent = True
++        status, task_file = parse_result_file(result_path)
++        if status != "pass":
++            found_fail_status = True
++            continue
++        if task_file is None:
++            found_scope_miss = True
++            continue
++        if not task_file.is_absolute():
++            task_file = project_dir / task_file
++        task_path = task_file.resolve()
++        task_path.relative_to(project_dir)
++        entries = parse_scope_fence(task_path)
++        if target_is_covered(project_dir, target, entries):
++            logger.info("event=exit function=check_target_cover result=allowed")
++            return CoverDecision(True)
++        found_scope_miss = True
++    if found_scope_miss:
++        reason = "scope-miss"
++    elif found_fail_status:
++        reason = "fail-status"
++    elif found_stale or all_results:
++        reason = "stale" if not found_recent else "no-cover"
++    else:
++        reason = "no-cover"
++    summary = ResultSummary(found_recent, found_fail_status, found_scope_miss)
++    logger.info(
++        "event=exit function=check_target_cover result=%s recent=%s fail=%s miss=%s",
++        reason,
++        summary.found_recent,
++        summary.found_fail_status,
++        summary.found_scope_miss,
++    )
++    return CoverDecision(False, reason)
++
++
++def make_deny_output(target: TargetPath, reason: str) -> dict[str, Any]:
++    logger.info("event=enter function=make_deny_output")
++    message = f"Always-Dual blocked {target.relative}: {reason}. {RECOVERY_HINT}"
++    output = {
++        "hookSpecificOutput": {
++            "hookEventName": "PreToolUse",
++            "permissionDecision": "deny",
++            "permissionDecisionReason": message,
++        }
++    }
++    logger.info("event=exit function=make_deny_output result=ok")
++    return output
++
++
++def evaluate_payload(project_dir: Path, payload: dict[str, Any]) -> dict[str, Any] | None:
++    logger.info("event=enter function=evaluate_payload")
++    for raw_path in extract_target_paths(payload):
++        target = resolve_target(project_dir, raw_path)
++        if target is None or is_exempt_target(target):
++            continue
++        decision = check_target_cover(project_dir, target)
++        if not decision.allowed:
++            logger.info("event=exit function=evaluate_payload result=deny")
++            return make_deny_output(target, decision.reason)
++    logger.info("event=exit function=evaluate_payload result=allow")
++    return None
++
++
++def main() -> int:
++    _configure_logging()
++    logger.info("event=enter function=main")
++    try:
++        payload = read_payload()
++        if not is_relevant_payload(payload):
++            logger.info("event=exit function=main result=pass-through")
++            return 0
++        output = evaluate_payload(get_project_dir(), payload or {})
++        if output is not None:
++            print(json.dumps(output, ensure_ascii=False))
++        logger.info("event=exit function=main result=allow-or-deny")
++        return 0
++    except Exception:
++        logger.exception("event=error function=main result=fail-open")
++        return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())

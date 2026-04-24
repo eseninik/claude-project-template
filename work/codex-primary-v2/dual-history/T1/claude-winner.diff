@@ -1,0 +1,873 @@
+diff --git a/.claude/hooks/codex-delegate-enforcer.py b/.claude/hooks/codex-delegate-enforcer.py
+index a991c73..4f8f8f5 100644
+--- a/.claude/hooks/codex-delegate-enforcer.py
++++ b/.claude/hooks/codex-delegate-enforcer.py
+@@ -1,10 +1,447 @@
+ #!/usr/bin/env python3
+-"""Codex Delegate Enforcer — minimal bootstrap stub.
+-
+-Full implementation pending via dual-implement in this session.
+-Current behavior: pass-through (exit 0) on every call so bootstrap
+-works. Once full implementation lands, this file is overwritten
+-with the real enforcer.
++"""Codex Delegate Enforcer - Always-Dual PreToolUse hook (CLAUDE.md).
++Edit/Write/MultiEdit on a code file that is NOT exempt -> require a fresh
++(<15 min) work/codex-implementations/task-*-result.md with status=pass
++whose paired task-N.md Scope Fence covers the target. Missing cover ->
++deny via PreToolUse JSON. Fail-open on any exception.
+ """
++from __future__ import annotations
++import fnmatch
++import json
++import logging
++import os
++import re
+ import sys
+-sys.exit(0)
++import time
++from pathlib import Path
++from typing import Any, Iterable
++if sys.platform == "win32":
++    for _stream in (sys.stdin, sys.stdout, sys.stderr):
++        if hasattr(_stream, "reconfigure"):
++            _stream.reconfigure(encoding="utf-8", errors="replace")
++HOOK_NAME = "codex-delegate-enforcer"
++RESULT_MAX_AGE_SECONDS: int = 15 * 60
++MAX_RESULT_FILES_TO_SCAN: int = 50
++CODEX_IMPLEMENTATIONS_DIR = "work/codex-implementations"
++CODEX_TASKS_DIR = "work/codex-primary/tasks"
++# AC5 - delegated code extensions. Frozenset for O(1) lookup.
++CODE_EXTENSIONS: frozenset = frozenset({
++    ".py", ".pyi", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx",
++    ".sh", ".bash", ".zsh", ".go", ".rs", ".rb", ".java", ".kt",
++    ".swift", ".c", ".cpp", ".cc", ".h", ".hpp", ".cs", ".php",
++    ".sql", ".lua", ".r",
++})
++# AC6 - exempt path globs. Matched against POSIX relative path.
++EXEMPT_PATTERNS: tuple = (
++    ".claude/memory/**", "work/**", "CLAUDE.md", "AGENTS.md",
++    "README.md", "CHANGELOG.md", "LICENSE", ".gitignore",
++    ".claude/settings.json", ".claude/ops/*.yaml", ".mcp.json",
++    ".claude/adr/**/*.md", ".claude/guides/**/*.md",
++    ".claude/skills/**/*.md",
++)
++# AC14 - regex compiled at module scope.
++_STATUS_RE = re.compile(r"(?i)status\s*[:=]\s*([A-Za-z0-9_-]+)")
++_TASK_FILE_RE = re.compile(r"(?i)task[_\s-]*file\s*[:=]\s*(.+)")
++_SCOPE_FENCE_HEADING_RE = re.compile(r"(?im)^##\s+Scope\s+Fence\s*$")
++_NEXT_HEADING_RE = re.compile(r"(?m)^##\s+")
++_ALLOWED_SECTION_RE = re.compile(
++    r"(?is)allowed\s+paths[^\n]*\n(.+?)(?:\n\s*\*{0,2}forbidden|\Z)"
++)
++_TRAILING_PAREN_RE = re.compile(r"\s*\([^)]*\)\s*$")
++_GLOB_TAIL_RE = re.compile(r"/?\*+$")
++_RESULT_NAME_RE = re.compile(r"task-(.+?)-result\.md$")
++RECOVERY_HINT = (
++    "Use .claude/scripts/codex-inline-dual.py --describe \"...\" "
++    "--scope <path> for micro-task, or write work/<feature>/tasks/task-N.md "
++    "and run codex-implement.py. See CLAUDE.md \"Code Delegation Protocol\"."
++)
++
++def _build_logger(project_dir: Path) -> logging.Logger:
++    """Create enforcer logger: file if writable else stderr-only."""
++    logger = logging.getLogger(HOOK_NAME)
++    if logger.handlers:
++        return logger
++    logger.setLevel(logging.INFO)
++    fmt = logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s")
++    log_dir = project_dir / ".claude" / "logs"
++    file_ok = False
++    try:
++        log_dir.mkdir(parents=True, exist_ok=True)
++        fh = logging.FileHandler(log_dir / (HOOK_NAME + ".log"), encoding="utf-8")
++        fh.setFormatter(fmt)
++        logger.addHandler(fh)
++        file_ok = True
++    except OSError:
++        file_ok = False
++    sh = logging.StreamHandler(sys.stderr)
++    sh.setFormatter(fmt)
++    sh.setLevel(logging.WARNING if file_ok else logging.INFO)
++    logger.addHandler(sh)
++    logger.propagate = False
++    return logger
++
++def get_project_dir() -> Path:
++    """Resolve project root. Honors CLAUDE_PROJECT_DIR env."""
++    return Path(os.environ.get("CLAUDE_PROJECT_DIR", ".")).resolve()
++
++def resolve_target(project_dir: Path, target_raw: str):
++    """Normalize raw file_path to absolute Path inside project_dir."""
++    logger = logging.getLogger(HOOK_NAME)
++    if not target_raw:
++        return None
++    try:
++        p = Path(target_raw)
++        if not p.is_absolute():
++            p = project_dir / p
++        resolved = p.resolve()
++    except (OSError, ValueError) as exc:
++        logger.info("resolve_target.err raw=%r exc=%s", target_raw, exc)
++        return None
++    try:
++        resolved.relative_to(project_dir)
++    except ValueError:
++        logger.info("resolve_target.escape resolved=%s", resolved)
++        return None
++    return resolved
++
++def rel_posix(project_dir: Path, absolute: Path):
++    """POSIX-style project-relative path, or None if outside."""
++    try:
++        return absolute.relative_to(project_dir).as_posix()
++    except ValueError:
++        return None
++
++def is_code_extension(rel_path: str) -> bool:
++    """True iff extension is in the delegated code set."""
++    return Path(rel_path).suffix.lower() in CODE_EXTENSIONS
++
++def is_exempt(rel_path: str) -> bool:
++    """True iff rel_path matches any AC6 exempt glob."""
++    logger = logging.getLogger(HOOK_NAME)
++    for pattern in EXEMPT_PATTERNS:
++        if pattern.endswith("/**"):
++            prefix = pattern[:-3].rstrip("/")
++            if rel_path == prefix or rel_path.startswith(prefix + "/"):
++                logger.debug("is_exempt.match pattern=%s", pattern)
++                return True
++            continue
++        if "**" in pattern:
++            left, _, right = pattern.partition("**")
++            left = left.rstrip("/")
++            right = right.lstrip("/")
++            left_ok = (not left) or rel_path == left or rel_path.startswith(left + "/")
++            right_ok = (not right) or fnmatch.fnmatch(rel_path, "*" + right)
++            if left_ok and right_ok:
++                logger.debug("is_exempt.match pattern=%s (double-glob)", pattern)
++                return True
++            continue
++        if fnmatch.fnmatch(rel_path, pattern):
++            logger.debug("is_exempt.match pattern=%s", pattern)
++            return True
++    return False
++
++def requires_cover(rel_path: str) -> bool:
++    """True iff path needs a Codex cover to be editable."""
++    if not is_code_extension(rel_path):
++        return False
++    if is_exempt(rel_path):
++        return False
++    return True
++
++def _strip_md_markers(line: str) -> str:
++    """Strip leading bullets/quotes, surrounding bold/italic/backticks."""
++    s = line.lstrip(" \t-*>").strip()
++    return s.replace("**", "").replace("__", "").replace("`", "")
++
++def parse_result_fields(result_path: Path) -> dict:
++    """Extract ``status`` and ``task_file`` from a task-*-result.md."""
++    logger = logging.getLogger(HOOK_NAME)
++    out: dict = {}
++    try:
++        text = result_path.read_text(encoding="utf-8", errors="replace")
++    except OSError as exc:
++        logger.info("parse_result_fields.read_err path=%s exc=%s", result_path.name, exc)
++        return out
++    for raw in text.splitlines():
++        stripped = _strip_md_markers(raw)
++        if "status" not in out:
++            m = _STATUS_RE.match(stripped)
++            if m:
++                out["status"] = m.group(1).strip().lower()
++        if "task_file" not in out:
++            m2 = _TASK_FILE_RE.match(stripped)
++            if m2:
++                out["task_file"] = m2.group(1).strip().strip("`").strip()
++        if "status" in out and "task_file" in out:
++            break
++    return out
++
++def parse_scope_fence(task_path: Path) -> list:
++    """Extract ``Allowed paths`` entries from task-N.md Scope Fence."""
++    logger = logging.getLogger(HOOK_NAME)
++    try:
++        text = task_path.read_text(encoding="utf-8", errors="replace")
++    except OSError as exc:
++        logger.info("parse_scope_fence.read_err path=%s exc=%s", task_path.name, exc)
++        return []
++    heading = _SCOPE_FENCE_HEADING_RE.search(text)
++    if not heading:
++        return []
++    tail = text[heading.end():]
++    next_hdr = _NEXT_HEADING_RE.search(tail)
++    section = tail[: next_hdr.start()] if next_hdr else tail
++    allowed = _ALLOWED_SECTION_RE.search(section)
++    if not allowed:
++        return []
++    entries: list = []
++    for line in allowed.group(1).splitlines():
++        stripped = line.strip()
++        if not stripped.startswith("-"):
++            continue
++        entry = stripped.lstrip("-").strip().strip("`").strip()
++        entry = _TRAILING_PAREN_RE.sub("", entry).strip().strip("`").strip()
++        if not entry:
++            continue
++        entries.append(entry.replace("\\", "/").rstrip("/"))
++    return entries
++
++def path_in_fence(target_rel_posix: str, fence: Iterable) -> bool:
++    """True if target is covered by any fence entry."""
++    target = target_rel_posix.rstrip("/")
++    for raw_entry in fence:
++        if not raw_entry:
++            continue
++        simple = _GLOB_TAIL_RE.sub("", raw_entry).rstrip("/")
++        if not simple:
++            continue
++        if target == simple or target.startswith(simple + "/"):
++            return True
++    return False
++
++def _resolve_task_file(project_dir: Path, raw: str):
++    """Resolve a result.md task_file pointer to absolute Path."""
++    logger = logging.getLogger(HOOK_NAME)
++    if not raw:
++        return None
++    try:
++        p = Path(raw.strip())
++        if not p.is_absolute():
++            p = project_dir / p
++        return p.resolve()
++    except (OSError, ValueError) as exc:
++        logger.info("resolve_task_file.err raw=%r exc=%s", raw, exc)
++        return None
++
++def find_cover(project_dir: Path, target_rel_posix: str):
++    """Search recent result.md artefacts for one covering the target."""
++    logger = logging.getLogger(HOOK_NAME)
++    logger.info("find_cover.enter target=%s", target_rel_posix)
++    try:
++        results_dir = project_dir / CODEX_IMPLEMENTATIONS_DIR
++        if not results_dir.is_dir():
++            logger.info("find_cover.no-dir dir=%s", results_dir)
++            return False, "no-results-dir"
++        candidates: list = []
++        for rp in results_dir.glob("task-*-result.md"):
++            try:
++                candidates.append((rp.stat().st_mtime, rp))
++            except OSError:
++                continue
++        candidates.sort(key=lambda item: item[0], reverse=True)
++        candidates = candidates[:MAX_RESULT_FILES_TO_SCAN]
++        if not candidates:
++            logger.info("find_cover.no-results")
++            return False, "no-results"
++        now = time.time()
++        saw_fresh = False
++        saw_fresh_pass = False
++        best_reason = "stale"
++        for mtime, rpath in candidates:
++            age = now - mtime
++            if age > RESULT_MAX_AGE_SECONDS:
++                continue
++            saw_fresh = True
++            try:
++                rresolved = rpath.resolve()
++                rresolved.relative_to(project_dir)
++            except (OSError, ValueError):
++                logger.info("find_cover.symlink-escape path=%s", rpath.name)
++                continue
++            fields = parse_result_fields(rpath)
++            status = fields.get("status", "")
++            if status != "pass":
++                if status == "fail":
++                    best_reason = "fail-status"
++                logger.info("find_cover.skip path=%s status=%s age=%.1fs",
++                            rpath.name, status or "?", age)
++                continue
++            saw_fresh_pass = True
++            task_candidates: list = []
++            pointer = _resolve_task_file(project_dir, fields.get("task_file", ""))
++            if pointer is not None and pointer.is_file():
++                task_candidates.append(pointer)
++            name_match = _RESULT_NAME_RE.match(rpath.name)
++            if name_match:
++                task_id = name_match.group(1)
++                tdir = project_dir / CODEX_TASKS_DIR
++                if tdir.is_dir():
++                    for pattern in ("T" + task_id + "-*.md",
++                                    task_id + "-*.md",
++                                    "task-" + task_id + ".md",
++                                    "task-" + task_id + "-*.md"):
++                        task_candidates.extend(tdir.glob(pattern))
++            seen: set = set()
++            unique: list = []
++            for cand in task_candidates:
++                if cand not in seen:
++                    seen.add(cand)
++                    unique.append(cand)
++            if not unique:
++                logger.info("find_cover.no-task-file result=%s", rpath.name)
++                best_reason = "scope-miss"
++                continue
++            for tpath in unique:
++                fence = parse_scope_fence(tpath)
++                if not fence:
++                    logger.info("find_cover.empty-fence task=%s", tpath.name)
++                    continue
++                if path_in_fence(target_rel_posix, fence):
++                    logger.info("find_cover.MATCH target=%s result=%s task=%s age=%.1fs",
++                                target_rel_posix, rpath.name, tpath.name, age)
++                    return True, ""
++                logger.info("find_cover.scope-miss target=%s task=%s entries=%d",
++                            target_rel_posix, tpath.name, len(fence))
++                best_reason = "scope-miss"
++        if not saw_fresh:
++            reason = "stale"
++        elif saw_fresh_pass:
++            reason = "scope-miss"
++        else:
++            reason = best_reason
++        logger.info("find_cover.exit target=%s covered=False reason=%s",
++                    target_rel_posix, reason)
++        return False, reason
++    except Exception as exc:
++        logger.exception("find_cover.unexpected target=%s exc=%s", target_rel_posix, exc)
++        return False, "parse-error: " + str(exc)
++
++def extract_targets(payload: dict) -> list:
++    """Collect every file path this tool call intends to edit."""
++    if not isinstance(payload, dict):
++        return []
++    tool_name = payload.get("tool_name", "")
++    tool_input = payload.get("tool_input") or {}
++    if not isinstance(tool_input, dict):
++        return []
++    paths: list = []
++    if tool_name in {"Edit", "Write"}:
++        p = tool_input.get("file_path")
++        if isinstance(p, str) and p:
++            paths.append(p)
++    elif tool_name == "MultiEdit":
++        top_path = tool_input.get("file_path")
++        if isinstance(top_path, str) and top_path:
++            paths.append(top_path)
++        edits = tool_input.get("edits")
++        if isinstance(edits, list):
++            for edit in edits:
++                if not isinstance(edit, dict):
++                    continue
++                ep = edit.get("file_path")
++                if isinstance(ep, str) and ep:
++                    paths.append(ep)
++    seen: set = set()
++    unique: list = []
++    for p in paths:
++        if p not in seen:
++            seen.add(p)
++            unique.append(p)
++    return unique
++
++def emit_deny(blocked: str, reason_code: str) -> None:
++    """Print the PreToolUse deny JSON to stdout."""
++    logger = logging.getLogger(HOOK_NAME)
++    reason_text = {
++        "no-results": "no codex-implement result found",
++        "no-results-dir": "work/codex-implementations/ does not exist",
++        "stale": "all codex-implement results older than 15 min",
++        "fail-status": "most recent matching result has status != pass",
++        "scope-miss": "no recent pass result covers this path",
++        "parse-error": "could not parse codex-implement result",
++    }.get(reason_code, reason_code)
++    message = ("Code Delegation Protocol: " + blocked + " blocked ("
++               + reason_text + "). " + RECOVERY_HINT)
++    payload = {
++        "hookSpecificOutput": {
++            "hookEventName": "PreToolUse",
++            "permissionDecision": "deny",
++            "permissionDecisionReason": message,
++        }
++    }
++    logger.warning("emit_deny target=%s reason=%s", blocked, reason_code)
++    print(json.dumps(payload, ensure_ascii=False))
++
++def decide(payload: dict, project_dir: Path) -> bool:
++    """Core gate. True to allow; False after emitting deny."""
++    logger = logging.getLogger(HOOK_NAME)
++    event = payload.get("hook_event_name", "") if isinstance(payload, dict) else ""
++    tool_name = payload.get("tool_name", "") if isinstance(payload, dict) else ""
++    logger.info("decide.enter event=%s tool=%s", event, tool_name)
++    if event and event != "PreToolUse":
++        logger.info("decide.passthrough reason=non-PreToolUse event=%s", event)
++        return True
++    if tool_name not in {"Edit", "Write", "MultiEdit"}:
++        logger.info("decide.passthrough reason=non-edit-tool tool=%s", tool_name)
++        return True
++    raw_targets = extract_targets(payload)
++    if not raw_targets:
++        logger.info("decide.passthrough reason=no-targets")
++        return True
++    for raw in raw_targets:
++        abs_path = resolve_target(project_dir, raw)
++        if abs_path is None:
++            logger.info("decide.skip reason=unresolvable raw=%r", raw)
++            continue
++        rel = rel_posix(project_dir, abs_path)
++        if rel is None:
++            logger.info("decide.skip reason=outside-project path=%s", abs_path)
++            continue
++        if not requires_cover(rel):
++            logger.info("decide.allow-target rel=%s reason=exempt-or-non-code", rel)
++            continue
++        covered, reason = find_cover(project_dir, rel)
++        if not covered:
++            emit_deny(rel, reason)
++            logger.info("decide.exit target=%s allowed=False reason=%s", rel, reason)
++            return False
++        logger.info("decide.allow-target rel=%s reason=covered", rel)
++    logger.info("decide.exit allowed=True")
++    return True
++
++def main() -> int:
++    """Read JSON payload from stdin, run decide(), exit 0 always."""
++    project_dir = get_project_dir()
++    logger = _build_logger(project_dir)
++    logger.info("main.enter pid=%d", os.getpid())
++    try:
++        raw = sys.stdin.read()
++        if not raw.strip():
++            logger.info("main.empty-stdin passthrough")
++            return 0
++        try:
++            payload = json.loads(raw)
++        except json.JSONDecodeError as exc:
++            logger.info("main.malformed-json exc=%s", exc)
++            return 0
++        if not isinstance(payload, dict):
++            logger.info("main.non-dict-payload type=%s", type(payload).__name__)
++            return 0
++        decide(payload, project_dir)
++    except Exception as exc:
++        logger.exception("main.unexpected exc=%s", exc)
++    finally:
++        logger.info("main.exit")
++    return 0
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/.claude/hooks/test_codex_delegate_enforcer.py b/.claude/hooks/test_codex_delegate_enforcer.py
+new file mode 100644
+index 0000000..1261aba
+--- /dev/null
++++ b/.claude/hooks/test_codex_delegate_enforcer.py
+@@ -0,0 +1,407 @@
++#!/usr/bin/env python3
++"""Unit tests for codex-delegate-enforcer.py (task T1).
++
++Covers all 11 required cases from spec AC12:
++
++  1. exempt path (e.g., CLAUDE.md) -> allow
++  2. code file + NO recent result.md -> deny with JSON
++  3. code file + stale (> 15 min) result.md -> deny
++  4. code file + fresh status=pass result.md with covering fence -> allow
++  5. code file + fresh pass result.md but fence does NOT cover target -> deny
++  6. code file + fresh status=fail result.md -> deny
++  7. non-code file (.txt, .md) -> allow
++  8. MultiEdit with multiple files, all covered -> allow
++  9. MultiEdit with one file uncovered -> deny
++ 10. malformed result.md / corrupt JSON payload -> pass-through (no crash)
++ 11. hook called on non-Edit event (e.g., Bash) -> pass-through
++
++Each test isolates state under a temporary CLAUDE_PROJECT_DIR so
++production .codex/ and work/ directories are never touched.
++"""
++
++from __future__ import annotations
++
++import importlib.util
++import json
++import os
++import shutil
++import subprocess
++import sys
++import tempfile
++import time
++import unittest
++from pathlib import Path
++
++HERE = Path(__file__).resolve().parent
++ENFORCER_PATH = HERE / "codex-delegate-enforcer.py"
++
++
++def _load_module():
++    """Import codex-delegate-enforcer.py as a module (hyphen in filename)."""
++    spec = importlib.util.spec_from_file_location(
++        "codex_delegate_enforcer", ENFORCER_PATH
++    )
++    module = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(module)
++    return module
++
++
++class BaseEnforcerTest(unittest.TestCase):
++    """Shared fixture: isolated project root with results + tasks dirs."""
++
++    def setUp(self) -> None:
++        self.tmpdir = tempfile.mkdtemp(prefix="codex-enforcer-test-")
++        self.root = Path(self.tmpdir).resolve()
++        (self.root / ".claude" / "hooks").mkdir(parents=True)
++        (self.root / "work" / "codex-primary" / "tasks").mkdir(parents=True)
++        (self.root / "work" / "codex-implementations").mkdir(parents=True)
++        # Target file the tool call "would edit"
++        self.target_rel = ".claude/hooks/my_hook.py"
++        (self.root / ".claude" / "hooks" / "my_hook.py").write_text(
++            "# placeholder\n", encoding="utf-8"
++        )
++
++    def tearDown(self) -> None:
++        shutil.rmtree(self.tmpdir, ignore_errors=True)
++
++    # ----- subprocess invocation helpers -----
++
++    def _run_enforcer(self, payload):
++        """Invoke enforcer as subprocess; return (exit_code, stdout, stderr)."""
++        env = {**os.environ, "CLAUDE_PROJECT_DIR": str(self.root)}
++        result = subprocess.run(
++            [sys.executable, str(ENFORCER_PATH)],
++            input=json.dumps(payload),
++            capture_output=True, text=True,
++            encoding="utf-8", errors="replace",
++            env=env, timeout=30,
++        )
++        return result.returncode, result.stdout, result.stderr
++
++    # ----- fixture helpers -----
++
++    def _write_task(self, task_id: str, fence_paths: list) -> Path:
++        """Write a task-N.md with given Scope Fence allowed paths."""
++        task_file = self.root / "work" / "codex-primary" / "tasks" / (
++            "T" + task_id + "-test.md"
++        )
++        fence_block = "\n".join("- `" + p + "`" for p in fence_paths)
++        task_file.write_text(
++            "---\nexecutor: codex\n---\n\n"
++            "# Task T" + task_id + "\n\n"
++            "## Your Task\ntest\n\n"
++            "## Scope Fence\n"
++            "**Allowed paths (may be written):**\n"
++            + fence_block + "\n\n"
++            "**Forbidden paths:**\n- other/\n\n"
++            "## Acceptance Criteria\n- [ ] AC1\n",
++            encoding="utf-8",
++        )
++        return task_file
++
++    def _write_result(self, task_id: str, status: str, age_seconds: float = 0) -> Path:
++        """Write a task-N-result.md with given status and optional mtime offset."""
++        result_file = self.root / "work" / "codex-implementations" / (
++            "task-" + task_id + "-result.md"
++        )
++        task_file_rel = "work/codex-primary/tasks/T" + task_id + "-test.md"
++        result_file.write_text(
++            "# Result T" + task_id + "\n\n"
++            "- status: " + status + "\n"
++            "- task_file: " + task_file_rel + "\n\n"
++            "## Diff\n(none)\n",
++            encoding="utf-8",
++        )
++        if age_seconds > 0:
++            old = time.time() - age_seconds
++            os.utime(result_file, (old, old))
++        return result_file
++
++    def _edit_payload(self, file_path: str) -> dict:
++        return {
++            "hook_event_name": "PreToolUse",
++            "tool_name": "Edit",
++            "tool_input": {
++                "file_path": file_path,
++                "old_string": "a",
++                "new_string": "b",
++            },
++        }
++
++    def _write_payload(self, file_path: str) -> dict:
++        return {
++            "hook_event_name": "PreToolUse",
++            "tool_name": "Write",
++            "tool_input": {"file_path": file_path, "content": "x"},
++        }
++
++    def _multiedit_payload(self, paths: list) -> dict:
++        return {
++            "hook_event_name": "PreToolUse",
++            "tool_name": "MultiEdit",
++            "tool_input": {
++                "edits": [
++                    {"file_path": p, "old_string": "a", "new_string": "b"}
++                    for p in paths
++                ],
++            },
++        }
++
++    # ----- response assertions -----
++
++    def _assert_allow(self, code: int, stdout: str, stderr: str) -> None:
++        self.assertEqual(code, 0, msg="expected exit 0. stderr=" + stderr)
++        # No deny JSON in stdout.
++        if stdout.strip():
++            try:
++                parsed = json.loads(stdout)
++                decision = (
++                    parsed.get("hookSpecificOutput", {})
++                    .get("permissionDecision")
++                )
++                self.assertNotEqual(
++                    decision, "deny", msg="unexpected deny JSON: " + stdout
++                )
++            except json.JSONDecodeError:
++                pass  # non-JSON stdout is fine
++
++    def _assert_deny(self, code: int, stdout: str, stderr: str) -> None:
++        self.assertEqual(code, 0, msg="expected exit 0 (deny via JSON). stderr=" + stderr)
++        self.assertTrue(stdout.strip(), msg="expected deny JSON on stdout")
++        parsed = json.loads(stdout)
++        decision = parsed["hookSpecificOutput"]["permissionDecision"]
++        self.assertEqual(decision, "deny")
++        reason = parsed["hookSpecificOutput"]["permissionDecisionReason"]
++        self.assertIn("Code Delegation Protocol", reason)
++
++
++class TestAC12Cases(BaseEnforcerTest):
++    """The 10 scenarios enumerated in AC12 plus the non-Edit pass-through."""
++
++    def test_01_exempt_path_allow(self) -> None:
++        """AC12.1: exempt path (CLAUDE.md) -> allow."""
++        code, out, err = self._run_enforcer(self._write_payload("CLAUDE.md"))
++        self._assert_allow(code, out, err)
++
++    def test_02_code_no_result_deny(self) -> None:
++        """AC12.2: code file + NO recent result.md -> deny with JSON."""
++        code, out, err = self._run_enforcer(self._edit_payload(self.target_rel))
++        self._assert_deny(code, out, err)
++
++    def test_03_stale_result_deny(self) -> None:
++        """AC12.3: code file + stale (> 15 min) result.md -> deny."""
++        self._write_task("3", [self.target_rel])
++        self._write_result("3", "pass", age_seconds=20 * 60)  # 20 min old
++        code, out, err = self._run_enforcer(self._edit_payload(self.target_rel))
++        self._assert_deny(code, out, err)
++
++    def test_04_covered_pass_allow(self) -> None:
++        """AC12.4: code file + fresh pass result.md with covering fence -> allow."""
++        self._write_task("4", [self.target_rel])
++        self._write_result("4", "pass")
++        code, out, err = self._run_enforcer(self._edit_payload(self.target_rel))
++        self._assert_allow(code, out, err)
++
++    def test_05_uncovered_pass_deny(self) -> None:
++        """AC12.5: fresh pass, fence does NOT cover target -> deny."""
++        self._write_task("5", ["other/unrelated.py"])
++        self._write_result("5", "pass")
++        code, out, err = self._run_enforcer(self._edit_payload(self.target_rel))
++        self._assert_deny(code, out, err)
++
++    def test_06_fail_status_deny(self) -> None:
++        """AC12.6: fresh status=fail result.md -> deny."""
++        self._write_task("6", [self.target_rel])
++        self._write_result("6", "fail")
++        code, out, err = self._run_enforcer(self._edit_payload(self.target_rel))
++        self._assert_deny(code, out, err)
++
++    def test_07_non_code_file_allow(self) -> None:
++        """AC12.7: non-code file (.txt, .md) -> allow."""
++        for suffix in (".txt", ".md"):
++            notes = ".claude/hooks/notes" + suffix
++            (self.root / notes).write_text("x", encoding="utf-8")
++            code, out, err = self._run_enforcer(self._write_payload(notes))
++            self._assert_allow(code, out, err)
++
++    def test_08_multiedit_all_covered_allow(self) -> None:
++        """AC12.8: MultiEdit with multiple files, all covered -> allow."""
++        a = ".claude/hooks/a.py"
++        b = ".claude/hooks/b.py"
++        (self.root / a).write_text("# a\n", encoding="utf-8")
++        (self.root / b).write_text("# b\n", encoding="utf-8")
++        self._write_task("8", [".claude/hooks/"])
++        self._write_result("8", "pass")
++        code, out, err = self._run_enforcer(self._multiedit_payload([a, b]))
++        self._assert_allow(code, out, err)
++
++    def test_09_multiedit_one_uncovered_deny(self) -> None:
++        """AC12.9: MultiEdit with one file uncovered -> deny."""
++        a = ".claude/hooks/a.py"
++        b = "src/uncovered.py"
++        (self.root / a).write_text("# a\n", encoding="utf-8")
++        (self.root / "src").mkdir(parents=True)
++        (self.root / b).write_text("# b\n", encoding="utf-8")
++        self._write_task("9", [".claude/hooks/"])
++        self._write_result("9", "pass")
++        code, out, err = self._run_enforcer(self._multiedit_payload([a, b]))
++        self._assert_deny(code, out, err)
++
++    def test_10a_malformed_result_passthrough(self) -> None:
++        """AC12.10a: malformed result.md -> no crash, handled gracefully."""
++        # Write a recent file but with completely corrupt body.
++        result_file = self.root / "work" / "codex-implementations" / (
++            "task-10-result.md"
++        )
++        result_file.write_bytes(b"\x00\x01\xff garbage no fields here")
++        code, out, err = self._run_enforcer(self._edit_payload(self.target_rel))
++        # No crash: exit 0. Since no fence covers target, it is denied -
++        # the point is the script didn't blow up (no traceback in stderr).
++        self.assertEqual(code, 0)
++        self.assertNotIn("Traceback", err)
++
++    def test_10b_corrupt_json_payload_passthrough(self) -> None:
++        """AC12.10b: corrupt JSON payload -> pass-through, no crash, exit 0."""
++        env = {**os.environ, "CLAUDE_PROJECT_DIR": str(self.root)}
++        result = subprocess.run(
++            [sys.executable, str(ENFORCER_PATH)],
++            input="{this-is-not-json",
++            capture_output=True, text=True,
++            encoding="utf-8", errors="replace",
++            env=env, timeout=30,
++        )
++        self.assertEqual(result.returncode, 0)
++        self.assertEqual(result.stdout.strip(), "")
++        self.assertNotIn("Traceback", result.stderr)
++
++    def test_11_non_edit_event_passthrough(self) -> None:
++        """AC12.11: non-Edit tool (Bash) -> pass-through (exit 0, no deny)."""
++        payload = {
++            "hook_event_name": "PreToolUse",
++            "tool_name": "Bash",
++            "tool_input": {"command": "ls"},
++        }
++        code, out, err = self._run_enforcer(payload)
++        self.assertEqual(code, 0)
++        self.assertEqual(out.strip(), "")
++
++
++class TestHelpers(unittest.TestCase):
++    """Direct unit tests of helper functions (no subprocess)."""
++
++    @classmethod
++    def setUpClass(cls) -> None:
++        cls.mod = _load_module()
++
++    def test_is_code_extension_positive(self) -> None:
++        for p in ("a.py", "x/y/z.js", "lib/mod.rs", "s.cpp", "x.SQL"):
++            self.assertTrue(self.mod.is_code_extension(p), p)
++
++    def test_is_code_extension_negative(self) -> None:
++        for p in ("README.md", "doc.txt", "config.yaml", "a.json", "b"):
++            self.assertFalse(self.mod.is_code_extension(p), p)
++
++    def test_is_exempt_memory_star_star(self) -> None:
++        self.assertTrue(self.mod.is_exempt(".claude/memory/activeContext.md"))
++        self.assertTrue(self.mod.is_exempt(".claude/memory/daily/2026-04-24.md"))
++
++    def test_is_exempt_top_level_files(self) -> None:
++        for p in ("CLAUDE.md", "AGENTS.md", "README.md", ".gitignore", "LICENSE"):
++            self.assertTrue(self.mod.is_exempt(p), p)
++
++    def test_is_exempt_guides_skills_adr(self) -> None:
++        self.assertTrue(self.mod.is_exempt(".claude/adr/adr-001.md"))
++        self.assertTrue(self.mod.is_exempt(".claude/guides/foo.md"))
++        self.assertTrue(self.mod.is_exempt(".claude/skills/bar/SKILL.md"))
++
++    def test_is_exempt_negative(self) -> None:
++        self.assertFalse(self.mod.is_exempt(".claude/hooks/my_hook.py"))
++        self.assertFalse(self.mod.is_exempt("src/main.py"))
++
++    def test_requires_cover_positive(self) -> None:
++        self.assertTrue(self.mod.requires_cover(".claude/hooks/x.py"))
++        self.assertTrue(self.mod.requires_cover("src/main.ts"))
++
++    def test_requires_cover_negative_non_code(self) -> None:
++        self.assertFalse(self.mod.requires_cover("docs/readme.md"))
++
++    def test_requires_cover_negative_exempt(self) -> None:
++        # .claude/skills/**/*.md is exempt, and .md is non-code anyway.
++        self.assertFalse(self.mod.requires_cover("CLAUDE.md"))
++        # work/** is exempt even for .py.
++        self.assertFalse(self.mod.requires_cover("work/scripts/helper.py"))
++
++    def test_path_in_fence_exact_file(self) -> None:
++        self.assertTrue(self.mod.path_in_fence("a/b/c.py", ["a/b/c.py"]))
++
++    def test_path_in_fence_dir_prefix(self) -> None:
++        self.assertTrue(self.mod.path_in_fence("a/b/c.py", ["a/b"]))
++        self.assertTrue(self.mod.path_in_fence("a/b/c.py", ["a/b/"]))
++
++    def test_path_in_fence_no_partial_segment(self) -> None:
++        self.assertFalse(self.mod.path_in_fence("a/bb/c.py", ["a/b"]))
++
++    def test_path_in_fence_strips_trailing_globs(self) -> None:
++        self.assertTrue(self.mod.path_in_fence("a/b/c.py", ["a/b/**"]))
++        self.assertTrue(self.mod.path_in_fence("a/b/c.py", ["a/b/*"]))
++
++    def test_parse_result_fields_status_pass(self) -> None:
++        with tempfile.NamedTemporaryFile(
++            "w", suffix=".md", delete=False, encoding="utf-8"
++        ) as fh:
++            fh.write("# result\n\n- status: pass\n- task_file: t.md\n")
++            p = Path(fh.name)
++        try:
++            fields = self.mod.parse_result_fields(p)
++            self.assertEqual(fields.get("status"), "pass")
++            self.assertEqual(fields.get("task_file"), "t.md")
++        finally:
++            p.unlink()
++
++    def test_parse_scope_fence_strips_backticks_and_annotations(self) -> None:
++        with tempfile.NamedTemporaryFile(
++            "w", suffix=".md", delete=False, encoding="utf-8"
++        ) as fh:
++            fh.write(
++                "# Task\n\n"
++                "## Scope Fence\n"
++                "**Allowed paths (may be written):**\n"
++                "- `.claude/hooks/x.py` (new)\n"
++                "- `.claude/hooks/test_x.py`\n\n"
++                "**Forbidden paths:**\n- else/\n\n## Next\n"
++            )
++            p = Path(fh.name)
++        try:
++            fence = self.mod.parse_scope_fence(p)
++            self.assertIn(".claude/hooks/x.py", fence)
++            self.assertIn(".claude/hooks/test_x.py", fence)
++        finally:
++            p.unlink()
++
++    def test_extract_targets_edit(self) -> None:
++        paths = self.mod.extract_targets({
++            "tool_name": "Edit",
++            "tool_input": {"file_path": "a.py", "old_string": "x", "new_string": "y"},
++        })
++        self.assertEqual(paths, ["a.py"])
++
++    def test_extract_targets_multiedit(self) -> None:
++        paths = self.mod.extract_targets({
++            "tool_name": "MultiEdit",
++            "tool_input": {
++                "edits": [
++                    {"file_path": "a.py", "old_string": "x", "new_string": "y"},
++                    {"file_path": "b.py", "old_string": "x", "new_string": "y"},
++                ],
++            },
++        })
++        self.assertEqual(sorted(paths), ["a.py", "b.py"])
++
++    def test_extract_targets_missing_is_empty(self) -> None:
++        self.assertEqual(self.mod.extract_targets({}), [])
++        self.assertEqual(self.mod.extract_targets({"tool_name": "Edit"}), [])
++        self.assertEqual(self.mod.extract_targets(None), [])
++
++
++if __name__ == "__main__":
++    unittest.main(verbosity=2)
+\ No newline at end of file

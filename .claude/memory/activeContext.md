@@ -367,6 +367,21 @@ pipeline-checkpoint-PLAN → IMPLEMENT_WAVE_1 → IMPLEMENT_WAVE_2 → POC_FAIL 
 
 ## Auto-Generated Summaries
 
+### 2026-04-24 18:41 (commit `7fa7e6c`)
+**Message:** codex-primary-v2: DUAL_TEAMS phase doc + AGENTS.md dual contract notice
+**Files:** 2
+
+
+### 2026-04-24 18:39 (commit `0625fa0`)
+**Message:** codex-primary-v2: bootstrap enforcer stub + T1 full spec
+**Files:** 2
+
+
+### 2026-04-24 18:35 (commit `523ee6c`)
+**Message:** codex-primary-v2: CLAUDE.md — Always-Dual protocol (MANDATORY, blocking)
+**Files:** 1
+
+
 ### 2026-04-24 17:24 (commit `b5e1bad`)
 **Message:** wave-smoke: 2 tiny task specs for codex-wave.py parallel live test
 **Files:** 2
