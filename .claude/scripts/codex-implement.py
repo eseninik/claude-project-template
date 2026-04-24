@@ -568,6 +568,9 @@ def run_codex(
         if not codex:
             raise RuntimeError("codex CLI not found in PATH")
 
+        # Pass prompt via stdin (not argv) — multi-KB prompts with markdown special
+        # chars get mangled through Windows cmd.exe when invoking the codex.CMD
+        # wrapper. `codex exec` reads stdin when prompt arg is absent or equals '-'.
         cmd = [
             codex,
             "exec",
@@ -578,13 +581,14 @@ def run_codex(
             "--full-auto",
             "--cd",
             str(worktree.resolve()),
-            prompt,
+            "-",
         ]
-        _log(logging.INFO, "codex cmd", argv_head=cmd[:9])
+        _log(logging.INFO, "codex cmd", argv_head=cmd[:9], prompt_via="stdin")
 
         try:
             proc = subprocess.run(
                 cmd,
+                input=prompt,
                 check=False,
                 capture_output=True,
                 text=True,
