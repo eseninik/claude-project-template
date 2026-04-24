@@ -367,6 +367,21 @@ pipeline-checkpoint-PLAN → IMPLEMENT_WAVE_1 → IMPLEMENT_WAVE_2 → POC_FAIL 
 
 ## Auto-Generated Summaries
 
+### 2026-04-24 17:24 (commit `b5e1bad`)
+**Message:** wave-smoke: 2 tiny task specs for codex-wave.py parallel live test
+**Files:** 2
+
+
+### 2026-04-24 17:22 (commit `1dd89dd`)
+**Message:** codex-primary: automated iteration memory via --iterate-from
+**Files:** 2
+
+
+### 2026-04-24 16:52 (commit `83d564f`)
+**Message:** pipeline: mark PROOF_OF_CONCEPT status PASS (was stale PENDING)
+**Files:** 1
+
+
 ### 2026-04-24 16:47 (commit `995c5ff`)
 **Message:** codex-primary: speed layer + AGENTS.md shared context
 **Files:** 2
