@@ -1,0 +1,104 @@
+diff --git a/.claude/hooks/codex-gate.py b/.claude/hooks/codex-gate.py
+index ff66c1d..3f7b995 100644
+--- a/.claude/hooks/codex-gate.py
++++ b/.claude/hooks/codex-gate.py
+@@ -50,6 +50,30 @@ def get_project_dir():
+     return Path(os.environ.get("CLAUDE_PROJECT_DIR", ".")).resolve()
+ 
+ 
++def is_dual_teams_worktree(project_dir: Path) -> bool:
++    """True iff project_dir or any ancestor contains .dual-base-ref."""
++    current = project_dir
++    seen: set[Path] = set()
++    while True:
++        try:
++            resolved = current.resolve()
++        except OSError:
++            resolved = current.absolute()
++        if resolved in seen:
++            return False
++        seen.add(resolved)
++        sentinel = current / ".dual-base-ref"
++        try:
++            if sentinel.is_file():
++                return True
++        except OSError:
++            pass
++        parent = current.parent
++        if parent == current:
++            return False
++        current = parent
++
++
+ def get_last_codex_time(project_dir):
+     """Check when Codex was last consulted."""
+     opinion_file = project_dir / ".codex" / "reviews" / "parallel-opinion.md"
+@@ -420,11 +444,18 @@ def handle_pre_tool_use(payload):
+     """Block Edit/Write if Codex wasn't consulted recently."""
+     project_dir = get_project_dir()
+ 
+-    # Only gate Edit and Write
++    # Only gate Edit, Write, and MultiEdit
+     tool_name = ""
+     if isinstance(payload, dict):
+         tool_name = payload.get("tool_name", "")
+ 
++    if tool_name not in ("Edit", "Write", "MultiEdit"):
++        sys.exit(0)
++
++    if is_dual_teams_worktree(project_dir):
++        logger.info("gate.passthrough reason=dual-teams-worktree project=%s", project_dir)
++        sys.exit(0)
++
+     if tool_name not in ("Edit", "Write"):
+         sys.exit(0)
+ 
+diff --git a/.claude/hooks/test_codex_gate.py b/.claude/hooks/test_codex_gate.py
+index 15333d7..8d90118 100644
+--- a/.claude/hooks/test_codex_gate.py
++++ b/.claude/hooks/test_codex_gate.py
+@@ -175,6 +175,15 @@ class TestGateDecisions(BaseGateTest):
+         # No fresh codex-ask either -> block (old behavior).
+         self.assertEqual(code, 2, msg=f"expected block, got stderr:\n{stderr}")
+ 
++    def test_dual_teams_worktree_allows_stale_codex_ask(self):
++        """Dual-teams sentinel bypasses cooldown that would otherwise block."""
++        (self.root / ".dual-base-ref").write_text("main\n", encoding="utf-8")
++        ts = self.root / ".codex" / "last-consulted"
++        ts.write_text(str(time.time() - 600), encoding="utf-8")
++        code, stderr = self._run_gate(self._payload(self.target_rel))
++        self.assertEqual(code, 0, msg=f"expected allow, got stderr:\n{stderr}")
++        self.assertIn("dual-teams-worktree", stderr)
++
+ 
+ class TestParsingHelpers(unittest.TestCase):
+     """Unit-level tests for parse helpers (do not spawn subprocess)."""
+@@ -251,6 +260,28 @@ class TestParsingHelpers(unittest.TestCase):
+         finally:
+             p.unlink()
+ 
++    def test_dual_teams_worktree_sentinel_in_project_dir(self):
++        import tempfile
++        with tempfile.TemporaryDirectory() as tmpdir:
++            project_dir = Path(tmpdir).resolve()
++            (project_dir / ".dual-base-ref").write_text("main\n", encoding="utf-8")
++            self.assertTrue(self.gate.is_dual_teams_worktree(project_dir))
++
++    def test_dual_teams_worktree_sentinel_in_parent_dir(self):
++        import tempfile
++        with tempfile.TemporaryDirectory() as tmpdir:
++            root = Path(tmpdir).resolve()
++            nested = root / "a" / "b" / "c"
++            nested.mkdir(parents=True)
++            (root / ".dual-base-ref").write_text("main\n", encoding="utf-8")
++            self.assertTrue(self.gate.is_dual_teams_worktree(nested))
++
++    def test_dual_teams_worktree_absent_sentinel(self):
++        import tempfile
++        with tempfile.TemporaryDirectory() as tmpdir:
++            project_dir = Path(tmpdir).resolve()
++            self.assertFalse(self.gate.is_dual_teams_worktree(project_dir))
++
+ 
+ if __name__ == "__main__":
+     unittest.main(verbosity=2)
