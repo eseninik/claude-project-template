@@ -449,6 +449,14 @@ def decide(payload: dict, project_dir: Path) -> bool:
         if not requires_cover(rel):
             logger.info("decide.allow-target rel=%s reason=exempt-or-non-code", rel)
             continue
+        # Y11: target path inside a dual-teams worktree -> auto-allow.
+        # Catches the case where sub-agent's CLAUDE_PROJECT_DIR is main (not
+        # the worktree), so the early is_dual_teams_worktree(project_dir) at
+        # decide() entry returns False, but the target's ancestors do hold
+        # the .dual-base-ref sentinel.
+        if is_dual_teams_worktree(abs_path):
+            logger.info("decide.allow-target rel=%s reason=dual-teams-target abs=%s", rel, abs_path)
+            continue
         covered, reason = find_cover(project_dir, rel)
         if not covered:
             emit_deny(rel, reason)

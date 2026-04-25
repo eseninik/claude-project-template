@@ -456,6 +456,25 @@ def handle_pre_tool_use(payload):
         logger.info("gate.passthrough reason=dual-teams-worktree project=%s", project_dir)
         sys.exit(0)
 
+    # Y11: target path inside a dual-teams worktree -> auto-allow.
+    # When sub-agent's CLAUDE_PROJECT_DIR is main_project (not the worktree),
+    # the project_dir sentinel walk misses; walking the target file's
+    # ancestors catches the sentinel.
+    target_raw_y11 = _extract_target_path(payload)
+    if target_raw_y11:
+        try:
+            target_p_y11 = Path(target_raw_y11)
+            if not target_p_y11.is_absolute():
+                target_p_y11 = project_dir / target_p_y11
+            if is_dual_teams_worktree(target_p_y11):
+                logger.info(
+                    "gate.passthrough reason=dual-teams-target target=%s",
+                    target_p_y11,
+                )
+                sys.exit(0)
+        except (OSError, ValueError) as exc:
+            logger.debug("Y11 target sentinel probe failed: %s", exc)
+
     if tool_name not in ("Edit", "Write"):
         sys.exit(0)
 
