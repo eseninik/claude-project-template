@@ -1,4 +1,17 @@
 {
+  "permissions": {
+    "allow": [
+      "Edit(worktrees/**)",
+      "Write(worktrees/**)",
+      "MultiEdit(worktrees/**)",
+      "Edit(.claude/scripts/**)",
+      "Write(.claude/scripts/**)",
+      "MultiEdit(.claude/scripts/**)",
+      "Edit(.claude/hooks/**)",
+      "Write(.claude/hooks/**)",
+      "MultiEdit(.claude/hooks/**)"
+    ]
+  },
   "hooks": {
     "PreCompact": [
       {
