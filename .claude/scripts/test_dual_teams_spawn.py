@@ -67,12 +67,18 @@ def _cleanup_worktrees(path: Path) -> None:
 def _fake_launch_factory(pid: int = 99999):
     """Return a launch_codex_wave stand-in that writes a log file."""
     def _launch(codex_wave_script, task_files, parallel,
-                worktree_base, log_file, project_root, base_branch):
+                worktree_base, log_file, project_root, base_branch,
+                result_dir=None):
         log_file.parent.mkdir(parents=True, exist_ok=True)
         log_file.touch()
+        cmd = ["py", str(codex_wave_script)]
+        if result_dir is not None:
+            cmd += ["--result-dir", str(result_dir.resolve())]
         return dts.WavePlan(pid=pid,
-                            cmd=["py", str(codex_wave_script)],
-                            log_file=str(log_file), started=True)
+                            cmd=cmd,
+                            log_file=str(log_file), started=True,
+                            result_dir=(str(result_dir.resolve())
+                                        if result_dir is not None else None))
     return _launch
 
 
@@ -226,6 +232,57 @@ class OrchestrateTests(unittest.TestCase):
                 codex_wave_script=Path(".claude/scripts/codex-wave.py"),
                 spawn_agent_script=Path(".claude/scripts/spawn-agent.py"),
                 log_dir=self.log_dir, base_branch="HEAD", dry_run=dry_run)
+
+    def test_orchestrate_omits_result_dir_by_default(self):
+        """Y9: no --result-dir flag is forwarded unless requested."""
+        plan = self._run_orchestrate()
+        self.assertIsNotNone(plan.wave)
+        self.assertNotIn("--result-dir", plan.wave.cmd)
+        self.assertIsNone(plan.wave.result_dir)
+
+    def test_orchestrate_forwards_absolute_result_dir(self):
+        """Y9: explicit result_dir is forwarded as an absolute path."""
+        result_dir = self.root / "work" / "codex-implementations"
+        with mock.patch.object(dts, "generate_claude_prompt",
+                               side_effect=_fake_prompt), \
+             mock.patch.object(dts, "launch_codex_wave",
+                               side_effect=_fake_launch_factory()):
+            plan = dts.orchestrate(
+                task_files=self.task_files, feature="demo",
+                project_root=self.root,
+                worktree_base=Path("worktrees/dual-teams"),
+                parallel=2,
+                codex_wave_script=Path(".claude/scripts/codex-wave.py"),
+                spawn_agent_script=Path(".claude/scripts/spawn-agent.py"),
+                log_dir=self.log_dir, base_branch="HEAD", dry_run=False,
+                result_dir=result_dir)
+        expected = str(result_dir.resolve())
+        self.assertIsNotNone(plan.wave)
+        self.assertIn("--result-dir", plan.wave.cmd)
+        self.assertEqual(plan.wave.cmd[plan.wave.cmd.index("--result-dir") + 1],
+                         expected)
+        self.assertEqual(plan.wave.result_dir, expected)
+
+    def test_launch_codex_wave_resolves_relative_result_dir(self):
+        """Y9: relative result_dir is resolved before entering argv."""
+        popen = mock.Mock()
+        popen.pid = 1234
+        relative_result_dir = Path("work/codex-implementations")
+        with mock.patch.object(dts.subprocess, "Popen", return_value=popen):
+            wave = dts.launch_codex_wave(
+                codex_wave_script=Path(".claude/scripts/codex-wave.py"),
+                task_files=self.task_files,
+                parallel=2,
+                worktree_base=Path("worktrees/dual-teams/codex"),
+                log_file=self.log_dir / "codex-wave.log",
+                project_root=self.root,
+                base_branch="HEAD",
+                result_dir=relative_result_dir)
+        expected = str(relative_result_dir.resolve())
+        self.assertIn("--result-dir", wave.cmd)
+        self.assertEqual(wave.cmd[wave.cmd.index("--result-dir") + 1],
+                         expected)
+        self.assertEqual(wave.result_dir, expected)
 
     def test_happy_path_two_tasks_four_worktrees(self):
         """AC1/AC2: 2 tasks => 4 worktrees, 2 prompts, 1 codex-wave pid."""
@@ -411,6 +468,36 @@ class ReportSchemaTests(unittest.TestCase):
         text = report.read_text(encoding="utf-8")
         self.assertIn("failed to start", text)
         self.assertIn("not found", text)
+
+    def test_report_result_dir_included_when_set(self):
+        result_dir = str((self.root / "work" / "codex-implementations").resolve())
+        plan = dts.PlanResult(
+            feature="demo",
+            timestamp="2026-04-24T00:00:00Z",
+            worktree_base="worktrees/dual-teams",
+            parallel=1, pairs=[],
+            wave=dts.WavePlan(pid=12345, cmd=["py", "codex-wave.py"],
+                              log_file="/tmp/log", started=True,
+                              result_dir=result_dir),
+        )
+        report = self.root / "plan.md"
+        dts._write_report(report, plan)
+        text = report.read_text(encoding="utf-8")
+        self.assertIn(f"- result_dir: {result_dir}", text)
+
+    def test_report_result_dir_omitted_when_unset(self):
+        plan = dts.PlanResult(
+            feature="demo",
+            timestamp="2026-04-24T00:00:00Z",
+            worktree_base="worktrees/dual-teams",
+            parallel=1, pairs=[],
+            wave=dts.WavePlan(pid=12345, cmd=["py", "codex-wave.py"],
+                              log_file="/tmp/log", started=True),
+        )
+        report = self.root / "plan.md"
+        dts._write_report(report, plan)
+        text = report.read_text(encoding="utf-8")
+        self.assertNotIn("- result_dir:", text)
 
 
 

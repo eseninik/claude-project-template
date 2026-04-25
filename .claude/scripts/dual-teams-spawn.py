@@ -50,6 +50,7 @@ class WavePlan:
     log_file: str
     started: bool
     error: Optional[str] = None
+    result_dir: Optional[str] = None
 
 
 @dataclass
@@ -191,13 +192,17 @@ def generate_claude_prompt(spawn_agent_script: Path, task_file: Path,
 
 def launch_codex_wave(codex_wave_script: Path, task_files: list[Path],
                       parallel: int, worktree_base: Path, log_file: Path,
-                      project_root: Path, base_branch: str) -> WavePlan:
+                      project_root: Path, base_branch: str,
+                      result_dir: Optional[Path] = None) -> WavePlan:
     """Launch codex-wave.py in background; capture PID + log."""
     cmd = [sys.executable, str(codex_wave_script),
            "--tasks", ",".join(str(t) for t in task_files),
            "--parallel", str(parallel),
            "--worktree-base", str(worktree_base),
            "--base-branch", base_branch]
+    resolved_result_dir = result_dir.resolve() if result_dir is not None else None
+    if resolved_result_dir is not None:
+        cmd += ["--result-dir", str(resolved_result_dir)]
     logger.info("launch_codex_wave_started cmd=%r log=%s parallel=%d",
                 cmd, log_file, parallel)
     log_file.parent.mkdir(parents=True, exist_ok=True)
@@ -206,7 +211,9 @@ def launch_codex_wave(codex_wave_script: Path, task_files: list[Path],
     except OSError as exc:
         logger.exception("launch_codex_wave_log_open_failed")
         return WavePlan(None, cmd, str(log_file), False,
-                        error=f"cannot open log file: {exc}")
+                        error=f"cannot open log file: {exc}",
+                        result_dir=(str(resolved_result_dir)
+                                    if resolved_result_dir is not None else None))
     kw: dict = dict(stdout=fh, stderr=subprocess.STDOUT,
                     stdin=subprocess.DEVNULL, cwd=str(project_root))
     if os.name == "nt":
@@ -220,18 +227,24 @@ def launch_codex_wave(codex_wave_script: Path, task_files: list[Path],
         fh.close()
         logger.exception("launch_codex_wave_script_missing")
         return WavePlan(None, cmd, str(log_file), False,
-                        error=f"codex-wave.py not found: {exc}")
+                        error=f"codex-wave.py not found: {exc}",
+                        result_dir=(str(resolved_result_dir)
+                                    if resolved_result_dir is not None else None))
     except Exception as exc:
         fh.close()
         logger.exception("launch_codex_wave_crashed")
         return WavePlan(None, cmd, str(log_file), False,
-                        error=f"Popen failed: {exc}")
+                        error=f"Popen failed: {exc}",
+                        result_dir=(str(resolved_result_dir)
+                                    if resolved_result_dir is not None else None))
     logger.info("launch_codex_wave_started_ok pid=%d", proc.pid)
     try:
         fh.close()
     except Exception:
         logger.warning("launch_codex_wave_fh_close_warn")
-    return WavePlan(proc.pid, cmd, str(log_file), True)
+    return WavePlan(proc.pid, cmd, str(log_file), True,
+                    result_dir=(str(resolved_result_dir)
+                                if resolved_result_dir is not None else None))
 
 
 def build_plan(task_files: list[Path], project_root: Path,
@@ -282,11 +295,15 @@ def _write_report(report_path: Path, plan: PlanResult) -> None:
         L.append("- (not launched -- dry run or no tasks)")
     elif plan.wave.started:
         L += [f"- pid: `{plan.wave.pid}`",
-              f"- log: `{plan.wave.log_file}`",
-              f"- cmd: `{' '.join(plan.wave.cmd)}`"]
+              f"- log: `{plan.wave.log_file}`"]
+        if plan.wave.result_dir:
+            L.append(f"- result_dir: {plan.wave.result_dir}")
+        L.append(f"- cmd: `{' '.join(plan.wave.cmd)}`")
     else:
         L += [f"- **failed to start**: {plan.wave.error}",
               f"- attempted cmd: `{' '.join(plan.wave.cmd)}`"]
+        if plan.wave.result_dir:
+            L.append(f"- result_dir: {plan.wave.result_dir}")
     L += ["", "## Instructions for Opus", "",
           "1. Spawn N Claude teammates (one per task) via TeamCreate. Use each",
           "   prompt file above; each teammate's cwd is its claude_worktree.", "",
@@ -310,7 +327,8 @@ def _write_report(report_path: Path, plan: PlanResult) -> None:
 def orchestrate(task_files: list[Path], feature: str, project_root: Path,
                 worktree_base: Path, parallel: int,
                 codex_wave_script: Path, spawn_agent_script: Path,
-                log_dir: Path, base_branch: str, dry_run: bool) -> PlanResult:
+                log_dir: Path, base_branch: str, dry_run: bool,
+                result_dir: Optional[Path] = None) -> PlanResult:
     """Main orchestration: plan -> worktrees -> prompts -> Codex wave."""
     logger.info("orchestrate_started tasks=%d feature=%s parallel=%d dry_run=%s",
                 len(task_files), feature, parallel, dry_run)
@@ -353,7 +371,8 @@ def orchestrate(task_files: list[Path], feature: str, project_root: Path,
         codex_wave_script=codex_wave_script,
         task_files=[Path(p.task_file) for p in plan.pairs],
         parallel=parallel, worktree_base=worktree_base / "codex",
-        log_file=log_file, project_root=project_root, base_branch=base_branch)
+        log_file=log_file, project_root=project_root, base_branch=base_branch,
+        result_dir=result_dir)
     logger.info("orchestrate_completed pairs=%d wave_started=%s",
                 len(plan.pairs), plan.wave.started if plan.wave else False)
     return plan
@@ -373,6 +392,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--codex-wave-script", default=str(DEFAULT_CODEX_WAVE_SCRIPT))
     p.add_argument("--spawn-agent-script", default=str(DEFAULT_SPAWN_AGENT_SCRIPT))
     p.add_argument("--log-dir", default=str(DEFAULT_LOG_DIR))
+    p.add_argument("--result-dir", type=Path, default=None,
+                   help="If set, passed through as `--result-dir` to the "
+                        "spawned codex-wave.py so result.md files land at "
+                        "this absolute path. Recommended: "
+                        "`<project_root>/work/codex-implementations` so "
+                        "the orchestrator's codex-delegate-enforcer can "
+                        "find them.")
     p.add_argument("--project-root", default=".")
     p.add_argument("--report", default=None)
     p.add_argument("--dry-run", action="store_true")
@@ -417,7 +443,8 @@ def main(argv: list[str] | None = None) -> int:
             project_root=project_root, worktree_base=worktree_base,
             parallel=parallel, codex_wave_script=codex_wave_script,
             spawn_agent_script=spawn_agent_script, log_dir=log_dir,
-            base_branch=args.base_branch, dry_run=args.dry_run)
+            base_branch=args.base_branch, dry_run=args.dry_run,
+            result_dir=args.result_dir)
     except RuntimeError as exc:
         logger.error("main_orchestrate_failed err=%s", exc)
         print(f"ERROR: {exc}", file=sys.stderr)
