@@ -256,3 +256,25 @@ Fitness Req #7: before optimizing an LLM-steering prompt, sample 5-10 baseline t
 - Contents: skill contract extracts (verification, logging, security, coding) + Windows gotchas + git invariants — things that apply to EVERY task
 - Win: individual task-N.md files no longer re-inline these contracts. ~40% prompt shrink per run. Meaningful speed win for any workflow that issues many codex exec calls
 - Claude Code reads CLAUDE.md (richer, project-wide), Codex reads AGENTS.md (compact, shared)
+
+### .dual-base-ref Sentinel Must Be Gitignored — Y7 (2026-04-25, verified: 2026-04-25)
+- When: orchestrator (codex-wave / dual-teams-spawn) writes `.dual-base-ref` into a fresh worktree right before launching codex-implement.py
+- Gotcha: `preflight_worktree` calls `git status --porcelain` and refuses to proceed on any non-empty output; the freshly-written sidecar shows up as `?? .dual-base-ref`, codex-implement dies in 0.85 s with `DirtyWorktreeError`. The wave-runner re-labels the rc=2 as `status=scope-violation`, masking the real cause
+- Fix: project root `.gitignore` lists `.dual-base-ref`. `git status --porcelain` skips ignored files by default → preflight is happy AND the dirty-tree safety net stays intact for actual unrelated user changes
+- History: introduced 2026-04-24 with FIX-B (sidecar for judge); collided immediately with the DirtyWorktreeError preflight added the same day. Round 2 stealth test caught it. Re-diagnosed 2026-04-25 (the original session-resume note "missing @ prefix" was wrong — verified by reading actual stderr in `codex-wave-validation-...log`)
+- Reference: commit `c1edf4e` (gitignore fix); `work/PIPELINE.md` Phase 1 diagnoses
+
+### Dual-Teams Worktrees Skip Codex-Delegate-Enforcer via Sentinel — Y6 (2026-04-25, verified: 2026-04-25)
+- When: a Claude teammate (or any agent) operates inside a dual-implement worktree and tries to Edit/Write a code file
+- Gotcha: `codex-delegate-enforcer.py` blocks code-file Edit/Write unless a fresh (< 15 min) `work/codex-implementations/task-*-result.md` with `status=pass` covers the path. Inside a teammate worktree, `CLAUDE_PROJECT_DIR` resolves to the worktree root; project-relative paths like `.claude/scripts/foo.py` do NOT match the `worktrees/**` exempt pattern (that pattern only fires when the path includes `worktrees/...` as a prefix). Every Edit denied → teammate retries → 600 s watchdog kill → false "Claude teammate stalled" symptom
+- Fix: enforcer's `decide()` first calls new `is_dual_teams_worktree(project_dir)` that walks ancestors looking for the `.dual-base-ref` sentinel. Found → log `dual-teams-worktree`, return `True` (allow), skip cover lookup. The dual-implement flow already provides parallel Codex coverage by construction
+- Tests: 6 new in `test_codex_delegate_enforcer.py` (sentinel ancestor detection + decide-allow/deny). 36 total passing
+- Reference: commit `9fd6480` (FIX-ENFORCER, codex won merit judging vs Claude draft on resolve() fallback robustness + INFO logging)
+
+### Single Sentinel, Two Regressions — Dual-Implement Pattern (2026-04-25, verified: 2026-04-25)
+- Pattern: `.dual-base-ref` doubles as **the** identity marker for "this directory IS a dual-implement worktree". Multiple safety / orchestration layers can lean on the same file:
+  - `.gitignore` ignores it → preflight unaware (Y7 fix)
+  - `codex-delegate-enforcer.is_dual_teams_worktree()` walks ancestors for it → enforcer auto-allows (Y6 fix)
+  - `judge_axes._resolve_base()` reads its content → judge knows the diff baseline per side (FIX-A)
+- One file, three readers. When adding new safety layers ("this PreToolUse hook should only fire in main project, not in dual worktree"), prefer extending the sentinel walk over adding new patterns / env vars / config flags
+- Anti-pattern: inferring dual-worktree identity from mutable repo state or broad path/name heuristics (e.g. `worktrees/**` glob, branch name regex). Brittle under subagents that resolve paths from the worktree's own perspective; creates false positives and hard-to-debug drift. Stick to one explicit sentinel.

@@ -1,0 +1,151 @@
+{
+  "task_id": "V4-verdict-summarizer",
+  "timestamp": "2026-04-25T08:08:11.845799+00:00",
+  "winner": "codex",
+  "delta": -0.0659,
+  "tie_delta": 0.02,
+  "scores": {
+    "claude": {
+      "aggregate": 0.751,
+      "axes": {
+        "tests_passed": {
+          "name": "tests_passed",
+          "score": 1.0,
+          "weight": 10,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "passed": 3,
+            "total": 3
+          }
+        },
+        "diff_size": {
+          "name": "diff_size",
+          "score": 0.0,
+          "weight": 2,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "added": 576,
+            "removed": 0,
+            "cap_lines": 500,
+            "base": "9fd648037bc29228639d16b029794d1f81e5abda"
+          }
+        },
+        "logging_coverage": {
+          "name": "logging_coverage",
+          "score": 0.2558,
+          "weight": 3,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "covered": 11,
+            "total": 43,
+            "window": 5
+          }
+        },
+        "lint_clean": {
+          "name": "lint_clean",
+          "score": 1.0,
+          "weight": 2,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "files": 2,
+            "compile_errors": 0,
+            "pyflakes_warnings": 0,
+            "pyflakes_used": false
+          }
+        },
+        "complexity": {
+          "name": "complexity",
+          "score": 0.0,
+          "weight": 1,
+          "skipped": true,
+          "skip_reason": "radon not installed",
+          "raw": {}
+        },
+        "type_check": {
+          "name": "type_check",
+          "score": 0.0,
+          "weight": 2,
+          "skipped": true,
+          "skip_reason": "no mypy config",
+          "raw": {}
+        }
+      }
+    },
+    "codex": {
+      "aggregate": 0.8169,
+      "axes": {
+        "tests_passed": {
+          "name": "tests_passed",
+          "score": 1.0,
+          "weight": 10,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "passed": 3,
+            "total": 3
+          }
+        },
+        "diff_size": {
+          "name": "diff_size",
+          "score": 0.116,
+          "weight": 2,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "added": 442,
+            "removed": 0,
+            "cap_lines": 500,
+            "base": "9fd648037bc29228639d16b029794d1f81e5abda"
+          }
+        },
+        "logging_coverage": {
+          "name": "logging_coverage",
+          "score": 0.5517,
+          "weight": 3,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "covered": 16,
+            "total": 29,
+            "window": 5
+          }
+        },
+        "lint_clean": {
+          "name": "lint_clean",
+          "score": 1.0,
+          "weight": 2,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "files": 2,
+            "compile_errors": 0,
+            "pyflakes_warnings": 0,
+            "pyflakes_used": false
+          }
+        },
+        "complexity": {
+          "name": "complexity",
+          "score": 0.0,
+          "weight": 1,
+          "skipped": true,
+          "skip_reason": "radon not installed",
+          "raw": {}
+        },
+        "type_check": {
+          "name": "type_check",
+          "score": 0.0,
+          "weight": 2,
+          "skipped": true,
+          "skip_reason": "no mypy config",
+          "raw": {}
+        }
+      }
+    }
+  },
+  "rationale_auto": "winner=codex — biggest axis delta on 'logging_coverage' (claude=0.256, codex=0.552)",
+  "rationale_manual": null
+}
