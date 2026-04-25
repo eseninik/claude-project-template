@@ -22,6 +22,8 @@ production .codex/ and work/ directories are never touched.
 from __future__ import annotations
 
 import importlib.util
+import contextlib
+import io
 import json
 import os
 import shutil
@@ -284,6 +286,74 @@ class TestAC12Cases(BaseEnforcerTest):
         code, out, err = self._run_enforcer(payload)
         self.assertEqual(code, 0)
         self.assertEqual(out.strip(), "")
+
+
+class TestDualTeamsSentinel(unittest.TestCase):
+    """Regression tests for dual-teams worktree sentinel detection."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.mod = _load_module()
+
+    def test_dual_teams_worktree_true_in_project_dir(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="codex-enforcer-sentinel-") as tmpdir:
+            project_dir = Path(tmpdir).resolve()
+            (project_dir / ".dual-base-ref").write_text("main\n", encoding="utf-8")
+
+            self.assertTrue(self.mod.is_dual_teams_worktree(project_dir))
+
+    def test_dual_teams_worktree_true_in_parent_dir(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="codex-enforcer-sentinel-") as tmpdir:
+            project_dir = Path(tmpdir).resolve()
+            nested = project_dir / "worktrees" / "validation" / "claude"
+            nested.mkdir(parents=True)
+            (project_dir / ".dual-base-ref").write_text("main\n", encoding="utf-8")
+
+            self.assertTrue(self.mod.is_dual_teams_worktree(nested))
+
+    def test_dual_teams_worktree_false_without_sentinel(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="codex-enforcer-sentinel-") as tmpdir:
+            project_dir = Path(tmpdir).resolve()
+            nested = project_dir / "a" / "b" / "c"
+            nested.mkdir(parents=True)
+
+            self.assertFalse(self.mod.is_dual_teams_worktree(nested))
+
+    def test_dual_teams_worktree_false_for_directory_sentinel(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="codex-enforcer-sentinel-") as tmpdir:
+            project_dir = Path(tmpdir).resolve()
+            (project_dir / ".dual-base-ref").mkdir()
+
+            self.assertFalse(self.mod.is_dual_teams_worktree(project_dir))
+
+
+class TestDualTeamsDecide(BaseEnforcerTest):
+    """Regression tests for the dual-teams passthrough in decide()."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.mod = _load_module()
+        self.script_rel = ".claude/scripts/foo.py"
+        (self.root / ".claude" / "scripts").mkdir(parents=True)
+        (self.root / self.script_rel).write_text("# foo\n", encoding="utf-8")
+
+    def test_decide_allows_edit_when_sentinel_present_without_result(self) -> None:
+        (self.root / ".dual-base-ref").write_text("main\n", encoding="utf-8")
+        shutil.rmtree(self.root / "work", ignore_errors=True)
+
+        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+            allowed = self.mod.decide(self._edit_payload(self.script_rel), self.root)
+
+        self.assertTrue(allowed)
+        self.assertEqual(stdout.getvalue().strip(), "")
+
+    def test_decide_denies_edit_when_sentinel_absent_without_result(self) -> None:
+        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+            allowed = self.mod.decide(self._edit_payload(self.script_rel), self.root)
+
+        self.assertFalse(allowed)
+        parsed = json.loads(stdout.getvalue())
+        self.assertEqual(parsed["hookSpecificOutput"]["permissionDecision"], "deny")
 
 
 class TestHelpers(unittest.TestCase):

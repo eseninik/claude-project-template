@@ -85,6 +85,42 @@ def get_project_dir() -> Path:
     """Resolve project root. Honors CLAUDE_PROJECT_DIR env."""
     return Path(os.environ.get("CLAUDE_PROJECT_DIR", ".")).resolve()
 
+def is_dual_teams_worktree(project_dir: Path) -> bool:
+    """True iff project_dir or any ancestor contains .dual-base-ref."""
+    logger = logging.getLogger(HOOK_NAME)
+    logger.info("is_dual_teams_worktree.enter project=%s", project_dir)
+    current = project_dir
+    seen: set[Path] = set()
+    while True:
+        try:
+            resolved = current.resolve()
+        except OSError as exc:
+            logger.debug("is_dual_teams_worktree.resolve-error path=%s exc=%s", current, exc)
+            resolved = current.absolute()
+        if resolved in seen:
+            logger.info(
+                "is_dual_teams_worktree.exit project=%s result=False reason=cycle",
+                project_dir,
+            )
+            return False
+        seen.add(resolved)
+        sentinel = current / ".dual-base-ref"
+        try:
+            if sentinel.is_file():
+                logger.info(
+                    "is_dual_teams_worktree.exit project=%s result=True sentinel=%s",
+                    project_dir,
+                    sentinel,
+                )
+                return True
+        except OSError as exc:
+            logger.debug("is_dual_teams_worktree.probe-error sentinel=%s exc=%s", sentinel, exc)
+        parent = current.parent
+        if parent == current:
+            logger.info("is_dual_teams_worktree.exit project=%s result=False", project_dir)
+            return False
+        current = parent
+
 def resolve_target(project_dir: Path, target_raw: str):
     """Normalize raw file_path to absolute Path inside project_dir."""
     logger = logging.getLogger(HOOK_NAME)
@@ -393,6 +429,9 @@ def decide(payload: dict, project_dir: Path) -> bool:
         return True
     if tool_name not in {"Edit", "Write", "MultiEdit"}:
         logger.info("decide.passthrough reason=non-edit-tool tool=%s", tool_name)
+        return True
+    if is_dual_teams_worktree(project_dir):
+        logger.info("decide.passthrough reason=dual-teams-worktree project=%s", project_dir)
         return True
     raw_targets = extract_targets(payload)
     if not raw_targets:
