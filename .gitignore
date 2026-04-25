@@ -60,3 +60,8 @@ tmpclaude*
 SSH_SERVER_CONNECTION.md
 nul
 .codex/
+
+# Dual-teams sentinel — written by codex-wave / dual-teams-spawn into each
+# worktree to record the diff baseline for the judge. NOT user work; ignored
+# so codex-implement.py preflight does not see it as a dirty-tree blocker.
+.dual-base-ref
