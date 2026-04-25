@@ -305,6 +305,13 @@ Fitness Req #7: before optimizing an LLM-steering prompt, sample 5-10 baseline t
 - Why settings.json (project) not settings.local.json (user-private): shared via git so all contributors get the fix. settings.local.json is user-specific allow rules — different concern.
 - Reference: commit `ea0ebd8` (Y10 fix); first E2E validation post-Y10 launched 2026-04-25T15:38Z.
 
+### PowerShell-First Pattern Codified (Y15+Y16) + LIVE Verified (Y17) (2026-04-25, verified: 2026-04-25)
+- Y15 fix (commit 63bc12c): .claude/guides/teammate-prompt-template.md gains "## File creation in sub-agent context (Y14 finding)" section with canonical PowerShell Set-Content snippet. CLAUDE.md (project) gets 5-line note pointing teammate-spawners to it. Removes the obsolete "if file > 250 lines, use heredoc" framing — PowerShell is canonical for ALL writes regardless of size. Dual-implement TIE (claude=0.98, codex=0.97), claude won.
+- Y16 fix (commit d348a91): .claude/scripts/spawn-agent.py auto-injects "## CRITICAL — sub-agent file write mechanism (Y14 finding)" section above "## Your Task" in EVERY generated prompt. Idempotent via Y14_HEADING sentinel. --dry-run extended to print full prompt to stdout. 5 new tests in test_spawn_agent.py. Dual-implement claude won decisively (claude=0.84 vs codex=0.43 — codex tests failed AC10).
+- Y17 LIVE verification (commit 7f3e953): spawned fresh sub-agent on tiny task using NEW prompt template. Result: "PASS — PowerShell-first pattern works directly. Zero Write retries. 27 seconds wall time." Compared to Y11-LIVE (~4 min with multiple Write→denial→retry cycles): 8x speedup + zero wasted cycles.
+- Pattern: sub-agents that see Y14 section in their spawned prompt go DIRECTLY to PowerShell without wasting cycles on Write retries. Self-validating: agents updating Y14 docs must use PowerShell to write the docs, demonstrating their own correctness.
+- Reference: commits 63bc12c (Y15), d348a91 (Y16), 7f3e953 (Y17 LIVE).
+
 ### Sub-Agent Write Tool is Structurally Blocked — Y14 (2026-04-25, verified: 2026-04-25)
 - When: ANY Claude sub-agent (Agent tool spawn) tries to use Write/Edit/MultiEdit on a file
 - Empirical finding (definitive): the Claude Code harness denies sub-agent Write/Edit/MultiEdit at a layer ABOVE all configurable controls. Tested 4 escalating levers, all FAIL:
