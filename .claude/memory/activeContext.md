@@ -417,6 +417,36 @@ pipeline-checkpoint-PLAN → IMPLEMENT_WAVE_1 → IMPLEMENT_WAVE_2 → POC_FAIL 
 
 ## Auto-Generated Summaries
 
+### 2026-04-25 18:54 (commit `ec03301`)
+**Message:** fix-Y11: target-path sentinel detection (catches sub-agent CLAUDE_PROJECT_DIR=main)
+**Files:** 2
+
+
+### 2026-04-25 18:53 (commit `d6e4e62`)
+**Message:** e2e: codex-cost-report + dual-history-archive (Claude won both)
+**Files:** 6
+
+
+### 2026-04-25 18:39 (commit `132d1c6`)
+**Message:** knowledge: Y10 harness UI denial — root cause + fix entry
+**Files:** 1
+
+
+### 2026-04-25 18:38 (commit `f4dc69b`)
+**Message:** e2e specs: codex-cost-report + dual-history-archive (verify Y8/Y9/Y10 fixes)
+**Files:** 2
+
+
+### 2026-04-25 18:34 (commit `a15906a`)
+**Message:** merge winners V-1 V-2 V-3 V-4 (Phase 2/3 dual-implement results)
+**Files:** 12
+
+
+### 2026-04-25 18:33 (commit `ea0ebd8`)
+**Message:** fix-Y10: explicit permissions.allow for sub-agent Edit/Write in worktrees/**
+**Files:** 1
+
+
 ### 2026-04-25 13:31 (commit `ab43d3b`)
 **Message:** fix-Y9/codex: dual-teams-spawn forwards --result-dir to codex-wave
 **Files:** 2

@@ -271,7 +271,7 @@ Fitness Req #7: before optimizing an LLM-steering prompt, sample 5-10 baseline t
 - Tests: 6 new in `test_codex_delegate_enforcer.py` (sentinel ancestor detection + decide-allow/deny). 36 total passing
 - Reference: commit `9fd6480` (FIX-ENFORCER, codex won merit judging vs Claude draft on resolve() fallback robustness + INFO logging)
 
-### Single Sentinel, Four Regressions — Dual-Implement Pattern (2026-04-25, verified: 2026-04-25)
+### Single Sentinel, Five Regressions — Dual-Implement Pattern (2026-04-25, verified: 2026-04-25)
 - Pattern: `.dual-base-ref` doubles as **the** identity marker for "this directory IS a dual-implement worktree". Multiple safety / orchestration layers lean on the same file:
   - `.gitignore` ignores it → preflight unaware (Y7 fix)
   - `codex-delegate-enforcer.is_dual_teams_worktree()` walks ancestors for it → enforcer auto-allows (Y6 fix)
@@ -304,3 +304,11 @@ Fitness Req #7: before optimizing an LLM-steering prompt, sample 5-10 baseline t
   - same trio for `.claude/hooks/**`
 - Why settings.json (project) not settings.local.json (user-private): shared via git so all contributors get the fix. settings.local.json is user-specific allow rules — different concern.
 - Reference: commit `ea0ebd8` (Y10 fix); first E2E validation post-Y10 launched 2026-04-25T15:38Z.
+
+### Sub-Agent CLAUDE_PROJECT_DIR Mismatch — Y11 (2026-04-25, verified: 2026-04-25)
+- When: a Claude sub-agent operates inside a dual-teams worktree but its CLAUDE_PROJECT_DIR equals the main project, NOT the worktree
+- Gotcha: Y6 + Y8 sentinel exemptions check is_dual_teams_worktree(project_dir). Sub-agent project_dir = main → walk finds no .dual-base-ref → hook falls through → blocks Edit/Write. Empirical: E2E Claude teammates worked around with PowerShell heredoc.
+- Fix: in BOTH codex-delegate-enforcer.py and codex-gate.py, also walk ancestors of the TARGET PATH, not just project_dir. Target absolute path is inside the worktree → walking its parents finds the sentinel where walking project_dir doesn t.
+- Implementation: codex-delegate-enforcer.py decide() loop adds is_dual_teams_worktree(abs_path) check before find_cover (+13 lines). codex-gate.py handle_pre_tool_use adds target extraction + ancestor walk after the project_dir check (+18 lines).
+- Empirical verification: simulated sub-agent Edit → is_dual_teams_worktree(project)=False, is_dual_teams_worktree(target)=True, decide()=True. 36 enforcer + 18 gate existing tests pass, no regression.
+- Reference: commit ec03301 (Y11 fix). Closes the gap E2E Claude teammates worked around with PowerShell heredoc.
