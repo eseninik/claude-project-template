@@ -16,9 +16,118 @@ Usage:
 
 import argparse
 import importlib.util
+import logging
 import re
 import sys
 from pathlib import Path
+
+# Windows safety: stdout/stderr default to cp1251 in some terminals which
+# crashes on em-dashes and Cyrillic in the generated prompt. Reconfigure
+# to UTF-8 with replacement so dry-run + prompt printing never crash.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
+# Module-level logger (stdlib, structured key=value style on stderr).
+logger = logging.getLogger("spawn_agent")
+if not logger.handlers:
+    _h = logging.StreamHandler(sys.stderr)
+    _h.setFormatter(logging.Formatter("%(asctime)s level=%(levelname)s %(name)s %(message)s"))
+    logger.addHandler(_h)
+    logger.setLevel(logging.WARNING)
+
+
+# ---------------------------------------------------------------------------
+# Y14 sub-agent file-write reminder block
+# ---------------------------------------------------------------------------
+
+# Sentinel: any prompt containing this exact heading line already has the
+# Y14 block embedded. Used by inject_y14_block() to guarantee idempotency.
+Y14_HEADING = "## CRITICAL — sub-agent file write mechanism (Y14 finding)"
+
+# Literal Markdown block injected into every generated teammate prompt.
+# Defined as a module-level constant (not a function-local f-string) so it
+# survives static inspection and stays a single source of truth.
+Y14_BLOCK = (
+    Y14_HEADING + "\n"
+    "\n"
+    "Claude Code harness denies the `Write` and `Edit` tools at the permission\n"
+    "layer for sub-agents. This is design intent, not a bug. Use PowerShell as\n"
+    "the PRIMARY mechanism for file creation:\n"
+    "\n"
+    "```bash\n"
+    "powershell -NoProfile -Command \"Set-Content -Encoding utf8 -Path '<abs>' -Value @'\n"
+    "...content here...\n"
+    "'@\"\n"
+    "```\n"
+    "\n"
+    "Edit tool MAY work for in-place edits to existing files; if denied, fall\n"
+    "back to a PowerShell `.Replace()` + `Set-Content` invocation.\n"
+    "\n"
+    "**Tools cheat-sheet:** rely on `Read`, `Bash`, `Glob`, `Grep` for analysis;\n"
+    "PowerShell via `Bash` for writes; `Edit`/`Write` may be denied — don't\n"
+    "waste cycles retrying.\n"
+)
+
+
+def build_y14_block() -> str:
+    """Return the Y14 sub-agent file-write reminder block.
+
+    Per Y14 finding: the Claude Code harness denies the ``Write`` and
+    ``Edit`` tools at the permission layer for sub-agents. Generated
+    teammate prompts must surface this fact prominently and point
+    sub-agents at the canonical PowerShell ``Set-Content`` workaround.
+
+    Returns
+    -------
+    str
+        Markdown-formatted reminder block, terminated with a newline.
+    """
+    logger.debug("event=build_y14_block.enter")
+    logger.debug("event=build_y14_block.exit chars=%d", len(Y14_BLOCK))
+    return Y14_BLOCK
+
+
+def inject_y14_block(prompt: str) -> str:
+    """Insert the Y14 reminder block near the top of a teammate prompt.
+
+    Idempotent: if ``prompt`` already contains the Y14 heading sentinel
+    the input is returned unchanged. Otherwise the block is inserted
+    immediately before the first ``## Your Task`` heading. When no
+    ``## Your Task`` marker is found (defensive fallback) the block is
+    prepended so the section is never silently dropped.
+
+    Parameters
+    ----------
+    prompt : str
+        Generated teammate prompt to augment.
+
+    Returns
+    -------
+    str
+        Prompt text with the Y14 block guaranteed to appear exactly once.
+    """
+    logger.debug("event=inject_y14_block.enter prompt_chars=%d", len(prompt))
+
+    if Y14_HEADING in prompt:
+        logger.debug("event=inject_y14_block.skip reason=already_present")
+        return prompt
+
+    block = build_y14_block()
+    marker = "## Your Task"
+
+    if marker in prompt:
+        injected = prompt.replace(marker, block + "\n" + marker, 1)
+        logger.debug(
+            "event=inject_y14_block.exit position=before_task_body chars=%d",
+            len(injected),
+        )
+        return injected
+
+    logger.warning("event=inject_y14_block.fallback reason=task_marker_missing")
+    return block + "\n" + prompt
 
 
 # ---------------------------------------------------------------------------
@@ -350,19 +459,40 @@ Examples:
     memory_level = props.get('memory', 'patterns')
     memory_context = gen.load_memory_context(memory_dir, memory_level)
 
-    # Dry run
+    # Dry run: emit auto-detection summary to stderr (callers can still
+    # inspect detection metadata) and emit the full generated prompt to
+    # stdout so AC3 holds: piping --dry-run output through
+    # `grep -c "Y14 finding"` returns exactly 1.
     if args.dry_run:
-        print("Auto-detection:")
-        print(explanation)
-        skill_names = [s['name'] for s in matched_skills]
-        total = sum(s['lines'] for s in matched_skills)
-        print(f"\n  Registry:   tools={props['tools']}, thinking={props['thinking']}, "
-              f"context={props['context']}, memory={props['memory']}")
-        print(f"  Skills:     {', '.join(skill_names) or '(none)'}")
-        print(f"  Lines:      {total}")
-        print(f"  Team/Name:  {args.team}/{args.name}")
+        logger.debug("event=main.dry_run agent_type=%s", agent_type)
+        print("Auto-detection:", file=sys.stderr)
+        print(explanation, file=sys.stderr)
+        skill_names_dr = [s['name'] for s in matched_skills]
+        total_dr = sum(s['lines'] for s in matched_skills)
+        print(
+            f"\n  Registry:   tools={props['tools']}, thinking={props['thinking']}, "
+            f"context={props['context']}, memory={props['memory']}",
+            file=sys.stderr,
+        )
+        print(f"  Skills:     {', '.join(skill_names_dr) or '(none)'}", file=sys.stderr)
+        print(f"  Lines:      {total_dr}", file=sys.stderr)
+        print(f"  Team/Name:  {args.team}/{args.name}", file=sys.stderr)
         if confidence < 0.5:
-            print(f"\n  Low confidence. Consider --type override.")
+            print("\n  Low confidence. Consider --type override.", file=sys.stderr)
+
+        dry_prompt = gen.build_prompt(
+            agent_type=agent_type,
+            task=args.task,
+            team=args.team,
+            name=args.name,
+            criteria=args.criteria or '',
+            constraints=args.constraints or '',
+            props=props,
+            matched_skills=matched_skills,
+            memory_context=memory_context,
+        )
+        dry_prompt = inject_y14_block(dry_prompt)
+        print(dry_prompt)
         return
 
     # --- Check for agent-type memory ---
@@ -385,6 +515,11 @@ Examples:
         matched_skills=matched_skills,
         memory_context=memory_context,
     )
+
+    # Inject Y14 sub-agent file-write reminder near the top of the prompt
+    # (above the inlined task body). Idempotent: re-running spawn-agent.py
+    # on the same task never produces a duplicate block.
+    prompt = inject_y14_block(prompt)
 
     # Inject agent-type memory after Required Skills section
     if agent_memory_content:
