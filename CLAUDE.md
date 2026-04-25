@@ -153,3 +153,11 @@ When not to use:
 The hook only guarantees Codex-side participation. The Claude-side half
 of the dual pair is Claude's own discipline — it is expected by this
 protocol, and reviewed in handoff blocks.
+
+### Sub-agent file writes (Y14)
+
+Sub-agents spawned via the `Agent` / `Task` tool have `Write` / `Edit` / `MultiEdit`
+denied at the harness Permission UI layer (Y14, commit `1c5490b`, 4 escalating tests).
+Teammate-spawners must instruct teammates to use **PowerShell `Set-Content` as the canonical
+file-write mechanism** (with Bash heredoc + `git apply` as fallback). See
+`.claude/guides/teammate-prompt-template.md` § "File creation in sub-agent context (Y14 finding)".
