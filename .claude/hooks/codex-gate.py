@@ -50,6 +50,30 @@ def get_project_dir():
     return Path(os.environ.get("CLAUDE_PROJECT_DIR", ".")).resolve()
 
 
+def is_dual_teams_worktree(project_dir: Path) -> bool:
+    """True iff project_dir or any ancestor contains .dual-base-ref."""
+    current = project_dir
+    seen: set[Path] = set()
+    while True:
+        try:
+            resolved = current.resolve()
+        except OSError:
+            resolved = current.absolute()
+        if resolved in seen:
+            return False
+        seen.add(resolved)
+        sentinel = current / ".dual-base-ref"
+        try:
+            if sentinel.is_file():
+                return True
+        except OSError:
+            pass
+        parent = current.parent
+        if parent == current:
+            return False
+        current = parent
+
+
 def get_last_codex_time(project_dir):
     """Check when Codex was last consulted."""
     opinion_file = project_dir / ".codex" / "reviews" / "parallel-opinion.md"
@@ -420,10 +444,17 @@ def handle_pre_tool_use(payload):
     """Block Edit/Write if Codex wasn't consulted recently."""
     project_dir = get_project_dir()
 
-    # Only gate Edit and Write
+    # Only gate Edit, Write, and MultiEdit
     tool_name = ""
     if isinstance(payload, dict):
         tool_name = payload.get("tool_name", "")
+
+    if tool_name not in ("Edit", "Write", "MultiEdit"):
+        sys.exit(0)
+
+    if is_dual_teams_worktree(project_dir):
+        logger.info("gate.passthrough reason=dual-teams-worktree project=%s", project_dir)
+        sys.exit(0)
 
     if tool_name not in ("Edit", "Write"):
         sys.exit(0)

@@ -175,6 +175,15 @@ class TestGateDecisions(BaseGateTest):
         # No fresh codex-ask either -> block (old behavior).
         self.assertEqual(code, 2, msg=f"expected block, got stderr:\n{stderr}")
 
+    def test_dual_teams_worktree_allows_stale_codex_ask(self):
+        """Dual-teams sentinel bypasses cooldown that would otherwise block."""
+        (self.root / ".dual-base-ref").write_text("main\n", encoding="utf-8")
+        ts = self.root / ".codex" / "last-consulted"
+        ts.write_text(str(time.time() - 600), encoding="utf-8")
+        code, stderr = self._run_gate(self._payload(self.target_rel))
+        self.assertEqual(code, 0, msg=f"expected allow, got stderr:\n{stderr}")
+        self.assertIn("dual-teams-worktree", stderr)
+
 
 class TestParsingHelpers(unittest.TestCase):
     """Unit-level tests for parse helpers (do not spawn subprocess)."""
@@ -250,6 +259,28 @@ class TestParsingHelpers(unittest.TestCase):
             self.assertIn(".claude/hooks/test_codex_gate.py", fence)
         finally:
             p.unlink()
+
+    def test_dual_teams_worktree_sentinel_in_project_dir(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_dir = Path(tmpdir).resolve()
+            (project_dir / ".dual-base-ref").write_text("main\n", encoding="utf-8")
+            self.assertTrue(self.gate.is_dual_teams_worktree(project_dir))
+
+    def test_dual_teams_worktree_sentinel_in_parent_dir(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir).resolve()
+            nested = root / "a" / "b" / "c"
+            nested.mkdir(parents=True)
+            (root / ".dual-base-ref").write_text("main\n", encoding="utf-8")
+            self.assertTrue(self.gate.is_dual_teams_worktree(nested))
+
+    def test_dual_teams_worktree_absent_sentinel(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_dir = Path(tmpdir).resolve()
+            self.assertFalse(self.gate.is_dual_teams_worktree(project_dir))
 
 
 if __name__ == "__main__":
