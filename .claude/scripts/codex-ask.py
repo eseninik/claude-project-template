@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-"""Codex Ask — CLI tool for Claude to get Codex opinion on any task.
+﻿#!/usr/bin/env python3
+"""Codex Ask - CLI tool for Claude to get Codex opinion on any task.
 
 Usage:
     py -3 .claude/scripts/codex-ask.py "Your question or task description"
@@ -12,6 +12,7 @@ If broker is not running, falls back to codex exec.
 """
 
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -30,6 +31,55 @@ if sys.platform == "win32":
 BROKER_URL = "ws://127.0.0.1:4500"
 INACTIVITY_TIMEOUT = 30
 MAX_TIMEOUT = 300
+
+logger = logging.getLogger(__name__)
+
+
+def parse_codex_exec_stdout(stdout: str) -> str | None:
+    """Parse Codex CLI exec stdout. Handles both:
+
+      - v0.117 (legacy): header lines + sentinel ``codex`` line + response
+        + ``tokens used N`` trailer, all in stdout. Extract body between
+        the ``codex`` sentinel and the ``tokens used`` trailer.
+      - v0.125 (modern): header is sent to stderr, only the response (and
+        an optional ``tokens used`` trailer) appears in stdout. No
+        sentinel - return everything until the trailer (or all of it if
+        no trailer is present).
+
+    Returns the response text, or ``None`` when stdout is empty / blank /
+    yields no parseable body.
+    """
+    logger.info("parse_codex_exec_stdout.enter stdout_len=%d", len(stdout or ""))
+    if not stdout or not stdout.strip():
+        logger.info("parse_codex_exec_stdout.exit result_truthy=False reason=empty")
+        return None
+    lines = stdout.splitlines()
+    # Try v0.117 sentinel-based extraction first (more specific contract).
+    if any(line.strip() == "codex" for line in lines):
+        in_resp = False
+        out: list[str] = []
+        for line in lines:
+            if not in_resp:
+                if line.strip() == "codex":
+                    in_resp = True
+                continue
+            if "tokens used" in line:
+                break
+            out.append(line)
+        result = "\n".join(out).strip()
+        if result:
+            logger.info("parse_codex_exec_stdout.exit result_truthy=True format=v0.117")
+            return result
+    # v0.125 fallback: take everything up to (optional) "tokens used" trailer.
+    out2: list[str] = []
+    for line in lines:
+        if line.strip() == "tokens used":
+            break
+        out2.append(line)
+    result2 = "\n".join(out2).strip()
+    truthy = bool(result2)
+    logger.info("parse_codex_exec_stdout.exit result_truthy=%s format=v0.125", truthy)
+    return result2 or None
 
 
 def ask_via_broker(prompt):
@@ -75,7 +125,7 @@ def ask_via_broker(prompt):
         "input": [{"type": "text", "text": prompt, "text_elements": []}],
     }}))
 
-    # Wait for response — as long as Codex is active
+    # Wait for response - as long as Codex is active
     text = ""
     for _ in range(1000):
         if time.time() - t0 > MAX_TIMEOUT:
@@ -102,9 +152,15 @@ def ask_via_broker(prompt):
 
 
 def ask_via_exec(prompt):
-    """Fallback: ask via codex exec (cold start)."""
+    """Fallback: ask via codex exec (cold start).
+
+    Delegates stdout parsing to ``parse_codex_exec_stdout`` which handles
+    both v0.117 (sentinel-based) and v0.125 (header-on-stderr) formats.
+    """
+    logger.info("ask_via_exec.enter prompt_len=%d", len(prompt or ""))
     codex = shutil.which("codex")
     if not codex:
+        logger.info("ask_via_exec.exit result_truthy=False reason=codex-not-in-path")
         return None
     try:
         r = subprocess.run(
@@ -113,22 +169,19 @@ def ask_via_exec(prompt):
             capture_output=True, text=True, encoding="utf-8", errors="replace",
             timeout=120,
         )
-        if r.returncode == 0:
-            lines = r.stdout.strip().splitlines()
-            content = []
-            in_resp = False
-            for line in lines:
-                if line.strip() == "codex" and not in_resp:
-                    in_resp = True
-                    continue
-                if in_resp and "tokens used" in line:
-                    break
-                if in_resp:
-                    content.append(line)
-            return "\n".join(content).strip() or None
+        if r.returncode != 0:
+            logger.info("ask_via_exec.exit result_truthy=False reason=returncode-%d",
+                        r.returncode)
+            return None
+        result = parse_codex_exec_stdout(r.stdout)
+        logger.info("ask_via_exec.exit result_truthy=%s reason=ok", bool(result))
+        return result
+    except subprocess.TimeoutExpired:
+        logger.exception("ask_via_exec.exit result_truthy=False reason=timeout")
+        return None
     except Exception:
-        pass
-    return None
+        logger.exception("ask_via_exec.exit result_truthy=False reason=exception")
+        return None
 
 
 def main():
@@ -162,7 +215,7 @@ def main():
         _ec = _proj / ".codex" / "edit-count"
         _ec.write_text("0", encoding="utf-8")
     else:
-        print("Codex unavailable — proceed without second opinion.", file=sys.stderr)
+        print("Codex unavailable - proceed without second opinion.", file=sys.stderr)
 
     sys.exit(0)
 
