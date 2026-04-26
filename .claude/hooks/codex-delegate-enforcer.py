@@ -53,11 +53,12 @@ CODEX_TASKS_DIR = "work/codex-primary/tasks"
 SKIP_LEDGER_REL = "work/codex-implementations/skip-ledger.jsonl"
 
 # I1 - delegated code extensions. Frozenset for O(1) lookup.
+# Z7-V02: .ipynb added - Jupyter notebooks contain executable code cells.
 CODE_EXTENSIONS: frozenset = frozenset({
     ".py", ".pyi", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx",
     ".sh", ".bash", ".zsh", ".go", ".rs", ".rb", ".java", ".kt",
     ".swift", ".c", ".cpp", ".cc", ".h", ".hpp", ".cs", ".php",
-    ".sql", ".lua", ".r",
+    ".sql", ".lua", ".r", ".ipynb",
 })
 
 # I1 - exempt path globs. ONLY apply to non-code extensions.
@@ -520,7 +521,10 @@ def _split_logical_commands(command: str) -> list:
             i += 1
             continue
         if not in_squote and not in_dquote:
-            if c == ";":
+            # Z7-V03: newline terminates a logical command (heredoc body
+            # lines may be reclassified individually; false positives are
+            # preferable to masking a trailing mutating verb).
+            if c == ";" or c == "\n":
                 out.append("".join(buf))
                 buf = []
                 i += 1
