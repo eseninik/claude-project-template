@@ -299,7 +299,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--claude-worktree", required=True, type=Path, help="Claude worktree")
     p.add_argument("--codex-worktree", required=True, type=Path, help="Codex worktree")
     p.add_argument("--output", type=Path, default=None, help="Verdict JSON path")
-    p.add_argument("--tie-delta", type=float, default=0.02, help="Tie threshold (0.02)")
+    p.add_argument("--tie-delta", type=float, default=0.03,
+                   help="Tie threshold (0.03). NOTE: Threshold tuned from "
+                        "observed dual-implement deltas.")
     p.add_argument("--base", default="auto",
                    help="Git diff base. 'auto' = auto-resolve per side via "
                         "sidecar .dual-base-ref then merge-base HEAD <main|master|dev> "

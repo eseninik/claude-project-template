@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Unit tests for codex-ask.py - Y23 (v0.125 stdout format support).
 
 Covers:
@@ -6,6 +6,7 @@ Covers:
   - parse_codex_exec_stdout for v0.117 legacy (sentinel "codex" in stdout)
   - ask_via_exec integration with mocked subprocess (both formats + edge cases)
   - main() end-to-end flow: last-consulted touch + edit-count reset
+  - Y27 (Z32): default timeout 180s, --strategic flag to 900s
 
 Run:
     python -m pytest .claude/scripts/test_codex_ask.py -v --tb=short
@@ -147,7 +148,7 @@ class TestAskViaExecIntegration:
     def test_ask_via_exec_timeout_returns_none(self):
         with mock.patch.object(codex_ask.shutil, "which", return_value="/usr/bin/codex"), \
              mock.patch.object(codex_ask.subprocess, "run",
-                               side_effect=subprocess.TimeoutExpired(cmd="codex", timeout=120)):
+                               side_effect=subprocess.TimeoutExpired(cmd="codex", timeout=180)):
             assert codex_ask.ask_via_exec("anything") is None
 
 
@@ -187,7 +188,8 @@ class TestMainFlowUnchanged:
         monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
         monkeypatch.setattr(codex_ask, "ask_via_broker",
                             lambda _p: (_ for _ in ()).throw(RuntimeError("no broker")))
-        monkeypatch.setattr(codex_ask, "ask_via_exec", lambda _p: "FAKE-RESPONSE")
+        monkeypatch.setattr(codex_ask, "ask_via_exec",
+                            lambda _p, strategic=False: "FAKE-RESPONSE")
         monkeypatch.setattr(sys, "argv", ["codex-ask.py", "ping"])
 
         with pytest.raises(SystemExit) as exc:
@@ -205,6 +207,50 @@ class TestMainFlowUnchanged:
         assert edit_count.read_text(encoding="utf-8") == "0"
         float(last_consulted.read_text(encoding="utf-8"))
 
+
+# --------------------------------------------------------------------------- #
+# AC-Y27 (Z32 Improvement 1): timeout extension
+# --------------------------------------------------------------------------- #
+
+
+class TestY27Timeouts:
+    """Z32 Improvement 1: codex-ask.py timeout extension.
+
+    Default timeout 180s (was 120, silently failed for normal advisor calls).
+    --strategic flag selects 900s (15 min) for deep analyses.
+    """
+
+    def test_ask_via_exec_default_timeout_180(self):
+        """Default ask_via_exec passes timeout=180 to subprocess.run (Y27)."""
+        captured = {}
+
+        def _capture(*args, **kwargs):
+            captured["timeout"] = kwargs.get("timeout")
+            return _completed(0, stdout="OK\n", stderr="")
+
+        with mock.patch.object(codex_ask.shutil, "which", return_value="/usr/bin/codex"), \
+             mock.patch.object(codex_ask.subprocess, "run", side_effect=_capture):
+            result = codex_ask.ask_via_exec("ping")
+        assert result == "OK"
+        assert captured["timeout"] == 180, (
+            f"default timeout should be 180s (Y27), got {captured['timeout']}"
+        )
+
+    def test_ask_via_exec_strategic_timeout_900(self):
+        """ask_via_exec(strategic=True) passes timeout=900 (Y27)."""
+        captured = {}
+
+        def _capture(*args, **kwargs):
+            captured["timeout"] = kwargs.get("timeout")
+            return _completed(0, stdout="OK\n", stderr="")
+
+        with mock.patch.object(codex_ask.shutil, "which", return_value="/usr/bin/codex"), \
+             mock.patch.object(codex_ask.subprocess, "run", side_effect=_capture):
+            result = codex_ask.ask_via_exec("ping", strategic=True)
+        assert result == "OK"
+        assert captured["timeout"] == 900, (
+            f"strategic timeout should be 900s (Y27), got {captured['timeout']}"
+        )
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v", "--tb=short"]))

@@ -213,7 +213,14 @@ def score_diff_size(worktree: Path, weight: int = 2, base: str = "HEAD",
 
 
 _FUNC_RE = re.compile(r"^\+(\s*)def\s+\w+\s*\(")
-_LOGGER_RE = re.compile(r"logger\.|structlog\.|_log\(")
+# Z32 Improvement 4: recognize delegated logging helpers in addition to
+# stdlib logger / structlog / _log. Functions that wrap logging in helper
+# calls like log_info("msg") or log_error(...) were previously treated as
+# uncovered. Helper names: _log, log_info, log_warn, log_error, log_debug.
+_LOGGER_RE = re.compile(
+    r"logger\.|structlog\.|_log\(|\blog_info\(|\blog_warn\(|"
+    r"\blog_error\(|\blog_debug\("
+)
 
 
 def _git_diff_text(worktree: Path, base: str = "HEAD") -> str:
@@ -240,7 +247,15 @@ def _git_diff_text(worktree: Path, base: str = "HEAD") -> str:
 
 def score_logging_coverage(worktree: Path, weight: int = 3, base: str = "HEAD",
                            window: int = 5, diff_text: str | None = None) -> AxisResult:
-    """Fraction of NEW Python functions that log within `window` following lines."""
+    """Fraction of NEW Python functions that log within `window` following lines.
+
+    Z32 Improvement 4: a function counts as "covered" when it directly
+    calls ``logger.``, ``structlog.``, ``_log(``, or any of the recognized
+    delegated-logging helpers (``log_info``, ``log_warn``, ``log_error``,
+    ``log_debug``) within the first ``window`` body lines. This stops
+    penalizing modules that route logging through a thin helper layer
+    instead of inlining ``logger.info(...)``.
+    """
     _log(logging.DEBUG, "entry: score_logging_coverage", worktree=str(worktree),
          window=window)
     try:
@@ -380,16 +395,73 @@ def score_complexity(worktree: Path, weight: int = 1, base: str = "HEAD",
         raise
 
 
+def _has_mypy_config(worktree: Path) -> bool:
+    """Z32 Improvement 2: true iff worktree has activatable mypy config.
+
+    Honors:
+      - ``mypy.ini`` (any file present at worktree root)
+      - ``.mypy.ini`` (legacy hidden variant)
+      - ``setup.cfg`` containing a ``[mypy]`` section
+      - ``pyproject.toml`` containing a ``[tool.mypy]`` section
+
+    Plain ``pyproject.toml`` without ``[tool.mypy]`` no longer counts;
+    that was the silent-skip cause for the type_check axis on this repo
+    even after mypy was installed.
+    """
+    _log(logging.DEBUG, "entry: _has_mypy_config", worktree=str(worktree))
+    try:
+        # Direct ini files are always sufficient.
+        for fname in ("mypy.ini", ".mypy.ini"):
+            if (worktree / fname).exists():
+                _log(logging.INFO, "mypy_config_found", file=fname)
+                _log(logging.DEBUG, "exit: _has_mypy_config", found=True,
+                     file=fname)
+                return True
+        # setup.cfg only counts when it has [mypy].
+        sc = worktree / "setup.cfg"
+        if sc.exists():
+            try:
+                txt = sc.read_text(encoding="utf-8", errors="replace")
+                if re.search(r"^\[mypy\]\s*$", txt, flags=re.MULTILINE):
+                    _log(logging.INFO, "mypy_config_found", file="setup.cfg")
+                    _log(logging.DEBUG, "exit: _has_mypy_config", found=True,
+                         file="setup.cfg")
+                    return True
+            except OSError:
+                logger.exception("_has_mypy_config setup.cfg read failed")
+        # pyproject.toml only counts when it has [tool.mypy].
+        pp = worktree / "pyproject.toml"
+        if pp.exists():
+            try:
+                txt = pp.read_text(encoding="utf-8", errors="replace")
+                if "[tool.mypy]" in txt:
+                    _log(logging.INFO, "mypy_config_found", file="pyproject.toml")
+                    _log(logging.DEBUG, "exit: _has_mypy_config", found=True,
+                         file="pyproject.toml")
+                    return True
+            except OSError:
+                logger.exception("_has_mypy_config pyproject.toml read failed")
+        _log(logging.DEBUG, "exit: _has_mypy_config", found=False)
+        return False
+    except Exception:
+        logger.exception("_has_mypy_config unexpected error")
+        return False
+
+
 def score_type_check(worktree: Path, weight: int = 2, base: str = "HEAD",
                      files_override: list[Path] | None = None) -> AxisResult:
-    """Mypy (optional, needs config). score = max(0, 1 - errors/files)."""
+    """Mypy (optional, needs config). score = max(0, 1 - errors/files).
+
+    Z32 Improvement 2: config detection is now *content-aware* via
+    ``_has_mypy_config``; pyproject.toml without ``[tool.mypy]`` no
+    longer fakes activation. mypy.ini at repo root is the canonical
+    minimal config.
+    """
     _log(logging.DEBUG, "entry: score_type_check", worktree=str(worktree))
     try:
         if not _module_available("mypy"):
             return _skip("type_check", weight, "mypy not installed")
-        has_config = any((worktree / p).exists()
-                         for p in ("mypy.ini", ".mypy.ini", "setup.cfg", "pyproject.toml"))
-        if not has_config:
+        if not _has_mypy_config(worktree):
             return _skip("type_check", weight, "no mypy config")
         files = files_override if files_override is not None else _list_modified_py(worktree, base)
         if not files:
