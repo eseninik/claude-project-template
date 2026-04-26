@@ -182,6 +182,145 @@ class TestScopeFenceParser(unittest.TestCase):
         self.assertEqual(fence.allowed, ["foo/bar.py", "baz/qux.py"])
 
 
+class TestScopeFenceParserCodeBlock(unittest.TestCase):
+    """Y18: parse_scope_fence accepts code-block-of-paths style.
+
+    Fixture pattern: each test builds a Scope-Fence section text in the
+    code-block style and asserts on the parsed ScopeFence.allowed list.
+    """
+
+    @staticmethod
+    def _section(*paths: str) -> str:
+        """Helper: build a fence section with the given paths in a code block."""
+        body = "\n".join(paths)
+        return "## Scope Fence — files you MAY modify\n\n```\n" + body + "\n```\n"
+
+    def test_parse_scope_fence_code_block_syntax(self):
+        """AC-1.a: bare code block of paths -> all parsed as allowed."""
+        txt = self._section(".claude/hooks/foo.py", "src/bar/baz.py")
+        fence = codex_impl.parse_scope_fence(txt)
+        self.assertEqual(fence.allowed, [".claude/hooks/foo.py", "src/bar/baz.py"])
+        self.assertEqual(fence.forbidden, [])
+
+    def test_parse_scope_fence_code_block_strips_comments_and_blanks(self):
+        """AC-1.b: blank lines + # / // comments must be skipped."""
+        txt = (
+            "## Scope Fence\n\n"
+            "```\n"
+            ".claude/hooks/foo.py\n"
+            "\n"
+            "# this is a comment, not a path\n"
+            "// also a comment\n"
+            "src/bar/baz.py\n"
+            "\n"
+            "```\n"
+        )
+        fence = codex_impl.parse_scope_fence(txt)
+        self.assertEqual(fence.allowed, [".claude/hooks/foo.py", "src/bar/baz.py"])
+        self.assertNotIn("# this is a comment, not a path", fence.allowed)
+        self.assertNotIn("// also a comment", fence.allowed)
+
+    def test_parse_scope_fence_code_block_strips_trailing_parens(self):
+        """AC-1.c: trailing `(comment)` is stripped from each path."""
+        txt = (
+            "## Scope Fence\n\n"
+            "```\n"
+            "CLAUDE.md (only the X section)\n"
+            "src/foo.py  (do NOT modify imports)\n"
+            "```\n"
+        )
+        fence = codex_impl.parse_scope_fence(txt)
+        self.assertEqual(fence.allowed, ["CLAUDE.md", "src/foo.py"])
+
+    def test_parse_scope_fence_falls_back_to_legacy_when_bold_present(self):
+        """AC-1.d: when **Allowed**: bold-header is present, legacy parsing
+        wins and the code-block fallback is NOT triggered (regression
+        guard for the existing pre-Y18 behavior)."""
+        txt = (
+            "**Allowed paths:**\n"
+            "- `legacy/path.py`\n"
+            "\n"
+            "```\n"
+            "should_NOT_appear.py\n"
+            "```\n"
+        )
+        fence = codex_impl.parse_scope_fence(txt)
+        self.assertEqual(fence.allowed, ["legacy/path.py"])
+        self.assertNotIn("should_NOT_appear.py", fence.allowed)
+
+
+class TestDetermineRunStatus(unittest.TestCase):
+    """Y20: determine_run_status() pure helper.
+
+    Status precedence:
+      1. timed_out                  -> "timeout"
+      2. scope.status == "fail"     -> "scope-violation"
+      3. not test_run.all_passed    -> "fail"
+      4. otherwise                  -> "pass"
+
+    Crucially, codex_run.returncode != 0 is IGNORED when both scope and
+    tests pass — that was the Y20 bug.
+    """
+
+    @staticmethod
+    def _scope(status: str) -> object:
+        return codex_impl.ScopeCheckResult(status=status, message="(test fixture)")
+
+    @staticmethod
+    def _tests(passed: bool) -> object:
+        return codex_impl.TestRunResult(all_passed=passed, outputs=[])
+
+    @staticmethod
+    def _codex(returncode: int) -> object:
+        return codex_impl.CodexRunResult(
+            returncode=returncode, stdout="", stderr="", timed_out=False, self_report=[]
+        )
+
+    def test_status_pass_when_tests_pass_despite_codex_returncode_nonzero(self):
+        """AC-2.a: tests pass + scope pass + codex_returncode=1 -> 'pass'.
+
+        This is the bug Y20 fixes: CLI v0.125 telemetry warnings produce
+        a non-zero returncode but the run is genuinely a pass.
+        """
+        status = codex_impl.determine_run_status(
+            scope=self._scope("pass"),
+            test_run=self._tests(True),
+            codex_run=self._codex(1),
+            timed_out=False,
+        )
+        self.assertEqual(status, "pass")
+
+    def test_status_fail_when_tests_fail(self):
+        """AC-2.b: scope=pass, tests fail, codex_returncode=0 -> 'fail'."""
+        status = codex_impl.determine_run_status(
+            scope=self._scope("pass"),
+            test_run=self._tests(False),
+            codex_run=self._codex(0),
+            timed_out=False,
+        )
+        self.assertEqual(status, "fail")
+
+    def test_status_scope_violation_overrides_test_pass(self):
+        """AC-2.c: scope=fail must take precedence over passing tests."""
+        status = codex_impl.determine_run_status(
+            scope=self._scope("fail"),
+            test_run=self._tests(True),
+            codex_run=self._codex(0),
+            timed_out=False,
+        )
+        self.assertEqual(status, "scope-violation")
+
+    def test_status_timeout_takes_top_precedence(self):
+        """timed_out=True must beat every other signal (sanity guard)."""
+        status = codex_impl.determine_run_status(
+            scope=self._scope("fail"),
+            test_run=self._tests(False),
+            codex_run=self._codex(1),
+            timed_out=True,
+        )
+        self.assertEqual(status, "timeout")
+
+
 class TestTestCommandParser(unittest.TestCase):
     def test_extracts_commands_from_bash_block(self):
         _, body = codex_impl.parse_frontmatter(TASK_SAMPLE)
