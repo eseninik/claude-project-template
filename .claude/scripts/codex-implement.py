@@ -322,7 +322,17 @@ def split_sections(body: str) -> dict[str, str]:
 
 
 def parse_scope_fence(section_text: str) -> ScopeFence:
-    """Extract allowed/forbidden paths from a Scope Fence section."""
+    """Extract allowed/forbidden paths from a Scope Fence section.
+
+    Supports two markdown styles:
+
+    1. Legacy ``**Allowed**:`` / ``**Forbidden**:`` bold-header bullet lists.
+    2. (Y18) Code-block style — paths listed inside a triple-backtick block.
+       Used as a fallback when the legacy bold-header style produces no
+       entries. Each non-empty non-comment line becomes an allowed entry;
+       trailing parenthetical comments and inline backticks are stripped,
+       and lines starting with ``#`` or ``//`` are skipped.
+    """
     _log(logging.DEBUG, "entry: parse_scope_fence", text_len=len(section_text))
     try:
         fence = ScopeFence()
@@ -354,6 +364,39 @@ def parse_scope_fence(section_text: str) -> ScopeFence:
                     fence.allowed.append(entry)
                 else:
                     fence.forbidden.append(entry)
+
+        # Y18: fall back to code-block-of-paths syntax when the legacy
+        # bold-header style produced no entries. Most current task specs
+        # use the more readable code-block style; without this fallback,
+        # parse_scope_fence returns an empty ScopeFence and downstream
+        # run_scope_check fires a false-positive scope-violation.
+        if not fence.allowed and not fence.forbidden:
+            _log(
+                logging.DEBUG,
+                "parse_scope_fence: legacy parse empty; trying code-block fallback",
+            )
+            in_block = False
+            for line in section_text.splitlines():
+                if line.strip().startswith("```"):
+                    in_block = not in_block
+                    continue
+                if not in_block:
+                    continue
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                if stripped.startswith("#") or stripped.startswith("//"):
+                    continue
+                # Drop trailing parenthetical comments, then inline backticks.
+                entry = re.split(r"\s+\(", stripped, maxsplit=1)[0].strip()
+                entry = entry.strip("`").strip()
+                if entry:
+                    fence.allowed.append(entry)
+            _log(
+                logging.DEBUG,
+                "parse_scope_fence: code-block fallback collected entries",
+                count=len(fence.allowed),
+            )
 
         _log(
             logging.DEBUG,
@@ -774,6 +817,54 @@ def build_codex_prompt(task: Task, prior_iteration: Optional[str] = None) -> str
         return prompt
     except Exception:
         logger.exception("build_codex_prompt failed")
+        raise
+
+
+def determine_run_status(
+    scope: "Optional[ScopeCheckResult]",
+    test_run: "Optional[TestRunResult]",
+    codex_run: "Optional[CodexRunResult]",
+    timed_out: bool,
+) -> str:
+    """Pure helper: decide overall run status from the four signals.
+
+    Y20 (2026-04-26): Codex CLI v0.125 frequently returns a non-zero
+    returncode from harmless telemetry warnings (e.g. "failed to record
+    rollout items"). Treating that as a hard failure produced
+    ``status=fail`` runs even when the scope check passed AND every test
+    command exited 0 (this corrupted Z9 and confused the judge). The rule
+    below ignores ``codex_run.returncode`` entirely once tests and scope
+    have given the green light. If a downstream consumer wants to surface
+    the non-zero returncode, do it as an informational NOTE in the result
+    file — not as a status:fail.
+
+    Precedence (first match wins):
+      1. ``timed_out``                   -> ``"timeout"``
+      2. ``scope.status == "fail"``      -> ``"scope-violation"``
+      3. ``not test_run.all_passed``     -> ``"fail"``
+      4. otherwise                       -> ``"pass"``
+    """
+    _log(
+        logging.DEBUG,
+        "entry: determine_run_status",
+        timed_out=timed_out,
+        scope_status=(scope.status if scope is not None else None),
+        tests_ok=(test_run.all_passed if test_run is not None else None),
+        codex_returncode=(codex_run.returncode if codex_run is not None else None),
+    )
+    try:
+        if timed_out:
+            status = "timeout"
+        elif scope is not None and scope.status == "fail":
+            status = "scope-violation"
+        elif test_run is None or not test_run.all_passed:
+            status = "fail"
+        else:
+            status = "pass"
+        _log(logging.DEBUG, "exit: determine_run_status", status=status)
+        return status
+    except Exception:
+        logger.exception("determine_run_status failed")
         raise
 
 
@@ -1399,7 +1490,12 @@ def main(argv: Optional[list[str]] = None) -> int:
         )
 
         if codex_run.timed_out:
-            status = "timeout"
+            # Y20: route timeout through the same helper that the
+            # tests+scope branch uses so status determination has
+            # exactly one canonical implementation.
+            status = determine_run_status(
+                scope=None, test_run=None, codex_run=codex_run, timed_out=True,
+            )
             rollback_worktree(worktree, base_sha)
         else:
             diff_text = capture_diff(worktree, base_sha)
@@ -1418,14 +1514,15 @@ def main(argv: Optional[list[str]] = None) -> int:
                 # false positive). See dual-1-postmortem.md Bug #8.
             else:
                 test_run = run_test_commands(task.test_commands, worktree)
-                if codex_run.returncode != 0 and not test_run.all_passed:
-                    status = "fail"
-                elif not test_run.all_passed:
-                    status = "fail"
-                elif codex_run.returncode != 0:
-                    status = "fail"
-                else:
-                    status = "pass"
+                # Y20: status is derived by the pure helper so the rule
+                # is unit-testable and so codex_run.returncode noise no
+                # longer overrides a clean tests+scope pass.
+                status = determine_run_status(
+                    scope=scope,
+                    test_run=test_run,
+                    codex_run=codex_run,
+                    timed_out=False,
+                )
 
         result_path = result_dir / f"task-{task.task_id}-result.md"
         write_result_file(
