@@ -558,5 +558,164 @@ class TestResolveBase(unittest.TestCase):
             self.assertEqual(resolved, "HEAD")
 
 
+
+# ============================================================================ #
+# Z32 (Criterion 7) - Judge Quality Final improvements                          #
+# ============================================================================ #
+
+
+class TestTypeCheckMypyConfigDetection(unittest.TestCase):
+    """Z32 Improvement 2: type_check axis activates when mypy.ini exists.
+
+    Before: pyproject.toml without [tool.mypy] still passed the existence
+    check, but mypy.ini at repo root is the canonical activator. After:
+    _has_mypy_config() is content-aware for pyproject.toml/setup.cfg.
+    """
+
+    def test_score_type_check_active_when_mypy_ini_present(self) -> None:
+        """AC-2: presence of mypy.ini activates the type_check axis."""
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            _init_git_repo(repo)
+            (repo / "mypy.ini").write_text(
+                "[mypy]\npython_version = 3.12\n", encoding="utf-8",
+            )
+            # Stage one trivially-correct file so files_override path runs.
+            ok_file = _add_file(repo, "ok.py", "x: int = 1\n")
+            # Pretend mypy module is available so we don't gate on import.
+            with patch.object(judge_axes, "_module_available", return_value=True):
+                # Stub subprocess.run to short-circuit mypy itself - we only
+                # need to confirm the axis didn't get skipped on config.
+                with patch.object(
+                    judge_axes.subprocess, "run",
+                    return_value=subprocess.CompletedProcess(
+                        args=["mypy"], returncode=0, stdout="", stderr="",
+                    ),
+                ):
+                    res = judge_axes.score_type_check(
+                        repo, files_override=[ok_file],
+                    )
+            self.assertFalse(
+                res.skipped,
+                f"type_check should be active with mypy.ini, got skipped: "
+                f"{res.skip_reason}",
+            )
+            self.assertGreaterEqual(res.score, 0.0)
+            self.assertLessEqual(res.score, 1.0)
+
+    def test_pyproject_without_tool_mypy_does_not_activate(self) -> None:
+        """Plain pyproject.toml (no [tool.mypy]) should NOT count anymore."""
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            _init_git_repo(repo)
+            (repo / "pyproject.toml").write_text(
+                "[project]\nname = 'x'\n", encoding="utf-8",
+            )
+            ok_file = _add_file(repo, "ok.py", "x = 1\n")
+            with patch.object(judge_axes, "_module_available", return_value=True):
+                res = judge_axes.score_type_check(
+                    repo, files_override=[ok_file],
+                )
+            self.assertTrue(
+                res.skipped, "pyproject.toml without [tool.mypy] must skip"
+            )
+
+    def test_pyproject_with_tool_mypy_activates(self) -> None:
+        """pyproject.toml with [tool.mypy] section DOES activate."""
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            _init_git_repo(repo)
+            (repo / "pyproject.toml").write_text(
+                "[project]\nname = 'x'\n[tool.mypy]\nstrict = false\n",
+                encoding="utf-8",
+            )
+            ok_file = _add_file(repo, "ok.py", "x = 1\n")
+            with patch.object(judge_axes, "_module_available", return_value=True), \
+                 patch.object(
+                     judge_axes.subprocess, "run",
+                     return_value=subprocess.CompletedProcess(
+                         args=["mypy"], returncode=0, stdout="", stderr="",
+                     ),
+                 ):
+                res = judge_axes.score_type_check(
+                    repo, files_override=[ok_file],
+                )
+            self.assertFalse(res.skipped)
+
+
+class TestTieThresholdDefault(unittest.TestCase):
+    """Z32 Improvement 3: --tie-delta default is now 0.03 (up from 0.02)."""
+
+    def test_tie_threshold_default_is_0_03(self) -> None:
+        """AC-3: argparse default for --tie-delta == 0.03."""
+        parser = judge.build_arg_parser()
+        # Find the --tie-delta action and inspect its default.
+        actions = [a for a in parser._actions if "--tie-delta" in a.option_strings]
+        self.assertEqual(len(actions), 1, "exactly one --tie-delta action expected")
+        self.assertAlmostEqual(actions[0].default, 0.03, places=6)
+
+    def test_tie_threshold_help_text_mentions_tuning(self) -> None:
+        """Help text mentions the empirical tuning rationale (NOTE)."""
+        parser = judge.build_arg_parser()
+        actions = [a for a in parser._actions if "--tie-delta" in a.option_strings]
+        self.assertEqual(len(actions), 1)
+        help_lower = (actions[0].help or "").lower()
+        self.assertIn("note", help_lower)
+        self.assertIn("0.03", help_lower)
+
+
+class TestLoggingCoverageDelegated(unittest.TestCase):
+    """Z32 Improvement 4: logging_coverage counts delegated _log() / log_xxx() calls."""
+
+    def test_logging_coverage_counts_delegated_log_calls(self) -> None:
+        """AC-4: a function that calls _log(...) within window counts as covered."""
+        diff = textwrap.dedent("""\
+            diff --git a/x.py b/x.py
+            @@ -0,0 +1,3 @@
+            +def foo():
+            +    _log(logging.INFO, "doing thing")
+            +    return 1
+            """)
+        res = score_logging_coverage(Path("."), diff_text=diff)
+        self.assertAlmostEqual(res.score, 1.0)
+        self.assertEqual(res.raw["covered"], 1)
+        self.assertEqual(res.raw["total"], 1)
+
+    def test_logging_coverage_counts_log_info_helper(self) -> None:
+        """log_info(), log_warn(), log_error(), log_debug() all count."""
+        diff = textwrap.dedent("""\
+            diff --git a/x.py b/x.py
+            @@ -0,0 +1,12 @@
+            +def a():
+            +    log_info("a")
+            +    return 1
+            +def b():
+            +    log_warn("b")
+            +    return 2
+            +def c():
+            +    log_error("c")
+            +    return 3
+            +def d():
+            +    log_debug("d")
+            +    return 4
+            """)
+        res = score_logging_coverage(Path("."), diff_text=diff)
+        self.assertAlmostEqual(res.score, 1.0)
+        self.assertEqual(res.raw["covered"], 4)
+        self.assertEqual(res.raw["total"], 4)
+
+    def test_logging_coverage_unrelated_log_token_does_not_match(self) -> None:
+        """Bare `log` reference (no parens) must NOT count as covered."""
+        diff = textwrap.dedent("""\
+            diff --git a/x.py b/x.py
+            @@ -0,0 +1,3 @@
+            +def foo():
+            +    log = open("x")
+            +    return 1
+            """)
+        res = score_logging_coverage(Path("."), diff_text=diff)
+        self.assertAlmostEqual(res.score, 0.0)
+        self.assertEqual(res.raw["covered"], 0)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

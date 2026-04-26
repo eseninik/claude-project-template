@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Codex Ask - CLI tool for Claude to get Codex opinion on any task.
 
 Usage:
@@ -151,13 +151,24 @@ def ask_via_broker(prompt):
     return text.strip() if text.strip() else None
 
 
-def ask_via_exec(prompt):
+def ask_via_exec(prompt: str, strategic: bool = False) -> str | None:
     """Fallback: ask via codex exec (cold start).
 
     Delegates stdout parsing to ``parse_codex_exec_stdout`` which handles
     both v0.117 (sentinel-based) and v0.125 (header-on-stderr) formats.
+
+    Args:
+        prompt: The question/task to send to Codex.
+        strategic: If True (Y27), use 900s (15 min) timeout for deep
+            analyses (production-readiness reviews, architecture audits).
+            Default False uses 180s (up from 120 to cover normal advisor
+            consults that previously timed out silently).
     """
-    logger.info("ask_via_exec.enter prompt_len=%d", len(prompt or ""))
+    timeout_s = 900 if strategic else 180
+    logger.info(
+        "ask_via_exec.enter prompt_len=%d strategic=%s timeout=%d",
+        len(prompt or ""), strategic, timeout_s,
+    )
     codex = shutil.which("codex")
     if not codex:
         logger.info("ask_via_exec.exit result_truthy=False reason=codex-not-in-path")
@@ -167,7 +178,7 @@ def ask_via_exec(prompt):
             [codex, "exec", prompt[:3000], "-m", "gpt-5.5",
              "--sandbox", "read-only", "--full-auto", "--ephemeral"],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=120,
+            timeout=timeout_s,
         )
         if r.returncode != 0:
             logger.info("ask_via_exec.exit result_truthy=False reason=returncode-%d",
@@ -185,11 +196,17 @@ def ask_via_exec(prompt):
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: py -3 .claude/scripts/codex-ask.py \"your question\"", file=sys.stderr)
+    args = sys.argv[1:]
+    strategic = False
+    if "--strategic" in args:
+        strategic = True
+        args = [arg for arg in args if arg != "--strategic"]
+    if not args:
+        print("Usage: py -3 .claude/scripts/codex-ask.py [--strategic] \"your question\"",
+              file=sys.stderr)
         sys.exit(1)
 
-    prompt = " ".join(sys.argv[1:])
+    prompt = " ".join(args)
 
     # Try broker first (fast, warm)
     result = None
@@ -200,7 +217,7 @@ def main():
 
     # Fallback to codex exec
     if not result:
-        result = ask_via_exec(prompt)
+        result = ask_via_exec(prompt, strategic=strategic)
 
     if result:
         print(f"--- Codex gpt-5.5 opinion ---")
