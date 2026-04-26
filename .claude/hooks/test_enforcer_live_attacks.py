@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Z5 - Live attack matrix for codex-delegate-enforcer.py.
 
 Subprocess-level live integration harness exercising all 12 documented
@@ -401,4 +401,16 @@ def test_a06_valid_cover_allowed(
     (project_root / "src" / "auth.py").write_text("# auth\n", encoding="utf-8")
     tmp_cover_artifact("a06", ["src/auth.py"], status="pass")
     r = _run_enforcer(_edit_payload(target), project_root)
+    _assert_allow(r)
+
+def test_a07_sync_script_invocation_allowed(project_root: Path) -> None:
+    """A7 (Y22) - Bash invocation of the relocated sync script must ALLOW.
+
+    .claude/scripts/sync-template-to-target.py is the project's own helper
+    (not a one-shot mass-mutator), so it lives in the dual-tooling whitelist
+    next to codex-ask.py, codex-implement.py, etc. Calling it via py -3 with
+    arbitrary CLI args must NOT require a Codex cover.
+    """
+    cmd = "py -3 .claude/scripts/sync-template-to-target.py --tgt /tmp/foo --apply"
+    r = _run_enforcer(_bash_payload(cmd), project_root)
     _assert_allow(r)

@@ -141,6 +141,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
                        help="Timeout passed to background codex-implement.py (default: 3600)")
         p.add_argument("--log-dir", default=Path("work/codex-primary/logs"), type=Path,
                        help="Directory for structured logs")
+        p.add_argument("--result-dir", default=Path("work/codex-implementations"),
+                       type=Path,
+                       help="Directory where codex-implement.py writes "
+                            "task-<id>-result.md. Resolved against the MAIN "
+                            "project root (NOT the codex worktree) so the "
+                            "delegate enforcer's path-exact cover lookup can "
+                            "find it. Default: work/codex-implementations")
         _log(logging.DEBUG, "exit: build_arg_parser")
         return p
     except Exception:
@@ -500,6 +507,7 @@ def spawn_codex_background(
     log_dir: Path,
     task_id: str,
     dry_run: bool,
+    result_dir: Optional[Path] = None,
 ) -> CodexJob:
     """Launch codex-implement.py as a detached subprocess; capture PID + log path.
 
@@ -530,6 +538,14 @@ def spawn_codex_background(
             "--speed", speed,
             "--timeout", str(timeout),
         ]
+        # Y19: forward --result-dir as ABSOLUTE path so codex-implement.py
+        # writes task-<id>-result.md into the MAIN project's
+        # work/codex-implementations/ (where the delegate enforcer looks),
+        # not into the codex worktree's local copy. Mirrors dual-teams-spawn
+        # Y9 fix.
+        if result_dir is not None:
+            resolved_result_dir = result_dir.resolve()
+            cmd += ["--result-dir", str(resolved_result_dir)]
 
         if dry_run:
             _log(logging.INFO, "dry-run: skipping codex spawn", cmd=cmd)
@@ -687,6 +703,12 @@ def prep(args: argparse.Namespace, project_root: Path) -> PrepResult:
             _log(logging.INFO, "wrote prompt", path=str(prompt_path), bytes=len(prompt_text))
 
         log_dir = args.log_dir if args.log_dir.is_absolute() else (project_root / args.log_dir)
+        # Y19: resolve --result-dir against MAIN project_root (not codex worktree)
+        # so result.md lands where delegate enforcer can find it for cover lookup.
+        result_dir = (
+            args.result_dir if args.result_dir.is_absolute()
+            else (project_root / args.result_dir)
+        )
         codex_job = spawn_codex_background(
             project_root=project_root,
             spec_path=spec_path,
@@ -696,6 +718,7 @@ def prep(args: argparse.Namespace, project_root: Path) -> PrepResult:
             log_dir=log_dir,
             task_id=task_id,
             dry_run=args.dry_run,
+            result_dir=result_dir,
         )
 
         result = PrepResult(
