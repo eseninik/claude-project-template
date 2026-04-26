@@ -9,6 +9,47 @@
 
 ## Current Focus
 
+### Round 4 — Live Attack Matrix Verification + Y23/Z5/Z7 — COMPLETE 2026-04-26
+**Goal:** Prove Z1 invariants achieve 100% live coverage of 12 known bypass vectors via subprocess-level integration tests; close any real gaps revealed; fix any infrastructure blockers (codex-ask v0.125).
+
+**Status:** COMPLETE. End-to-end 18/18 live attack matrix PASS in both repos (template + QA Legal). 123 tests total each.
+
+**What landed in this round (3 dual-implement runs, all Claude-walkover wins because Codex CLI v0.125 produces empty diffs — Y26 follow-up):**
+
+- **Y23** (commit f855483 merge): codex-ask.py parser refactored. Extracted `parse_codex_exec_stdout(stdout)` handling BOTH v0.117 (sentinel-based) and v0.125 (header in stderr, response only in stdout). Was returning "Codex unavailable" for every session using new CLI — broke gate refresh, advisor consults, parallel sessions. 16 NEW tests, real-CLI ping returns "OK".
+
+- **Z5** (commit 0062f38 merge): Live attack matrix `.claude/hooks/test_enforcer_live_attacks.py` (404 LOC, 18 subprocess-level tests = 12 deny + 6 allow). Verifies enforcer at the binary contract level Claude Code harness uses (subprocess.run + stdin JSON + stdout JSON deny signal). Revealed 2 real enforcer gaps:
+  - V02 — NotebookEdit on .ipynb not blocked (extension dispatch never fires for .ipynb)
+  - V03 — Bash with `cat heredoc\\ngit apply` chained on newline not blocked (split only handles `; && || |`)
+
+- **Z7** (commit current HEAD merge): Minimal +6/-2 LOC fix in codex-delegate-enforcer.py:
+  - V02: Added .ipynb to CODE_EXTENSIONS
+  - V03: Added \\n to _split_logical_commands separators
+  Result: 18/18 live attack matrix PASS. 105 existing tests still pass.
+
+**End state numbers (both template fix/watchdog-dushnost AND QA Legal sync/template-update-2026-04-26):**
+- 18 live attack tests PASS
+- 35 invariants tests PASS
+- 36 enforcer tests PASS
+- 18 gate tests PASS
+- 16 codex-ask tests PASS
+- = 123 pass total + selftest 6/6 (~500ms) + real codex-ask "OK" (manual)
+
+**Sync chain in QA Legal (5 commits on sync/template-update-2026-04-26):**
+- 32439b2 — infra mirror
+- 15630ab — CLAUDE.md/AGENTS.md Always-Dual sections
+- 3461f93 — Z1 invariants
+- ad1c4a9 — Y23 codex-ask v0.125 fix
+- b5ffdd6 — Z5 live matrix + Z7 V02/V03 fixes
+
+**Empirical 100% coverage achieved.** Every Z1 invariant + every of 12 documented bypass vectors has a passing subprocess-level test. Codex CLI v0.125 supported. End-to-end live verified in both repos.
+
+**Lessons added to follow-up backlog:**
+- Y26: Codex CLI v0.125 produces empty-diff for our task spec format (3 walkovers in a row: Y23/Z5/Z7). Investigate task spec formatting, may be system prompt or scope-fence parser issue.
+- Y25 (deferred): Better diagnostic message when Codex truly unavailable. Current behavior IS fail-closed (no cover → deny), but message blames "no cover" rather than "Codex away". Nice-to-have for parallel-session UX, not blocking.
+- Y18-Y22 from Round 3 still open: scope-check parser, codex-inline-dual --result-dir, codex-implement status:fail for verification-only, task spec >500 LOC tie artifact, sync-script in .claude/scripts whitelist.
+
+### Round 3 — Always-Dual Codified (Z1) + QA Legal Sync — COMPLETE 2026-04-26
 ### Round 3 — Always-Dual Codified (Z1) + QA Legal Sync — COMPLETE 2026-04-26
 **Goal:** Sync entire dual-implement system to QA Legal as test target, then close the structural gap that allowed Claude to bypass own enforcer when writing helper scripts. Make Always-Dual MANDATORY actually mandatory at the harness level.
 
@@ -447,6 +488,16 @@ pipeline-checkpoint-PLAN в†’ IMPLEMENT_WAVE_1 в†’ IMPLEMENT_WAVE_2 в�
 
 ## Auto-Generated Summaries
 
+### 2026-04-26 12:05 (commit `80b5661`)
+**Message:** chore(work): commit Z7 task spec (V02 NotebookEdit + V03 newline-chained Bash)
+**Files:** 1
+
+
+### 2026-04-26 11:58 (commit `cf871cf`)
+**Message:** chore(work): commit Y23 + Z5 task specs
+**Files:** 3
+
+
 ### 2026-04-26 09:39 (commit `b7bc25f`)
 **Message:** chore(work): commit dual-implement Z1 helpers + Z1 task spec & verdict
 **Files:** 6
@@ -793,6 +844,7 @@ pipeline-checkpoint-PLAN в†’ IMPLEMENT_WAVE_1 в†’ IMPLEMENT_WAVE_2 в�
 
 **Architectural status:**
 Always-Dual protocol fully operational: CLAUDE.md + AGENTS.md + enforcer hook + codex-gate bypass + DUAL_TEAMS phase mode + dual-teams-spawn.py + codex-inline-dual.py + judge.py + stability layer + warm pool + streaming+cherry-pick docs.
+
 
 
 
