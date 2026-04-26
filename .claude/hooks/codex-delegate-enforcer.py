@@ -139,6 +139,22 @@ _BASH_PWSH_LAUNCHERS: frozenset = frozenset({
     "powershell", "powershell.exe", "pwsh", "pwsh.exe",
 })
 
+# Z14-V13 - scheduler verbs. Match basename (lowercased).
+# - schtasks (Windows): /TR "<command>" carries an opaque payload.
+# - register-scheduledtask (PowerShell cmdlet): -Argument "<command>".
+# - at, crontab (Unix): read stdin / file -> always opaque, deny outright.
+_SCHEDULER_VERBS: frozenset = frozenset({
+    "schtasks", "at", "crontab", "register-scheduledtask",
+})
+
+# Z14-V14 - MCP write-action keywords. Action tail of mcp__<server>__<action>
+# containing one of these substrings -> treat as code-mutating write tool.
+_MCP_WRITE_KEYWORDS: tuple = (
+    "write", "edit", "create", "patch", "put",
+    "append", "delete", "remove", "update",
+)
+_MCP_TOOL_NAME_RE = re.compile(r"^mcp__(.+?)__(.+)$")
+
 
 def _build_logger(project_dir: Path) -> logging.Logger:
     """Create enforcer logger: file if writable else stderr-only."""
@@ -754,6 +770,24 @@ def _classify_single_command(command: str) -> dict:
         if result is not None:
             return result
 
+    # Z14-V13: Scheduler verbs (schtasks/at/crontab/Register-ScheduledTask).
+    # Re-tokenize the embedded payload and recursively classify it.
+    if verb in _SCHEDULER_VERBS:
+        sched_result = _classify_scheduler(verb, tokens, command)
+        if sched_result is not None:
+            return sched_result
+
+    # Z14-V15: Unknown-verb fallback - scan argv for code-extension paths
+    # (positional, `--flag value`, and `--name=value` forms). Any code-path
+    # token implies the unknown binary likely writes/produces code -> deny.
+    code_argv = _scan_argv_for_code_paths(tokens)
+    if code_argv:
+        logger.info("classify.unknown-verb-with-code-path-argv verb=%s targets=%s",
+                    verb, code_argv)
+        return {"decision": "require_cover",
+                "reason": "unknown-verb-with-code-path-argv",
+                "targets": code_argv}
+
     return {"decision": "allow", "reason": "unknown-verb-allowed", "targets": []}
 
 
@@ -792,6 +826,114 @@ def _git_mutating_targets(args: list, sub: str) -> list:
             continue
         if is_code_extension(norm):
             out.append(norm)
+    return out
+
+
+def _classify_scheduler(verb: str, tokens: list, raw_command: str) -> Optional[dict]:
+    """Z14-V13 - Re-tokenize scheduled-command payload and reclassify.
+
+    schtasks /Create /TR "<cmd>"  -> extract /TR value, recurse.
+    Register-ScheduledTask -Argument "<cmd>"  -> extract -Argument, recurse.
+    at, crontab  -> opaque (stdin/file), deny outright.
+    """
+    logger = logging.getLogger(HOOK_NAME)
+    logger.info("classify_scheduler.enter verb=%s tokens=%d", verb, len(tokens))
+    if verb in {"at", "crontab"}:
+        logger.info("classify_scheduler.exit verb=%s reason=opaque-stdin", verb)
+        return {"decision": "require_cover",
+                "reason": "scheduler-opaque-payload",
+                "targets": ["<" + verb + "-opaque-payload>"]}
+
+    payload: Optional[str] = None
+    if verb == "schtasks":
+        # Look for /TR (case-insensitive) followed by the command string.
+        for i, tok in enumerate(tokens[1:], start=1):
+            if tok.upper() == "/TR" and i + 1 < len(tokens):
+                payload = tokens[i + 1]
+                break
+            # Also support `/TR:<cmd>` and `/TR="<cmd>"` shapes.
+            if tok.upper().startswith("/TR:") and len(tok) > 4:
+                payload = tok[4:]
+                break
+            if tok.upper().startswith("/TR=") and len(tok) > 4:
+                payload = tok[4:]
+                break
+    elif verb == "register-scheduledtask":
+        # Look for -Argument (case-insensitive) followed by the command string.
+        for i, tok in enumerate(tokens[1:], start=1):
+            if tok.lower() == "-argument" and i + 1 < len(tokens):
+                payload = tokens[i + 1]
+                break
+
+    if not payload or not payload.strip():
+        logger.info("classify_scheduler.no-payload verb=%s -> opaque-deny", verb)
+        return {"decision": "require_cover",
+                "reason": "scheduler-opaque-payload",
+                "targets": ["<" + verb + "-opaque-payload>"]}
+
+    # Recursively classify the embedded command.
+    payload_str = payload.strip().strip("'\"").strip()
+    logger.info("classify_scheduler.recurse verb=%s payload=%r", verb, payload_str[:120])
+    nested = parse_bash_command(payload_str)
+    if nested.get("decision") == "require_cover":
+        # Propagate the nested decision up; tag the reason.
+        nested_targets = nested.get("targets") or []
+        return {"decision": "require_cover",
+                "reason": "scheduler-payload:" + str(nested.get("reason", "")),
+                "targets": nested_targets if nested_targets
+                           else ["<" + verb + "-nested-mutation>"]}
+    # Nested allow -> still treat schedulable code execution as suspicious if
+    # payload contains a code-path token. Otherwise allow.
+    nested_paths = _scan_argv_for_code_paths(_safe_shlex(payload_str))
+    if nested_paths:
+        return {"decision": "require_cover",
+                "reason": "scheduler-payload-code-path",
+                "targets": nested_paths}
+    logger.info("classify_scheduler.allow verb=%s nested-allow", verb)
+    return {"decision": "allow",
+            "reason": "scheduler-payload-no-code-mutation",
+            "targets": []}
+
+
+def _scan_argv_for_code_paths(tokens: list) -> list:
+    """Z14-V15 - Scan argv for code-extension paths (positional + --flag + --flag=value).
+
+    Recognizes:
+      - positional path tokens with code extensions (e.g. ``src/foo.py``)
+      - ``--flag value`` form: when the previous token is a flag, the value
+        is checked
+      - ``--name=value`` form: split on first ``=``, value side checked
+    Skips the first token (the verb itself).
+    """
+    out: list = []
+    seen: set = set()
+    if not tokens:
+        return out
+    for i, tok in enumerate(tokens):
+        if i == 0:
+            continue  # skip the verb
+        if not tok:
+            continue
+        # --name=value form: extract value side
+        if tok.startswith("--") and "=" in tok:
+            _, _, value = tok.partition("=")
+            cand = _normalize_path_token(value)
+            if cand and _looks_like_path(cand) and is_code_extension(cand):
+                if cand not in seen:
+                    seen.add(cand)
+                    out.append(cand)
+            continue
+        if tok.startswith("-"):
+            continue  # bare flag, value (if any) handled in next iteration
+        cand = _normalize_path_token(tok)
+        if not cand:
+            continue
+        if not _looks_like_path(cand):
+            continue
+        if is_code_extension(cand):
+            if cand not in seen:
+                seen.add(cand)
+                out.append(cand)
     return out
 
 
@@ -1066,7 +1208,8 @@ def decide(payload: dict, project_dir: Path) -> bool:
     if event and event != "PreToolUse":
         logger.info("decide.passthrough reason=non-PreToolUse event=%s", event)
         return True
-    if tool_name not in {"Edit", "Write", "MultiEdit", "Bash", "NotebookEdit"}:
+    is_mcp = bool(_MCP_TOOL_NAME_RE.match(tool_name))
+    if tool_name not in {"Edit", "Write", "MultiEdit", "Bash", "NotebookEdit"} and not is_mcp:
         logger.info("decide.passthrough reason=unknown-tool tool=%s", tool_name)
         return True
     if is_dual_teams_worktree(project_dir):
@@ -1075,6 +1218,8 @@ def decide(payload: dict, project_dir: Path) -> bool:
 
     if tool_name == "Bash":
         return _decide_bash(payload, project_dir)
+    if is_mcp:
+        return _decide_mcp(payload, project_dir, tool_name)
     return _decide_edit(payload, project_dir, tool_name)
 
 
@@ -1175,6 +1320,93 @@ def _decide_bash(payload: dict, project_dir: Path) -> bool:
             "decision": "allow", "reason": reason,
         })
     logger.info("decide_bash.exit allowed=True")
+    return True
+
+
+def _decide_mcp(payload: dict, project_dir: Path, tool_name: str) -> bool:
+    """Z14-V14 - MCP tool branch.
+
+    For tool_name matching ^mcp__<server>__<action>$, when <action> contains
+    one of the write keywords (write/edit/create/patch/put/append/delete/
+    remove/update), treat tool_input.path (or .file_path / .target /
+    .destination / .filename) as the target and reuse the edit-decide flow.
+    Read-only MCP tools fall through to allow.
+    """
+    logger = logging.getLogger(HOOK_NAME)
+    logger.info("decide_mcp.enter tool=%s", tool_name)
+    m = _MCP_TOOL_NAME_RE.match(tool_name)
+    if not m:
+        logger.info("decide_mcp.passthrough reason=name-mismatch tool=%s", tool_name)
+        return True
+    action = m.group(2).lower()
+    if not any(k in action for k in _MCP_WRITE_KEYWORDS):
+        logger.info("decide_mcp.allow reason=read-only-action tool=%s action=%s",
+                    tool_name, action)
+        return True
+
+    tool_input = payload.get("tool_input") or {}
+    if not isinstance(tool_input, dict):
+        logger.info("decide_mcp.passthrough reason=no-input tool=%s", tool_name)
+        return True
+
+    raw_targets: list = []
+    for key in ("path", "file_path", "target", "destination",
+                "filename", "filepath"):
+        val = tool_input.get(key)
+        if isinstance(val, str) and val.strip():
+            raw_targets.append(val.strip())
+    # Some MCP tools accept a list of paths.
+    paths_field = tool_input.get("paths")
+    if isinstance(paths_field, list):
+        for v in paths_field:
+            if isinstance(v, str) and v.strip():
+                raw_targets.append(v.strip())
+
+    if not raw_targets:
+        logger.info("decide_mcp.passthrough reason=no-target tool=%s", tool_name)
+        return True
+
+    seen: set = set()
+    unique: list = []
+    for r in raw_targets:
+        if r not in seen:
+            seen.add(r)
+            unique.append(r)
+
+    for raw in unique:
+        abs_path = resolve_target(project_dir, raw)
+        if abs_path is None:
+            logger.info("decide_mcp.skip reason=unresolvable raw=%r", raw)
+            continue
+        rel = rel_posix(project_dir, abs_path)
+        if rel is None:
+            logger.info("decide_mcp.skip reason=outside-project path=%s", abs_path)
+            continue
+        if not requires_cover(rel):
+            logger.info("decide_mcp.allow-target rel=%s reason=non-code-or-exempt", rel)
+            _append_skip_ledger(project_dir, {
+                "ts": _now_iso(), "tool": tool_name, "path": rel,
+                "decision": "allow", "reason": "mcp-non-code-or-exempt",
+            })
+            continue
+        if is_dual_teams_worktree(abs_path):
+            logger.info("decide_mcp.allow-target rel=%s reason=dual-teams-target", rel)
+            _append_skip_ledger(project_dir, {
+                "ts": _now_iso(), "tool": tool_name, "path": rel,
+                "decision": "allow", "reason": "mcp-dual-teams-target",
+            })
+            continue
+        covered, reason = find_cover(project_dir, rel)
+        if not covered:
+            logger.info("decide_mcp.deny rel=%s reason=%s tool=%s", rel, reason, tool_name)
+            emit_deny(rel, reason, project_dir, tool_name=tool_name)
+            return False
+        logger.info("decide_mcp.allow-target rel=%s reason=covered", rel)
+        _append_skip_ledger(project_dir, {
+            "ts": _now_iso(), "tool": tool_name, "path": rel,
+            "decision": "allow", "reason": reason,
+        })
+    logger.info("decide_mcp.exit allowed=True tool=%s", tool_name)
     return True
 
 
