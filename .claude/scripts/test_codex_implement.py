@@ -720,6 +720,74 @@ class TestWriteResultFile(unittest.TestCase):
             self.assertIn("NOTE: all good", content)
 
 
+def test_no_bom_in_codex_implement_outputs(tmp_path):
+    """codex-implement.py result.md outputs use UTF-8 no-BOM."""
+    task_path = tmp_path / "T1-encoding.md"
+    task_path.write_text(TASK_SAMPLE, encoding="utf-8")
+    task = codex_impl.parse_task_file(task_path)
+    result_path = tmp_path / "task-test-result.md"
+
+    codex_impl.write_result_file(
+        result_path=result_path,
+        task=task,
+        status="pass",
+        diff="diff --git a/a b/a\n",
+        test_run=codex_impl.TestRunResult(all_passed=True, outputs=[]),
+        codex_run=codex_impl.CodexRunResult(
+            returncode=0,
+            stdout="",
+            stderr="",
+            timed_out=False,
+            self_report=["NOTE: encoding fixture"],
+        ),
+        scope=codex_impl.ScopeCheckResult(status="pass", message="in-scope"),
+        base_sha="deadbeef",
+        timestamp="2026-04-26T00:00:00+00:00",
+    )
+
+    raw = result_path.read_bytes()
+    assert not raw.startswith(b"\xef\xbb\xbf"), "BOM in result.md output"
+
+
+def test_no_direct_codex_cli_outside_helper():
+    """Only _build_codex_argv() may construct write-mode Codex CLI argv."""
+    repo_root = Path(__file__).resolve().parents[2]
+    py_files = list(repo_root.glob(".claude/scripts/*.py")) + list(
+        repo_root.glob(".claude/hooks/*.py")
+    )
+    py_files = [
+        f
+        for f in py_files
+        if f.name != "codex-implement.py" and not f.name.startswith("test_")
+    ]
+
+    danger_flag = "--dangerously" + "-bypass-approvals-and-sandbox"
+    workspace_write = "--sandbox workspace-write"
+    cmd_exec_patterns = ("codex.cmd exec", "codex.CMD exec")
+    legacy_full_auto = "--full" + "-auto"
+    violations: list[str] = []
+
+    for pyf in py_files:
+        text = pyf.read_text(encoding="utf-8", errors="replace")
+        lower_text = text.lower()
+        compact = " ".join(
+            text.replace('"', "").replace("'", "").replace(",", " ").split()
+        )
+        for pat in (danger_flag, workspace_write, *cmd_exec_patterns):
+            if pat.lower() in lower_text:
+                violations.append(f"{pyf.name} hardcodes Codex CLI flag: {pat}")
+        if legacy_full_auto in text and "workspace-write" in text:
+            violations.append(
+                f"{pyf.name} hardcodes legacy workspace-write argv with {legacy_full_auto}"
+            )
+        if legacy_full_auto in compact and "--sandbox workspace-write" in compact:
+            violations.append(
+                f"{pyf.name} hardcodes tokenized workspace-write argv with {legacy_full_auto}"
+            )
+
+    assert violations == []
+
+
 class TestPreflightCleanTreeGuard(unittest.TestCase):
     """Regression suite for the dirty-tree preflight check.
 

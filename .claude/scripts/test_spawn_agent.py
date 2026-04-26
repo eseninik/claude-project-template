@@ -21,6 +21,7 @@ Stdlib only; works on Windows + POSIX.
 
 from __future__ import annotations
 
+import importlib.util
 import logging
 import subprocess
 import sys
@@ -51,6 +52,17 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SPAWN_SCRIPT = REPO_ROOT / ".claude" / "scripts" / "spawn-agent.py"
 
 Y14_HEADING = "## CRITICAL — sub-agent file write mechanism (Y14 finding)"
+
+
+def load_spawn_agent_module():
+    """Load spawn-agent.py so tests can inspect helper output directly."""
+    spec = importlib.util.spec_from_file_location("spawn_agent_under_test", SPAWN_SCRIPT)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Cannot load {SPAWN_SCRIPT}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["spawn_agent_under_test"] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def run_spawn(*extra_args: str) -> subprocess.CompletedProcess:
@@ -243,6 +255,15 @@ class Y14InjectionTests(unittest.TestCase):
             msg="--detect-only output preamble missing (regression)",
         )
         logger.info("event=test.detect_only.exit pass=true")
+
+
+def test_spawn_agent_y14_block_uses_utf8_no_bom_template() -> None:
+    """spawn-agent.py Y14 block embeds UTF8Encoding(False) (no-BOM)."""
+    spawn_agent = load_spawn_agent_module()
+    block = spawn_agent.build_y14_block()
+    assert "UTF8Encoding" in block and "$false" in block, "no-BOM template missing"
+    assert "[System.IO.File]::WriteAllText" in block, "PowerShell no-BOM write missing"
+    assert "Set-Content -Encoding utf8" in block, "legacy Set-Content note missing"
 
 
 # ---------------------------------------------------------------------------
