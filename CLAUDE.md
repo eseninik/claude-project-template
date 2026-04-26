@@ -77,6 +77,31 @@ blocks the edit (exit 2) if no matching Codex artifact exists. Claude is
 still free to write — but only **in parallel with or after** a Codex run
 on the same scope. The hand-edit without Codex is what gets blocked.
 
+### The Four Invariants (Z1 — codified enforcement)
+
+The enforcer applies one rule expressed as four invariants. Together they
+close 12 documented bypass vectors:
+
+1. **Extension wins.** A path with a code extension (`.py`, `.ts`, `.sh`,
+   ...) ALWAYS requires a Codex cover, regardless of where it lives.
+   Path-based exemptions (`work/**`, `worktrees/**`, `.claude/scripts/**`)
+   only apply to non-code extensions. A `.py` file in `work/` is still code.
+2. **Bash counts.** `PreToolUse(Bash)` parses the command. Mutating verbs
+   (`cp`, `mv`, `sed -i`, redirects `>`/`>>`, `git apply`, `python script.py`,
+   `powershell Set-Content`, etc.) on code paths require cover. A whitelist
+   exempts read-only verbs (`ls`, `cat`, `git status`, `pytest`, ...) and
+   the project's own dual-implement tooling (`codex-ask`, `codex-implement`,
+   `dual-teams-spawn`, ...).
+3. **Path-exact coverage.** A Codex artifact's Scope Fence must explicitly
+   list the target file (with glob support). "Any fresh pass within 15 min"
+   is NOT enough — multi-stage tasks must run their own Codex per stage.
+4. **Skip-token audit + actionable block messages.** Every allow/deny
+   decision is appended to `work/codex-implementations/skip-ledger.jsonl`
+   for offline audit. DENY error messages include a ready-to-run
+   `codex-inline-dual.py --describe ... --scope <path>` command for the
+   blocked path so the recovery is obvious.
+
+
 ### Task size → execution mode
 
 | Task scope | Mode | How it runs |
@@ -125,7 +150,7 @@ When not to use:
 
 - Any file whose extension is NOT in the list above
 - `.claude/memory/**` — session memory (activeContext, knowledge, daily logs)
-- `work/**` — planning artifacts (task specs, post-mortems, judgments, PIPELINE.md)
+- `work/**` — planning artifacts (task specs, post-mortems, judgments, PIPELINE.md) (non-code only — `.py` under `work/` still requires cover, see Invariant 1)
 - `CLAUDE.md`, `AGENTS.md`, `README.md`, `CHANGELOG.md`, `LICENSE`, `.gitignore`
 - `.claude/settings.json`, `.claude/ops/*.yaml`, `.mcp.json` — config
 - `.claude/adr/**/*.md` — architecture decisions
@@ -144,7 +169,7 @@ When not to use:
 
 ### Enforcement artefact
 
-`.claude/hooks/codex-delegate-enforcer.py` runs on `PreToolUse(Edit|Write|MultiEdit)`:
+`.claude/hooks/codex-delegate-enforcer.py` runs on `PreToolUse(Edit|Write|MultiEdit|Bash|NotebookEdit)`:
 - If target has a code extension AND is NOT in exempt paths
 - → Looks for a recent (< 15 min) `work/codex-implementations/task-*-result.md`
   with `status: pass` whose Scope Fence covers this path
