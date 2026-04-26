@@ -398,8 +398,10 @@ class TestHelpers(unittest.TestCase):
     def test_requires_cover_negative_exempt(self) -> None:
         # .claude/skills/**/*.md is exempt, and .md is non-code anyway.
         self.assertFalse(self.mod.requires_cover("CLAUDE.md"))
-        # work/** is exempt even for .py.
-        self.assertFalse(self.mod.requires_cover("work/scripts/helper.py"))
+        # Z1/I1 (Extension wins): non-code under work/** is exempt;
+        # code under work/** STILL requires cover.
+        self.assertFalse(self.mod.requires_cover("work/notes.md"))
+        self.assertTrue(self.mod.requires_cover("work/scripts/helper.py"))
 
     def test_path_in_fence_exact_file(self) -> None:
         self.assertTrue(self.mod.path_in_fence("a/b/c.py", ["a/b/c.py"]))
