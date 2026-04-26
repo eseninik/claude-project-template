@@ -899,8 +899,68 @@ def _now_iso() -> str:
         microsecond=0).isoformat()
 
 
+def _codex_appears_unavailable(
+    auth_path: Optional[Path] = None,
+    now: Optional[datetime.datetime] = None,
+    max_auth_age_hours: int = 24,
+) -> tuple:
+    """Return (True, reason) if Codex appears unusable, else (False, '').
+
+    Y25 (Z12): pure helper, all kwargs optional for hermetic testing.
+    Defaults to ~/.codex/auth.json + datetime.datetime.now().
+
+    Detects two failure modes:
+      1. ~/.codex/auth.json missing entirely (never logged in)
+      2. ~/.codex/auth.json mtime older than max_auth_age_hours (token stale)
+
+    Result is advisory only - the enforcer NEVER fails-open based on this.
+    Used solely to prepend a human-readable hint to the DENY message so
+    the user knows that running the suggested codex-inline-dual.py command
+    will also fail until they refresh auth.
+    """
+    logger = logging.getLogger(HOOK_NAME)
+    logger.debug(
+        "codex_unavailable.enter auth_path=%s max_age_h=%d",
+        auth_path, max_auth_age_hours,
+    )
+    try:
+        auth = auth_path or (Path.home() / ".codex" / "auth.json")
+        if not auth.exists():
+            reason = "~/.codex/auth.json missing"
+            logger.debug("codex_unavailable.exit unavailable=True reason=%s", reason)
+            return True, reason
+        clock = now or datetime.datetime.now()
+        age_seconds = clock.timestamp() - auth.stat().st_mtime
+        age_hours = age_seconds / 3600.0
+        if age_hours > max_auth_age_hours:
+            reason = ("~/.codex/auth.json older than "
+                      + str(max_auth_age_hours) + "h ("
+                      + str(int(age_hours)) + "h)")
+            logger.debug("codex_unavailable.exit unavailable=True reason=%s", reason)
+            return True, reason
+        logger.debug("codex_unavailable.exit unavailable=False age_h=%.2f", age_hours)
+        return False, ""
+    except OSError as exc:
+        # Stat / filesystem error - treat as unavailable so user gets a hint.
+        logger.exception("codex_unavailable.os_err exc=%s", exc)
+        return True, "~/.codex/auth.json unreadable: " + str(exc)
+    except Exception as exc:
+        # Any other error - fail-quiet, return False so enforcer prints
+        # only the regular DENY message (no spurious hint).
+        logger.exception("codex_unavailable.unexpected exc=%s", exc)
+        return False, ""
+
+
 def _build_block_message(blocked_path: str, reason_code: str) -> str:
-    """Build the actionable DENY message for emit_deny."""
+    """Build the actionable DENY message for emit_deny.
+
+    Y25 (Z12): when Codex itself appears unavailable (~/.codex/auth.json
+    missing or stale), prepend a human-readable hint BEFORE the existing
+    "no cover" / "codex-inline-dual.py" suggestion. The rule is unchanged
+    (still fail-closed); only the wording improves so the user is not
+    sent on a fool's errand of running a suggestion that will also fail.
+    """
+    logger = logging.getLogger(HOOK_NAME)
     reason_text = {
         "no-results": "no codex-implement result found",
         "no-results-dir": "work/codex-implementations/ does not exist",
@@ -910,7 +970,7 @@ def _build_block_message(blocked_path: str, reason_code: str) -> str:
         "parse-error": "could not parse codex-implement result",
         "bash-no-cover": "Bash command would mutate code without cover",
     }.get(reason_code, reason_code)
-    msg = (
+    base_msg = (
         "Code Delegation Protocol: " + blocked_path + " blocked ("
         + reason_text + ").\n\n"
         "To start the dual-implement track for this path, run:\n\n"
@@ -921,7 +981,19 @@ def _build_block_message(blocked_path: str, reason_code: str) -> str:
         "Then retry your edit. For multi-file tasks, use:\n"
         "  py -3 .claude/scripts/dual-teams-spawn.py --tasks <task.md> ...\n"
     )
-    return msg
+    try:
+        unavailable, why = _codex_appears_unavailable()
+    except Exception as exc:
+        logger.exception("build_block_message.unavail_check_err exc=%s", exc)
+        unavailable, why = False, ""
+    if unavailable:
+        prefix = (
+            "*** Codex appears unavailable: " + why + ".\n"
+            "*** Run `codex login` or check ~/.codex/auth.json, then retry.\n\n"
+        )
+        logger.info("build_block_message.unavailable_hint reason=%s", why)
+        return prefix + base_msg
+    return base_msg
 
 
 def emit_deny(blocked: str, reason_code: str, project_dir: Path,

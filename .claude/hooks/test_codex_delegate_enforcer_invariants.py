@@ -435,5 +435,86 @@ class TestRegression(unittest.TestCase):
         )
 
 
+# ======================================================================
+# Y25 (Z12) — _codex_appears_unavailable helper + block-message hint
+# ======================================================================
+class TestY25CodexUnavailableHelper(unittest.TestCase):
+    """Helper detects missing / stale ~/.codex/auth.json."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.mod = _load_module()
+
+    def test_codex_unavailable_when_auth_missing(self):
+        """auth_path pointing at a non-existent file -> True + 'missing'."""
+        with tempfile.TemporaryDirectory() as td:
+            nx = Path(td) / "nonexistent.json"
+            self.assertFalse(nx.exists())
+            unavailable, reason = self.mod._codex_appears_unavailable(auth_path=nx)
+            self.assertTrue(unavailable)
+            self.assertIn("missing", reason)
+
+    def test_codex_available_when_auth_recent(self):
+        """fresh tmp file (mtime=now) -> False, ''."""
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "auth.json"
+            p.write_text("{}", encoding="utf-8")
+            unavailable, reason = self.mod._codex_appears_unavailable(auth_path=p)
+            self.assertFalse(unavailable)
+            self.assertEqual(reason, "")
+
+    def test_codex_unavailable_when_auth_stale(self):
+        """tmp file with mtime 48h ago -> True + 'older'."""
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "auth.json"
+            p.write_text("{}", encoding="utf-8")
+            old = time.time() - 48 * 3600
+            os.utime(p, (old, old))
+            unavailable, reason = self.mod._codex_appears_unavailable(auth_path=p)
+            self.assertTrue(unavailable)
+            self.assertIn("older", reason)
+
+
+class TestY25BlockMessage(_Base):
+    """DENY message gains an unavailability hint when Codex is down."""
+
+    def test_block_message_mentions_unavailability_when_codex_down(self):
+        """When _codex_appears_unavailable returns True, deny msg has hint
+        AND keeps the existing codex-inline-dual command."""
+        target = "src/auth.py"
+        (self.root / "src" / "auth.py").write_text("# a\n", encoding="utf-8")
+        original = self.mod._codex_appears_unavailable
+        try:
+            self.mod._codex_appears_unavailable = lambda *a, **kw: (True, "test reason")
+            allowed, stdout = self._decide(self._edit_payload(target))
+        finally:
+            self.mod._codex_appears_unavailable = original
+        self.assertFalse(allowed)
+        parsed = json.loads(stdout)
+        reason = parsed["hookSpecificOutput"]["permissionDecisionReason"]
+        self.assertIn("appears unavailable", reason)
+        self.assertIn("test reason", reason)
+        # Existing recovery hint must remain.
+        self.assertIn("codex-inline-dual.py", reason)
+
+    def test_block_message_unchanged_when_codex_available(self):
+        """When _codex_appears_unavailable returns (False, ''), deny msg
+        does NOT contain the unavailability hint."""
+        target = "src/auth.py"
+        (self.root / "src" / "auth.py").write_text("# a\n", encoding="utf-8")
+        original = self.mod._codex_appears_unavailable
+        try:
+            self.mod._codex_appears_unavailable = lambda *a, **kw: (False, "")
+            allowed, stdout = self._decide(self._edit_payload(target))
+        finally:
+            self.mod._codex_appears_unavailable = original
+        self.assertFalse(allowed)
+        parsed = json.loads(stdout)
+        reason = parsed["hookSpecificOutput"]["permissionDecisionReason"]
+        self.assertNotIn("appears unavailable", reason)
+        # Existing recovery hint still present (rule unchanged).
+        self.assertIn("codex-inline-dual.py", reason)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
