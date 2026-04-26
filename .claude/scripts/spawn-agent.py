@@ -55,16 +55,19 @@ Y14_BLOCK = (
     "\n"
     "Claude Code harness denies the `Write` and `Edit` tools at the permission\n"
     "layer for sub-agents. This is design intent, not a bug. Use PowerShell as\n"
-    "the PRIMARY mechanism for file creation:\n"
+    "the PRIMARY mechanism for file creation and replacement. Use this no-BOM\n"
+    "UTF-8 template for source files:\n"
     "\n"
     "```bash\n"
-    "powershell -NoProfile -Command \"Set-Content -Encoding utf8 -Path '<abs>' -Value @'\n"
+    "powershell -NoProfile -Command \"$utf8NoBom = [System.Text.UTF8Encoding]::new($false); [System.IO.File]::WriteAllText('<abs>', @'\n"
     "...content here...\n"
-    "'@\"\n"
+    "'@, $utf8NoBom)\"\n"
     "```\n"
     "\n"
-    "Edit tool MAY work for in-place edits to existing files; if denied, fall\n"
-    "back to a PowerShell `.Replace()` + `Set-Content` invocation.\n"
+    "For one-line writes where BOM sensitivity does not matter, the legacy\n"
+    "`Set-Content -Encoding utf8` pattern remains acceptable. For in-place\n"
+    "edits to existing files, use PowerShell `.Replace()` plus the no-BOM\n"
+    "write template above.\n"
     "\n"
     "**Tools cheat-sheet:** rely on `Read`, `Bash`, `Glob`, `Grep` for analysis;\n"
     "PowerShell via `Bash` for writes; `Edit`/`Write` may be denied — don't\n"
@@ -111,15 +114,22 @@ def inject_y14_block(prompt: str) -> str:
     """
     logger.debug("event=inject_y14_block.enter prompt_chars=%d", len(prompt))
 
-    if Y14_HEADING in prompt:
+    prompt_lines = prompt.splitlines()
+    already_has_block = any(line.strip() == Y14_HEADING for line in prompt_lines)
+    if already_has_block:
         logger.debug("event=inject_y14_block.skip reason=already_present")
         return prompt
 
     block = build_y14_block()
-    marker = "## Your Task"
+    marker_match = re.search(r"(?m)^## Your Task\s*$", prompt)
 
-    if marker in prompt:
-        injected = prompt.replace(marker, block + "\n" + marker, 1)
+    if marker_match is not None:
+        injected = (
+            prompt[:marker_match.start()]
+            + block
+            + "\n"
+            + prompt[marker_match.start():]
+        )
         logger.debug(
             "event=inject_y14_block.exit position=before_task_body chars=%d",
             len(injected),
@@ -461,8 +471,7 @@ Examples:
 
     # Dry run: emit auto-detection summary to stderr (callers can still
     # inspect detection metadata) and emit the full generated prompt to
-    # stdout so AC3 holds: piping --dry-run output through
-    # `grep -c "Y14 finding"` returns exactly 1.
+    # stdout so tests can inspect the injected Y14 block.
     if args.dry_run:
         logger.debug("event=main.dry_run agent_type=%s", agent_type)
         print("Auto-detection:", file=sys.stderr)

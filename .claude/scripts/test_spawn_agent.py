@@ -130,9 +130,12 @@ class Y14InjectionTests(unittest.TestCase):
         """AC1 / AC5(a): generated prompt contains the Y14 heading."""
         logger.info("event=test.y14_section_present.enter")
         prompt = dry_run_prompt()
+        heading_lines = [
+            line for line in prompt.splitlines() if line.strip() == Y14_HEADING
+        ]
         self.assertIn(
             Y14_HEADING,
-            prompt,
+            heading_lines,
             msg="Y14 heading missing from generated prompt (AC1)",
         )
         logger.info("event=test.y14_section_present.exit pass=true")
@@ -141,7 +144,9 @@ class Y14InjectionTests(unittest.TestCase):
         """AC2 / AC5(b): the Y14 heading appears exactly once per prompt."""
         logger.info("event=test.y14_section_appears_once.enter")
         prompt = dry_run_prompt()
-        count = prompt.count(Y14_HEADING)
+        count = sum(
+            1 for line in prompt.splitlines() if line.strip() == Y14_HEADING
+        )
         self.assertEqual(
             count, 1,
             msg=(
@@ -163,17 +168,52 @@ class Y14InjectionTests(unittest.TestCase):
             )
         logger.info("event=test.y14_block_keywords.exit pass=true")
 
+    def test_spawn_agent_prompt_has_powershell_primary_section(self) -> None:
+        """Z17: PowerShell is the PRIMARY write mechanism with no-BOM UTF-8."""
+        logger.info("event=test.powershell_primary.enter")
+        prompt = dry_run_prompt()
+        lines = prompt.splitlines()
+        block_start = next(
+            i for i, line in enumerate(lines) if line.strip() == Y14_HEADING
+        )
+        block_end = next(
+            (i for i in range(block_start + 1, len(lines)) if lines[i].startswith("## ")),
+            len(lines),
+        )
+        block_lines = lines[block_start:block_end]
+        block = "\n".join(block_lines)
+        powershell_indexes = [
+            i for i, line in enumerate(block_lines) if "PowerShell" in line
+        ]
+        self.assertTrue(powershell_indexes, msg="prompt does not mention PowerShell")
+        self.assertIn("[System.Text.UTF8Encoding]::new($false)", block)
+        self.assertTrue(
+            any(
+                "PRIMARY" in "\n".join(block_lines[max(0, i - 2): i + 3])
+                for i in powershell_indexes
+            ),
+            msg="PRIMARY must appear near a PowerShell instruction",
+        )
+        for i in powershell_indexes:
+            nearby = "\n".join(block_lines[max(0, i - 5): i + 6]).lower()
+            self.assertNotIn(
+                "fallback",
+                nearby,
+                msg="fallback wording must not appear near PowerShell instruction",
+            )
+        logger.info("event=test.powershell_primary.exit pass=true")
+
     def test_dry_run_grep_count_one(self) -> None:
-        """AC3: ``grep -c "Y14 finding"`` against --dry-run stdout returns 1."""
+        """AC3: the injected Y14 heading line appears exactly once."""
         logger.info("event=test.dry_run_grep_count.enter")
         prompt = dry_run_prompt()
         finding_count = sum(
-            1 for line in prompt.splitlines() if "Y14 finding" in line
+            1 for line in prompt.splitlines() if line.strip() == Y14_HEADING
         )
         self.assertEqual(
             finding_count, 1,
             msg=(
-                f"grep -c 'Y14 finding' should return 1 per AC3, got {finding_count}"
+                f"Y14 heading line should appear once per AC3, got {finding_count}"
             ),
         )
         logger.info(

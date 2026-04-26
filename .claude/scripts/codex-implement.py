@@ -294,25 +294,38 @@ def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
 
 
 def split_sections(body: str) -> dict[str, str]:
-    """Split markdown body into ## sections. Key = heading text (without ##)."""
+    """Split markdown body into ## sections. Key = heading text (without ##).
+
+    Headings with descriptive suffixes like ``## Scope Fence - paths`` are
+    also registered under the prefix key (``Scope Fence``) for stable lookups.
+    """
     _log(logging.DEBUG, "entry: split_sections", body_len=len(body))
     try:
         sections: dict[str, str] = {}
         current_key: Optional[str] = None
+        current_keys: list[str] = []
         current_lines: list[str] = []
 
         for raw_line in body.splitlines():
             m = re.match(r"^##\s+(?!#)(.+?)\s*$", raw_line)
             if m:
                 if current_key is not None:
-                    sections[current_key] = "\n".join(current_lines).strip("\n")
+                    section_text = "\n".join(current_lines).strip("\n")
+                    for key in current_keys:
+                        sections[key] = section_text
                 current_key = m.group(1).strip()
+                current_keys = [current_key]
+                alias = re.split(r"\s[-—]\s", current_key, maxsplit=1)[0].strip()
+                if alias and alias != current_key:
+                    current_keys.append(alias)
                 current_lines = []
             else:
                 current_lines.append(raw_line)
 
         if current_key is not None:
-            sections[current_key] = "\n".join(current_lines).strip("\n")
+            section_text = "\n".join(current_lines).strip("\n")
+            for key in current_keys:
+                sections[key] = section_text
 
         _log(logging.DEBUG, "exit: split_sections", section_count=len(sections))
         return sections
@@ -1069,6 +1082,51 @@ class ScopeCheckResult:
     violations: list[str] = field(default_factory=list)
 
 
+def _find_main_repo_root(p: Path) -> Optional[Path]:
+    """Return the nearest ancestor with a real ``.git`` directory."""
+    _log(logging.DEBUG, "entry: _find_main_repo_root", path=str(p))
+    try:
+        start = p.resolve()
+        for candidate in (start, *start.parents):
+            if (candidate / ".git").is_dir():
+                _log(logging.DEBUG, "exit: _find_main_repo_root", root=str(candidate))
+                return candidate
+        _log(logging.DEBUG, "exit: _find_main_repo_root", root=None)
+        return None
+    except Exception:
+        logger.exception("_find_main_repo_root failed")
+        raise
+
+
+def _resolve_scope_check_script(project_root: Path) -> Path:
+    """Resolve the repo-current codex-scope-check.py script path."""
+    _log(logging.DEBUG, "entry: _resolve_scope_check_script", project_root=str(project_root))
+    try:
+        env_project_dir = os.environ.get("CLAUDE_PROJECT_DIR")
+        if env_project_dir:
+            script = (
+                Path(env_project_dir).expanduser().resolve()
+                / ".claude"
+                / "scripts"
+                / "codex-scope-check.py"
+            )
+            _log(logging.DEBUG, "exit: _resolve_scope_check_script", source="env", script=str(script))
+            return script
+
+        main_root = _find_main_repo_root(project_root)
+        if main_root is not None:
+            script = main_root / ".claude" / "scripts" / "codex-scope-check.py"
+            _log(logging.DEBUG, "exit: _resolve_scope_check_script", source="main_repo", script=str(script))
+            return script
+
+        script = project_root / ".claude" / "scripts" / "codex-scope-check.py"
+        _log(logging.DEBUG, "exit: _resolve_scope_check_script", source="worktree", script=str(script))
+        return script
+    except Exception:
+        logger.exception("_resolve_scope_check_script failed")
+        raise
+
+
 def run_scope_check(
     diff_path: Path,
     fence_paths: ScopeFence,
@@ -1077,7 +1135,7 @@ def run_scope_check(
     """Invoke codex-scope-check.py if present; skip gracefully otherwise."""
     _log(logging.DEBUG, "entry: run_scope_check", diff_path=str(diff_path))
     try:
-        script = project_root / ".claude" / "scripts" / "codex-scope-check.py"
+        script = _resolve_scope_check_script(project_root)
         if not script.exists():
             msg = f"codex-scope-check.py not found at {script}; scope check SKIPPED"
             _log(logging.WARNING, msg)
