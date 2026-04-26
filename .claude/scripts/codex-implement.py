@@ -917,11 +917,17 @@ def _build_codex_argv(
       * the alternative (read-only sandbox) makes Codex completely
         useless in dual-implement runs.
 
+    Z20 (Improvement 3, 2026-04-26): if `_detect_os_sandbox()` finds an
+    OS-level sandbox (Sandboxie on Windows / firejail on Linux) the
+    detected wrap argv is **prepended** so the entire `codex exec`
+    invocation runs inside that additional sandbox. Silent fallback when
+    nothing is installed (the helper returns ``None``).
+
     Extracted as a helper so unit tests can inspect the argv without
     invoking the real Codex CLI. Production code path stays identical:
     `run_codex` calls this exactly once.
     """
-    return [
+    cmd = [
         codex,
         "exec",
         "-c", chatgpt_provider,
@@ -933,6 +939,259 @@ def _build_codex_argv(
         str(worktree.resolve()),
         "-",
     ]
+    sandbox = _detect_os_sandbox()
+    if sandbox is not None:
+        name, prefix_argv = sandbox
+        _log(
+            logging.INFO,
+            "OS-level sandbox detected; wrapping codex argv",
+            sandbox=name,
+            prefix=prefix_argv,
+        )
+        cmd = list(prefix_argv) + cmd
+    return cmd
+
+
+# --------------------------------------------------------------------------- #
+# Z20 - Criterion 3 security helpers (FS allowlist + audit + sandbox)
+# --------------------------------------------------------------------------- #
+
+
+# Sensitive paths that must NEVER appear in the Codex FS read allowlist
+# and must be flagged when reachable from the worktree. Built lazily inside
+# the helpers so monkeypatched HOME (in tests) is honored.
+_SENSITIVE_HOME_PATHS = (
+    (".codex", "auth.json"),
+    (".ssh",),
+    (".aws", "credentials"),
+)
+_SENSITIVE_PROJECT_FILES = (".env", "credentials.json", "secrets.json")
+
+
+def _build_codex_env(worktree: Path, project_root: Path) -> dict[str, str]:
+    """Build the env dict used to invoke `codex exec` (Z20 Improvement 1).
+
+    Returns a copy of ``os.environ`` with ``CODEX_FS_READ_ALLOWLIST`` set to
+    an OS-pathsep-joined list of paths Codex is permitted to read. The
+    allowlist is intentionally **narrow**:
+
+      * the worktree path (resolved) - the work area
+      * the project root (resolved) - read-only references
+      * the system temp dir - pip caches, scratch files
+
+    Sensitive home-directory paths (``~/.codex/auth.json``, ``~/.ssh``,
+    ``~/.aws/credentials``) are explicitly **excluded**. Neither the parent
+    ``~/.codex`` nor ``~/.ssh`` is added, and any candidate that resolves
+    under one of those roots is scrubbed before being included.
+
+    Heuristic: this env var is only honored by Codex CLI versions that read
+    it. Older versions silently ignore it; in that case Improvement 3
+    (OS-level sandbox wrap) and the post-hoc scope-fence check remain the
+    actual enforcement layers. Best-effort defense in depth.
+    """
+    _log(
+        logging.DEBUG,
+        "entry: _build_codex_env",
+        worktree=str(worktree),
+        project_root=str(project_root),
+    )
+    try:
+        env = os.environ.copy()
+        # Always start from a clean slate - never trust a pre-existing
+        # CODEX_FS_READ_ALLOWLIST from the parent shell.
+        env.pop("CODEX_FS_READ_ALLOWLIST", None)
+
+        candidates: list[Path] = [
+            worktree.resolve(),
+            project_root.resolve(),
+            Path(tempfile.gettempdir()).resolve(),
+        ]
+
+        # Compute forbidden roots so we can scrub anything that resolves
+        # under them. Path.home() is queried fresh so test monkeypatching
+        # of HOME / USERPROFILE is honored.
+        home = Path.home().resolve()
+        forbidden_roots: list[Path] = []
+        for parts in _SENSITIVE_HOME_PATHS:
+            forbidden_roots.append((home.joinpath(*parts)).resolve())
+
+        def _is_forbidden(p: Path) -> bool:
+            for root in forbidden_roots:
+                try:
+                    p.relative_to(root)
+                    return True
+                except ValueError:
+                    continue
+                except Exception:
+                    continue
+            return False
+
+        kept: list[str] = []
+        seen: set[str] = set()
+        for cand in candidates:
+            if _is_forbidden(cand):
+                _log(
+                    logging.WARNING,
+                    "allowlist candidate scrubbed (resolves under sensitive root)",
+                    candidate=str(cand),
+                )
+                continue
+            key = str(cand)
+            if key in seen:
+                continue
+            seen.add(key)
+            kept.append(key)
+
+        env["CODEX_FS_READ_ALLOWLIST"] = os.pathsep.join(kept)
+        _log(
+            logging.INFO,
+            "exit: _build_codex_env",
+            allowlist_count=len(kept),
+            allowlist=kept,
+        )
+        return env
+    except Exception:
+        logger.exception("_build_codex_env failed")
+        raise
+
+
+def _audit_sensitive_paths(worktree: Path, project_root: Path) -> list[str]:
+    """List sensitive paths reachable from the worktree (Z20 Improvement 2).
+
+    Checks for the existence of well-known credential files at standard
+    locations (``~/.codex/auth.json``, ``~/.ssh``, ``~/.aws/credentials``)
+    plus project-local secret files (``.env`` etc.) under both the
+    worktree and the project root. Each existing path triggers a
+    ``logger.warning("sensitive path reachable", path=...)`` so the
+    operator is alerted that the broad ``--cd <worktree>`` posture lets
+    Codex potentially read these files.
+
+    Returns the list of stringified paths found (may be empty). The
+    caller does not use the return value to fail the run - the audit is
+    advisory; mitigation lives in Improvements 1 and 3.
+    """
+    _log(
+        logging.DEBUG,
+        "entry: _audit_sensitive_paths",
+        worktree=str(worktree),
+        project_root=str(project_root),
+    )
+    try:
+        found: list[str] = []
+        seen: set[str] = set()
+        home = Path.home()
+
+        for parts in _SENSITIVE_HOME_PATHS:
+            candidate = home.joinpath(*parts)
+            try:
+                if candidate.exists():
+                    key = str(candidate)
+                    if key not in seen:
+                        seen.add(key)
+                        found.append(key)
+                        _log(
+                            logging.WARNING,
+                            "sensitive path reachable",
+                            path=key,
+                            kind="home",
+                        )
+            except OSError:
+                continue
+
+        for root_label, root in (("worktree", worktree), ("project_root", project_root)):
+            try:
+                root_resolved = root.resolve()
+            except Exception:
+                continue
+            for name in _SENSITIVE_PROJECT_FILES:
+                candidate = root_resolved / name
+                try:
+                    if candidate.exists():
+                        key = str(candidate)
+                        if key not in seen:
+                            seen.add(key)
+                            found.append(key)
+                            _log(
+                                logging.WARNING,
+                                "sensitive path reachable",
+                                path=key,
+                                kind=root_label,
+                            )
+                except OSError:
+                    continue
+
+        _log(
+            logging.INFO,
+            "exit: _audit_sensitive_paths",
+            count=len(found),
+        )
+        return found
+    except Exception:
+        logger.exception("_audit_sensitive_paths failed")
+        raise
+
+
+_SANDBOXIE_PATHS = (
+    Path(r"C:\Program Files\Sandboxie-Plus\Start.exe"),
+    Path(r"C:\Program Files\Sandboxie\Start.exe"),
+)
+
+
+def _detect_os_sandbox() -> Optional[tuple[str, list[str]]]:
+    """Detect an OS-level sandbox to wrap `codex exec` with (Z20 Improvement 3).
+
+    On Windows: returns ``("sandboxie", ["<Start.exe>", "/box:codex"])``
+    if a Sandboxie-Plus or classic Sandboxie ``Start.exe`` exists at one
+    of the standard install paths.
+
+    On Linux: returns ``("firejail", ["firejail", "--noroot",
+    "--private-tmp"])`` when ``shutil.which("firejail")`` finds the
+    binary.
+
+    Returns ``None`` and stays silent when neither is available - silent
+    fallback is intentional so dev machines without these tools do not
+    spam INFO logs. Logs at INFO only when a sandbox IS detected, since
+    that affects argv shape and is worth the breadcrumb.
+
+    Macs / other platforms: ``None``.
+    """
+    _log(
+        logging.DEBUG,
+        "entry: _detect_os_sandbox",
+        platform=sys.platform,
+    )
+    try:
+        if sys.platform == "win32":
+            for path in _SANDBOXIE_PATHS:
+                try:
+                    if path.exists():
+                        prefix = [str(path), "/box:codex"]
+                        _log(
+                            logging.INFO,
+                            "Sandboxie detected",
+                            path=str(path),
+                        )
+                        return ("sandboxie", prefix)
+                except OSError:
+                    continue
+            return None
+
+        if sys.platform.startswith("linux"):
+            firejail = shutil.which("firejail")
+            if firejail:
+                prefix = [firejail, "--noroot", "--private-tmp"]
+                _log(
+                    logging.INFO,
+                    "firejail detected",
+                    path=firejail,
+                )
+                return ("firejail", prefix)
+            return None
+
+        return None
+    except Exception:
+        logger.exception("_detect_os_sandbox failed")
+        return None
 
 
 def run_codex(
@@ -993,6 +1252,24 @@ def run_codex(
         )
         _log(logging.INFO, "codex cmd", argv_head=cmd[:9], prompt_via="stdin")
 
+        # Z20 Improvement 2: audit sensitive paths reachable from worktree.
+        # Advisory only - logs warnings; never fails the run.
+        try:
+            project_root_for_audit = find_project_root(worktree)
+            _audit_sensitive_paths(worktree, project_root_for_audit)
+        except Exception:
+            logger.exception("sensitive-path audit failed (non-fatal)")
+            project_root_for_audit = worktree
+
+        # Z20 Improvement 1: build env dict with restrictive
+        # CODEX_FS_READ_ALLOWLIST. Honored by Codex CLI versions that read
+        # the var; older versions silently ignore it (defense in depth).
+        try:
+            codex_env = _build_codex_env(worktree, project_root_for_audit)
+        except Exception:
+            logger.exception("_build_codex_env failed; falling back to current env")
+            codex_env = None
+
         try:
             proc = subprocess.run(
                 cmd,
@@ -1003,6 +1280,7 @@ def run_codex(
                 encoding="utf-8",
                 errors="replace",
                 timeout=timeout,
+                env=codex_env,
             )
         except subprocess.TimeoutExpired as te:
             _log(logging.ERROR, "codex timeout", seconds=timeout)

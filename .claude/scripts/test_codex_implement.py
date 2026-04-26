@@ -1094,5 +1094,149 @@ class TestExitDegradedConstant(unittest.TestCase):
 import json  # noqa: E402
 from datetime import datetime, timedelta, timezone  # noqa: E402
 
+
+# --------------------------------------------------------------------------- #
+# Z20 - Criterion 3 security: FS allowlist + sensitive audit + OS sandbox     #
+# --------------------------------------------------------------------------- #
+
+
+class TestBuildCodexEnvZ20(unittest.TestCase):
+    """Z20 Improvement 1 - CODEX_FS_READ_ALLOWLIST excludes sensitive paths."""
+
+    def _call(self, fake_home: Path, worktree: Path, project_root: Path) -> dict:
+        with mock.patch.object(codex_impl.Path, "home", return_value=fake_home):
+            return codex_impl._build_codex_env(worktree, project_root)
+
+    def test_build_codex_env_excludes_codex_auth(self):
+        """Allowlist must NOT contain ~/.codex/auth.json or its parent ~/.codex."""
+        with tempfile.TemporaryDirectory() as td:
+            home = Path(td) / "home"
+            home.mkdir()
+            wt = Path(td) / "worktree"
+            wt.mkdir()
+            pr = Path(td) / "project"
+            pr.mkdir()
+            env = self._call(home, wt, pr)
+            allowlist = env["CODEX_FS_READ_ALLOWLIST"]
+            # Neither the auth.json file nor its parent ~/.codex should be in the list.
+            self.assertNotIn(str(home / ".codex" / "auth.json"), allowlist)
+            self.assertNotIn(str(home / ".codex"), allowlist.split(codex_impl.os.pathsep))
+            self.assertNotIn(str(home / ".ssh"), allowlist.split(codex_impl.os.pathsep))
+
+    def test_build_codex_env_includes_worktree(self):
+        """Allowlist MUST contain the resolved worktree path."""
+        with tempfile.TemporaryDirectory() as td:
+            home = Path(td) / "home"
+            home.mkdir()
+            wt = Path(td) / "wt"
+            wt.mkdir()
+            pr = Path(td) / "pr"
+            pr.mkdir()
+            env = self._call(home, wt, pr)
+            entries = env["CODEX_FS_READ_ALLOWLIST"].split(codex_impl.os.pathsep)
+            self.assertIn(str(wt.resolve()), entries)
+            self.assertIn(str(pr.resolve()), entries)
+
+
+class TestAuditSensitivePathsZ20(unittest.TestCase):
+    """Z20 Improvement 2 - audit logs warnings for reachable sensitive paths."""
+
+    def test_audit_finds_codex_auth_when_reachable_via_home(self):
+        """When ~/.codex/auth.json exists, it must appear in the returned list."""
+        with tempfile.TemporaryDirectory() as td:
+            home = Path(td) / "home"
+            (home / ".codex").mkdir(parents=True)
+            (home / ".codex" / "auth.json").write_text("{}", encoding="utf-8")
+            wt = Path(td) / "wt"
+            wt.mkdir()
+            pr = Path(td) / "pr"
+            pr.mkdir()
+            with mock.patch.object(codex_impl.Path, "home", return_value=home):
+                with self.assertLogs("codex_implement", level="WARNING") as cm:
+                    found = codex_impl._audit_sensitive_paths(wt, pr)
+            self.assertIn(str(home / ".codex" / "auth.json"), found)
+            self.assertTrue(
+                any("sensitive path reachable" in line for line in cm.output),
+                f"expected warning log, got: {cm.output}",
+            )
+
+    def test_audit_clean_when_no_sensitive_paths(self):
+        """When no sensitive paths exist anywhere, the list is empty."""
+        with tempfile.TemporaryDirectory() as td:
+            home = Path(td) / "home"
+            home.mkdir()
+            wt = Path(td) / "wt"
+            wt.mkdir()
+            pr = Path(td) / "pr"
+            pr.mkdir()
+            with mock.patch.object(codex_impl.Path, "home", return_value=home):
+                found = codex_impl._audit_sensitive_paths(wt, pr)
+            self.assertEqual(found, [])
+
+
+class TestDetectOsSandboxZ20(unittest.TestCase):
+    """Z20 Improvement 3 - Sandboxie / firejail detection + argv prepend."""
+
+    def test_detect_os_sandbox_windows_sandboxie_present(self):
+        """When Sandboxie Start.exe exists, return ('sandboxie', [...])."""
+        # Patch the module-level _SANDBOXIE_PATHS with a Path whose .exists()
+        # returns True. Cleanest approach: patch sys.platform to "win32" and
+        # override _SANDBOXIE_PATHS itself (a tuple of Path objects).
+        fake_sandboxie = Path(r"C:\Program Files\Sandboxie-Plus\Start.exe")
+        with mock.patch.object(codex_impl.sys, "platform", "win32"), \
+             mock.patch.object(codex_impl, "_SANDBOXIE_PATHS",
+                               (fake_sandboxie,)), \
+             mock.patch.object(type(fake_sandboxie), "exists",
+                               lambda self: True):
+            result = codex_impl._detect_os_sandbox()
+        self.assertIsNotNone(result)
+        name, prefix = result
+        self.assertEqual(name, "sandboxie")
+        self.assertEqual(prefix[0], str(fake_sandboxie))
+        self.assertEqual(prefix[1], "/box:codex")
+
+    def test_detect_os_sandbox_linux_firejail_present(self):
+        """When `firejail` is on PATH on Linux, return ('firejail', [...])."""
+        with mock.patch.object(codex_impl.sys, "platform", "linux"), \
+             mock.patch.object(codex_impl.shutil, "which",
+                               return_value="/usr/bin/firejail"):
+            result = codex_impl._detect_os_sandbox()
+        self.assertIsNotNone(result)
+        name, prefix = result
+        self.assertEqual(name, "firejail")
+        self.assertEqual(prefix[0], "/usr/bin/firejail")
+        self.assertIn("--noroot", prefix)
+        self.assertIn("--private-tmp", prefix)
+
+    def test_detect_os_sandbox_neither_returns_none(self):
+        """When neither sandbox is installed, return None."""
+        # Windows path: empty _SANDBOXIE_PATHS tuple -> nothing to find.
+        with mock.patch.object(codex_impl.sys, "platform", "win32"), \
+             mock.patch.object(codex_impl, "_SANDBOXIE_PATHS", ()):
+            self.assertIsNone(codex_impl._detect_os_sandbox())
+        # Linux path: shutil.which returns None.
+        with mock.patch.object(codex_impl.sys, "platform", "linux"), \
+             mock.patch.object(codex_impl.shutil, "which", return_value=None):
+            self.assertIsNone(codex_impl._detect_os_sandbox())
+
+    def test_argv_prepends_sandbox_wrap_when_detected(self):
+        """`_build_codex_argv` prepends the detected wrap to the argv."""
+        fake_prefix = ["/usr/bin/firejail", "--noroot", "--private-tmp"]
+        with mock.patch.object(codex_impl, "_detect_os_sandbox",
+                               return_value=("firejail", fake_prefix)):
+            argv = codex_impl._build_codex_argv(
+                codex="/fake/codex",
+                model="gpt-5.5",
+                worktree=Path("."),
+                chatgpt_provider='model_providers.chatgpt={name="chatgpt"}',
+            )
+        # Prefix must come first, codex binary follows
+        self.assertEqual(argv[: len(fake_prefix)], fake_prefix)
+        self.assertEqual(argv[len(fake_prefix)], "/fake/codex")
+        # Sanity: existing flags still present
+        self.assertIn("--dangerously-bypass-approvals-and-sandbox", argv)
+        self.assertEqual(argv[-1], "-")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
