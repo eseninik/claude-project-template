@@ -9,6 +9,49 @@
 
 ## Current Focus
 
+### Round 5 — Y26 Fix (Codex CLI v0.125 sandbox bug) — COMPLETE 2026-04-26
+
+**Goal:** Find and fix root cause of Codex empty-diff walkover pattern observed in Y23/Z5/Z7 (3 consecutive runs). Restore truly dual implementation.
+
+**Status:** COMPLETE. Y26 root cause found, Z8 fix merged, Z9 smoke test EMPIRICALLY confirms Codex now writes (`sandbox: danger-full-access`).
+
+**Y26 root cause:** Codex CLI v0.125 silently ignores `--sandbox workspace-write` flag AND `-c sandbox_*` config overrides for `exec` mode. Sandbox always defaults to `read-only` unless `--dangerously-bypass-approvals-and-sandbox` is used. Empirically confirmed via 4 different argv shapes. This is a regression vs v0.117 where `--sandbox workspace-write` worked as documented. Effect: every codex-implement.py invocation got read-only sandbox, Codex literally couldn't write files, every dual run was Claude walkover.
+
+**Z8 fix (commit 119adb4 + merge 2b2f14c):** Replace `--sandbox workspace-write --full-auto` with `--dangerously-bypass-approvals-and-sandbox` in codex-implement.py:838. Refactored cmd construction into `_build_codex_argv()` helper for testability. 4 NEW tests, +130/-19 LOC. 60/60 existing test_codex_implement pass + 123 across 5 other suites + selftest 6/6 = **187 tests total**.
+
+**Z9 smoke test:** Post-fix codex-inline-dual run for sync-script. Codex result.md shows `sandbox: danger-full-access`. Codex now physically can write files. Dual-implement restored.
+
+**Risk acknowledgment** (per Codex's own review during Y26 design): bypass IS capability escalation, not just bug fix. Acceptable in OUR pipeline because all codex-implement runs occur inside isolated git worktrees (`--cd <worktree>`) with scope-fence post-validation.
+
+**End state numbers (template fix/watchdog-dushnost AND QA Legal sync/template-update-2026-04-26):**
+- 60 codex-implement tests + 4 NEW Y26 tests = 64
+- 18 live attack tests
+- 35 invariants tests
+- 36 enforcer tests
+- 18 gate tests
+- 16 codex-ask tests
+- = **187 pass total** + selftest 6/6 (~500ms) + real codex-ask "OK" + real codex-implement bypass-sandbox
+
+**Sync chain in QA Legal (6 commits on sync/template-update-2026-04-26):**
+- 32439b2 — infra mirror
+- 15630ab — CLAUDE.md/AGENTS.md Always-Dual sections
+- 3461f93 — Z1 invariants
+- ad1c4a9 — Y23 codex-ask v0.125 fix
+- b5ffdd6 — Z5 live matrix + Z7 V02/V03 fixes
+- 3155463 — Z8 Y26 bypass sandbox fix
+
+**Cumulative pipeline (Round 1-5 in this session):**
+- Round 1-2: Original Y6-Y17 (prior session)
+- Round 3: Z1 four invariants (12 vectors)
+- Round 4: Y23 codex-ask + Z5 live matrix + Z7 V02/V03 fixes (123 tests)
+- Round 5: Y26 sandbox bug found + fixed + smoke-proven (+ 64 tests = 187 total)
+
+**Lessons added to follow-up backlog:**
+- Y25 (deferred): Better diagnostic message when Codex truly unavailable. Not blocking.
+- Y18-Y22 from Round 3 still open: scope-check parser, codex-inline-dual --result-dir, codex-implement status:fail for verification, task spec >500 LOC tie artifact, sync-script in .claude/scripts whitelist.
+- Y26 closed: Codex CLI v0.125 sandbox flag silently ignored. Workaround: bypass flag.
+
+### Round 4 — Live Attack Matrix Verification + Y23/Z5/Z7 — COMPLETE 2026-04-26
 ### Round 4 — Live Attack Matrix Verification + Y23/Z5/Z7 — COMPLETE 2026-04-26
 **Goal:** Prove Z1 invariants achieve 100% live coverage of 12 known bypass vectors via subprocess-level integration tests; close any real gaps revealed; fix any infrastructure blockers (codex-ask v0.125).
 
@@ -488,6 +531,11 @@ pipeline-checkpoint-PLAN в†’ IMPLEMENT_WAVE_1 в†’ IMPLEMENT_WAVE_2 в�
 
 ## Auto-Generated Summaries
 
+### 2026-04-26 15:04 (commit `d95484d`)
+**Message:** chore(work): commit Z8 task spec (Y26 fix — bypass sandbox in v0.125)
+**Files:** 1
+
+
 ### 2026-04-26 12:05 (commit `80b5661`)
 **Message:** chore(work): commit Z7 task spec (V02 NotebookEdit + V03 newline-chained Bash)
 **Files:** 1
@@ -844,6 +892,7 @@ pipeline-checkpoint-PLAN в†’ IMPLEMENT_WAVE_1 в†’ IMPLEMENT_WAVE_2 в�
 
 **Architectural status:**
 Always-Dual protocol fully operational: CLAUDE.md + AGENTS.md + enforcer hook + codex-gate bypass + DUAL_TEAMS phase mode + dual-teams-spawn.py + codex-inline-dual.py + judge.py + stability layer + warm pool + streaming+cherry-pick docs.
+
 
 
 
