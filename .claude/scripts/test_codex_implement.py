@@ -156,6 +156,24 @@ class TestSectionSplitter(unittest.TestCase):
         self.assertIn("B", sections)
         self.assertIn("### subsection", sections["A"])
 
+    def test_parse_section_handles_em_dash_suffix(self):
+        text = "## Scope Fence — desc\nbody\n"
+        sections = codex_impl.split_sections(text)
+        self.assertEqual(sections["Scope Fence"], "body")
+        self.assertEqual(sections["Scope Fence — desc"], "body")
+
+    def test_parse_section_handles_hyphen_suffix(self):
+        text = "## Test Commands - desc\n```bash\necho hi\n```\n"
+        sections = codex_impl.split_sections(text)
+        self.assertIn("echo hi", sections["Test Commands"])
+        self.assertIn("echo hi", sections["Test Commands - desc"])
+
+    def test_parse_section_no_suffix_unchanged(self):
+        text = "## Scope Fence\nbody\n"
+        sections = codex_impl.split_sections(text)
+        self.assertEqual(sections["Scope Fence"], "body")
+        self.assertEqual(list(sections.keys()), ["Scope Fence"])
+
 
 class TestScopeFenceParser(unittest.TestCase):
     def test_parses_allowed_and_forbidden_bullets(self):
@@ -248,6 +266,27 @@ class TestScopeFenceParserCodeBlock(unittest.TestCase):
         self.assertEqual(fence.allowed, ["legacy/path.py"])
         self.assertNotIn("should_NOT_appear.py", fence.allowed)
 
+    def test_parse_scope_fence_em_dash_heading_yields_paths(self):
+        text = (
+            "# Task Z17\n\n"
+            "## Scope Fence — files you MAY modify\n\n"
+            "```\n"
+            ".claude/scripts/codex-implement.py\n"
+            ".claude/scripts/test_codex_implement.py\n"
+            "```\n"
+        )
+        with tempfile.TemporaryDirectory() as td:
+            task_path = Path(td) / "task-Z17.md"
+            task_path.write_text(text, encoding="utf-8")
+            task = codex_impl.parse_task_file(task_path)
+        self.assertEqual(
+            task.scope_fence.allowed,
+            [
+                ".claude/scripts/codex-implement.py",
+                ".claude/scripts/test_codex_implement.py",
+            ],
+        )
+
 
 class TestDetermineRunStatus(unittest.TestCase):
     """Y20: determine_run_status() pure helper.
@@ -286,6 +325,16 @@ class TestDetermineRunStatus(unittest.TestCase):
             scope=self._scope("pass"),
             test_run=self._tests(True),
             codex_run=self._codex(1),
+            timed_out=False,
+        )
+        self.assertEqual(status, "pass")
+
+    def test_status_pass_when_only_codex_returncode_nonzero_and_no_modifications(self):
+        """Verification-only run: tests/scope pass even when Codex rc is non-zero."""
+        status = codex_impl.determine_run_status(
+            scope=self._scope("pass"),
+            test_run=self._tests(True),
+            codex_run=self._codex(7),
             timed_out=False,
         )
         self.assertEqual(status, "pass")
@@ -545,6 +594,42 @@ class TestBuildCodexArgvY26(unittest.TestCase):
 
 
 class TestScopeCheckFallback(unittest.TestCase):
+    def test_resolve_scope_check_uses_env_var(self):
+        with tempfile.TemporaryDirectory() as td:
+            env_root = Path(td) / "repo-current"
+            expected = env_root / ".claude" / "scripts" / "codex-scope-check.py"
+            with mock.patch.dict(
+                codex_impl.os.environ,
+                {"CLAUDE_PROJECT_DIR": str(env_root)},
+                clear=True,
+            ):
+                script = codex_impl._resolve_scope_check_script(Path(td) / "worktree")
+        self.assertEqual(script, expected.resolve())
+
+    def test_resolve_scope_check_walks_up_from_worktree(self):
+        with tempfile.TemporaryDirectory() as td:
+            repo_root = Path(td) / "repo"
+            worktree = repo_root / "worktrees" / "feature"
+            (repo_root / ".git").mkdir(parents=True)
+            worktree.mkdir(parents=True)
+            (worktree / ".git").write_text(
+                "gitdir: ../../.git/worktrees/feature",
+                encoding="utf-8",
+            )
+            expected = repo_root / ".claude" / "scripts" / "codex-scope-check.py"
+            with mock.patch.dict(codex_impl.os.environ, {}, clear=True):
+                script = codex_impl._resolve_scope_check_script(worktree)
+        self.assertEqual(script, expected)
+
+    def test_resolve_scope_check_falls_back_to_worktree(self):
+        with tempfile.TemporaryDirectory() as td:
+            worktree = Path(td) / "worktree"
+            worktree.mkdir()
+            expected = worktree / ".claude" / "scripts" / "codex-scope-check.py"
+            with mock.patch.dict(codex_impl.os.environ, {}, clear=True):
+                script = codex_impl._resolve_scope_check_script(worktree)
+        self.assertEqual(script, expected)
+
     def test_missing_scope_check_script_returns_skipped(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -553,7 +638,8 @@ class TestScopeCheckFallback(unittest.TestCase):
             diff_file = root / "some.diff"
             diff_file.write_text("", encoding="utf-8")
             fence = codex_impl.ScopeFence(allowed=["a.py"])
-            result = codex_impl.run_scope_check(diff_file, fence, root)
+            with mock.patch.dict(codex_impl.os.environ, {}, clear=True):
+                result = codex_impl.run_scope_check(diff_file, fence, root)
             self.assertEqual(result.status, "skipped")
 
 
