@@ -180,12 +180,30 @@ def _git_diff_numstat(worktree: Path, base: str = "HEAD") -> tuple[int, int]:
 
 def score_diff_size(worktree: Path, weight: int = 2, base: str = "HEAD",
                     cap_lines: int = 500) -> AxisResult:
-    """Smaller diff = higher score. score = max(0, 1 - added/cap_lines)."""
+    """Smaller diff = higher score. Asymptotic Hill function.
+
+    score = scale / (scale + max(0, added))
+
+    where ``scale`` is the legacy ``cap_lines`` parameter (kept for kwarg
+    backward compat). The function is smooth, monotonic, and asymptotic
+    to 0 as ``added`` -> infinity. Sample anchor points:
+      added=0      -> 1.0
+      added=scale  -> 0.5
+      added=2*scale-> 0.333
+      added=10*scale->~0.091
+
+    Y21 (Z12): replaces hard-zero clamp ``max(0, 1 - added/cap)`` so
+    diffs above the scale stay differentiable. Z1's +1102 LOC artifact
+    was forced to a TIE; under this curve it would yield a real verdict.
+    """
     _log(logging.DEBUG, "entry: score_diff_size", worktree=str(worktree), cap=cap_lines)
     try:
         added, removed = _git_diff_numstat(worktree, base)
-        score = max(0.0, 1.0 - (added / cap_lines))
-        _log(logging.DEBUG, "exit: score_diff_size", score=score, added=added)
+        scale_factor = max(1, int(cap_lines))
+        added_clamped = max(0, int(added))
+        score = scale_factor / (scale_factor + added_clamped)
+        _log(logging.DEBUG, "exit: score_diff_size", score=score, added=added,
+             scale=scale_factor)
         return AxisResult(name="diff_size", score=score, weight=weight,
                           raw={"added": added, "removed": removed,
                                "cap_lines": cap_lines, "base": base})

@@ -99,7 +99,7 @@ class TestDiffSize(unittest.TestCase):
             # Add 50 lines uncommitted
             _add_file(repo, "a.py", "# pre\n" + ("x = 1\n" * 50))
             res = score_diff_size(repo, cap_lines=500)
-            # ~50 added, cap 500 => 1 - 50/500 = 0.9
+            # Y21 (Z12): score = 500 / (500 + 50) = 0.909... still in [0.85, 0.95]
             self.assertGreater(res.score, 0.85)
             self.assertLess(res.score, 0.95)
             self.assertEqual(res.raw["added"], 50)
@@ -111,6 +111,59 @@ class TestDiffSize(unittest.TestCase):
             res = score_diff_size(repo, cap_lines=500)
             self.assertAlmostEqual(res.score, 1.0)
             self.assertEqual(res.raw["added"], 0)
+
+    # ----- Y21 (Z12): asymptotic Hill function tests -----
+
+    def test_diff_size_zero_added_scores_one(self) -> None:
+        """Y21 AC: added=0, cap=500 => score == 1.0 (boundary)."""
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            _init_git_repo(repo)
+            res = score_diff_size(repo, cap_lines=500)
+            self.assertAlmostEqual(res.score, 1.0, places=6)
+
+    def test_diff_size_at_scale_scores_half(self) -> None:
+        """Y21 AC: added=cap=500 => score in [0.49, 0.51] (Hill midpoint)."""
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            _init_git_repo(repo)
+            _add_file(repo, "a.py", "# pre\n", commit=True)
+            _add_file(repo, "a.py", "# pre\n" + ("x = 1\n" * 500))
+            res = score_diff_size(repo, cap_lines=500)
+            # 500 / (500 + 500) = 0.5 exactly
+            self.assertGreaterEqual(res.score, 0.49)
+            self.assertLessEqual(res.score, 0.51)
+            self.assertEqual(res.raw["added"], 500)
+
+    def test_diff_size_far_above_scale_still_nonzero(self) -> None:
+        """Y21 AC: added=2000, cap=500 => 0.0 < score < 0.3 (4*scale region).
+
+        Under the OLD formula this would clamp to 0.0 (forcing a TIE).
+        Under Hill: 500/(500+2000) = 0.2.
+        """
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            _init_git_repo(repo)
+            _add_file(repo, "a.py", "# pre\n", commit=True)
+            _add_file(repo, "a.py", "# pre\n" + ("x = 1\n" * 2000))
+            res = score_diff_size(repo, cap_lines=500)
+            self.assertGreater(res.score, 0.0,
+                               "asymptotic — must NOT clamp to zero")
+            self.assertLess(res.score, 0.3)
+            self.assertEqual(res.raw["added"], 2000)
+
+    def test_diff_size_huge_diff_asymptotic(self) -> None:
+        """Y21 AC: added=10000, cap=500 => score in (0.0, 0.1] (~0.0476)."""
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td)
+            _init_git_repo(repo)
+            _add_file(repo, "a.py", "# pre\n", commit=True)
+            _add_file(repo, "a.py", "# pre\n" + ("x = 1\n" * 10000))
+            res = score_diff_size(repo, cap_lines=500)
+            # 500/(500+10000) = 0.0476..
+            self.assertGreater(res.score, 0.0)
+            self.assertLessEqual(res.score, 0.1)
+            self.assertEqual(res.raw["added"], 10000)
 
 
 # ------------------------ logging_coverage ------------------------ #
