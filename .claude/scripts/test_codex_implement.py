@@ -335,6 +335,72 @@ class TestRunCodexTimeout(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------- #
+# Y26 — argv shape regression (--dangerously-bypass-approvals-and-sandbox)    #
+# --------------------------------------------------------------------------- #
+
+
+class TestBuildCodexArgvY26(unittest.TestCase):
+    """Codex CLI v0.125 silently ignored `--sandbox workspace-write` for the
+    `exec` mode, leaving every Codex run effectively read-only and producing
+    empty diffs (Y23 / Z5 / Z7). The fix swaps the two flags
+    (`--sandbox workspace-write` + `--full-auto`) for the single
+    `--dangerously-bypass-approvals-and-sandbox` flag, which the worktree
+    sandboxing already makes safe. These tests pin that argv shape so a future
+    revert is caught immediately by the test suite.
+    """
+
+    def _argv(self) -> list[str]:
+        return codex_impl._build_codex_argv(
+            codex="/fake/codex",
+            model="gpt-5.5",
+            worktree=Path("."),
+            chatgpt_provider="model_providers.chatgpt={name=\"chatgpt\"}",
+        )
+
+    def test_argv_uses_dangerously_bypass_flag(self):
+        """AC-1a: bypass flag must be present (otherwise sandbox stays read-only)."""
+        argv = self._argv()
+        self.assertIn(
+            "--dangerously-bypass-approvals-and-sandbox",
+            argv,
+            "Y26 regression: argv missing bypass flag — Codex would run read-only",
+        )
+
+    def test_argv_does_not_contain_sandbox_workspace_write(self):
+        """AC-1b: legacy flags must be absent (they get silently dropped by v0.125 anyway)."""
+        argv = self._argv()
+        self.assertNotIn("--sandbox", argv, "Y26 regression: legacy --sandbox flag still present")
+        self.assertNotIn("workspace-write", argv, "Y26 regression: legacy workspace-write value still present")
+        self.assertNotIn("--full-auto", argv, "Y26 regression: legacy --full-auto flag still present")
+
+    def test_argv_uses_stdin_marker(self):
+        """Sanity: prompt is still passed via stdin (trailing `-` argument)."""
+        argv = self._argv()
+        self.assertEqual(argv[-1], "-", "argv must end with '-' (stdin prompt marker)")
+
+    def test_run_codex_invokes_subprocess_with_bypass_flag(self):
+        """End-to-end: monkeypatched run_codex actually passes the new flag to subprocess."""
+        captured: dict[str, list[str]] = {}
+
+        def _fake_run(cmd, *_args, **_kwargs):
+            captured["cmd"] = list(cmd)
+            class _R:
+                returncode = 0
+                stdout = ""
+                stderr = ""
+            return _R()
+
+        with mock.patch("subprocess.run", side_effect=_fake_run), \
+             mock.patch("shutil.which", return_value="/fake/codex"):
+            codex_impl.run_codex(
+                prompt="x", worktree=Path("."), reasoning="high", timeout=1
+            )
+        self.assertIn("--dangerously-bypass-approvals-and-sandbox", captured["cmd"])
+        self.assertNotIn("--sandbox", captured["cmd"])
+        self.assertNotIn("workspace-write", captured["cmd"])
+        self.assertNotIn("--full-auto", captured["cmd"])
+
+# --------------------------------------------------------------------------- #
 # Scope check graceful fallback                                               #
 # --------------------------------------------------------------------------- #
 
