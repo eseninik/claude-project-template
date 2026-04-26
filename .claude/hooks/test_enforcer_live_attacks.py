@@ -414,3 +414,160 @@ def test_a07_sync_script_invocation_allowed(project_root: Path) -> None:
     cmd = "py -3 .claude/scripts/sync-template-to-target.py --tgt /tmp/foo --apply"
     r = _run_enforcer(_bash_payload(cmd), project_root)
     _assert_allow(r)
+
+
+# ======================================================================
+# Z13: NEW VECTORS V13-V18 - discovery tests
+#
+# Some of these MAY FAIL - failures are expected and reveal real enforcer
+# gaps that Z14 will fix. Each test asserts the EXPECTED CORRECT behavior
+# per the task spec; pass/fail outcomes are documented in
+# work/criterion-upgrade/Z13-findings.md.
+# ======================================================================
+
+def test_v13_cron_create_code_writer_denied(project_root: Path) -> None:
+    """V13 - schtasks/CronCreate scheduling code-writer script.
+
+    Payload:  Bash command  schtasks /Create /TN x /TR "py -3 work/sync.py"
+
+    Expected (correct): DENY because the scheduled command is itself
+    a code-writing invocation (`py -3 work/sync.py` -> Invariant 2,
+    work/**/*.py is still code per Invariant 1).
+
+    Likely current: ALLOW - the enforcer sees verb=`schtasks` (unknown,
+    not in mutating/readonly/interpreter sets) and falls through to
+    `unknown-verb-allowed`. The nested `py -3 work/sync.py` payload is
+    invisible because schtasks's `/TR` argument is just a string token
+    to the parser, never re-tokenized.
+    """
+    cmd = 'schtasks /Create /TN x /TR "py -3 work/sync.py"'
+    r = _run_enforcer(_bash_payload(cmd), project_root)
+    _assert_deny(r)
+
+
+def test_v14_mcp_filesystem_write_denied_OR_documented(project_root: Path) -> None:
+    """V14 - MCP filesystem `mcp__filesystem__write_file` tool.
+
+    Payload:  tool_name=mcp__filesystem__write_file,
+              tool_input={path: "src/x.py", content: "..."}
+
+    Expected (correct): DENY - any MCP write tool that mutates a
+    code-extension target should require a Codex cover.
+
+    Likely current: ALLOW - the dispatch in decide() only handles
+    {Edit, Write, MultiEdit, Bash, NotebookEdit}; tool_name starting
+    with `mcp__` falls through to passthrough. The settings.json hook
+    matcher also does not list any `mcp__*` pattern, so the enforcer
+    is never even invoked for live MCP write calls in production.
+    """
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "mcp__filesystem__write_file",
+        "tool_input": {"path": "src/x.py", "content": "# pwn\n"},
+        "session_id": "z13-test",
+    }
+    (project_root / "src" / "x.py").write_text("# original\n", encoding="utf-8")
+    r = _run_enforcer(payload, project_root)
+    _assert_deny(r)
+
+
+def test_v15_compiled_binary_unknown_classification(project_root: Path) -> None:
+    """V15 - Compiled binary execution writing to a code path.
+
+    Payload:  Bash command  ./my-tool --output src/foo.py
+
+    Expected (correct): DENY because the argument `src/foo.py` is a
+    code-extension token that the binary will write to. A safer
+    enforcer should treat any unknown verb whose argv contains a
+    code-extension positional path as `require_cover`.
+
+    Likely current: ALLOW - `verb=my-tool` is unknown, falls through
+    to `unknown-verb-allowed`. The redirect scanner only catches `>`
+    / `>>`, not `--output` style flags. The `_extract_code_path_args`
+    helper IS only called inside the mutating/inplace branches, never
+    for unknown verbs.
+    """
+    cmd = "./my-tool --output src/foo.py"
+    r = _run_enforcer(_bash_payload(cmd), project_root)
+    _assert_deny(r, must_contain_in_reason="src/foo.py")
+
+
+def test_v16_bash_dash_s_heredoc_requires_cover(project_root: Path) -> None:
+    """V16 - `bash -s` heredoc-to-interpreter.
+
+    Payload:  bash -s <<EOF\\necho "x" > src/foo.py\\nEOF
+
+    Expected (correct): DENY. Two independent reasons:
+      1. `bash -s` matches has_dash_s -> require_cover
+         (`bash-stdin-opaque`).
+      2. The split-on-newline body sub-command
+         `echo "x" > src/foo.py` has a redirect to a code path, which
+         the early_redirects branch in _classify_single_command catches.
+
+    Likely current: PASS (deny) on the strength of either signal - the
+    `-s` shortcut almost certainly fires first.
+    """
+    cmd = 'bash -s <<EOF\necho "x" > src/foo.py\nEOF'
+    r = _run_enforcer(_bash_payload(cmd), project_root)
+    _assert_deny(r)
+
+
+def test_v17_python_dash_c_readonly_should_allow_OR_document(
+    project_root: Path,
+) -> None:
+    """V17 - False-positive: `py -c` legitimate read-only command.
+
+    Payload:  python -c "import json; print(open('config.json').read())"
+
+    Expected (correct): ALLOW. The body opens config.json for the
+    default read mode and only prints; there is no `open(..., 'w')`,
+    no `'a'`, no Path.write_*, no shutil.copy. A correct heuristic
+    must NOT flag this as a write.
+
+    Likely current: ALLOW - _classify_interpreter dash_c branch
+    iterates write_patterns (none match because there's no `'w'`/`'a'`
+    after the comma) and the fallback regex `open\\([^)]*['\"][wa]`
+    also does not match `open('config.json')` (no w/a literal). So
+    enforcer should already return `python-c-no-write`.
+
+    If this test ever FAILS, it means the enforcer's open()-detection
+    has become over-eager (a regression worth investigating).
+    """
+    cmd = (
+        "python -c \"import json; print(open('config.json').read())\""
+    )
+    r = _run_enforcer(_bash_payload(cmd), project_root)
+    _assert_allow(r)
+
+
+def test_v18_notebook_bash_magic_denied(project_root: Path) -> None:
+    """V18 - NotebookEdit cell whose source is `%%bash` magic that writes code.
+
+    Payload:  tool=NotebookEdit, notebook_path=src/foo.ipynb,
+              new_source="%%bash\\necho x > src/y.py"
+
+    Expected (correct): DENY. The notebook itself is a code file
+    (.ipynb is in CODE_EXTENSIONS, Z7-V02), so the edit always
+    requires a cover. Separately, the cell body would shell-execute
+    a redirect to src/y.py - but the .ipynb extension is sufficient
+    to require cover regardless of cell content.
+
+    Likely current: PASS (deny) on the strength of the .ipynb
+    extension match alone. Z14 will need to add inspection of
+    `new_source` for `%%bash` / `%%sh` / `!`-magic commands so that
+    NotebookEdit on a NON-.ipynb path (theoretical, but possible if
+    extensions list ever changes) would also deny when the cell body
+    mutates code.
+    """
+    payload = {
+        "hook_event_name": "PreToolUse",
+        "tool_name": "NotebookEdit",
+        "tool_input": {
+            "notebook_path": "src/foo.ipynb",
+            "new_source": '%%bash\necho x > src/y.py',
+        },
+        "session_id": "z13-test",
+    }
+    (project_root / "src" / "foo.ipynb").write_text("{}\n", encoding="utf-8")
+    r = _run_enforcer(payload, project_root)
+    _assert_deny(r)
