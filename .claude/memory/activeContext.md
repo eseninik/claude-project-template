@@ -9,6 +9,48 @@
 
 ## Current Focus
 
+### Round 7 — Y21 + Y25 final polish — ALL FOLLOW-UPS CLOSED 2026-04-26
+
+**Goal:** Close last 2 deferred follow-ups. Z12 dual-implement run.
+
+**Status:** COMPLETE. Z12 produced first Codex-victory verdict (δ=-0.0245), but Codex artifacts subsequently rolled back by codex-implement scope-violation (ironically using OLD pre-Y18 parser). Merged Claude (functional equivalent).
+
+**What landed:**
+
+- **Z12** (commit current HEAD merge): Y21 + Y25.
+  - Y21: judge_axes.score_diff_size uses Hill function `scale/(scale+added)` — asymptotic, never zero. Z1's +1102 LOC would now score 0.31 instead of 0.0; judge can differentiate large diffs.
+  - Y25: codex-delegate-enforcer detects `~/.codex/auth.json` missing OR stale (>24h), prepends `*** Codex appears unavailable: <reason>` hint to block message. Rule unchanged (still fail-closed); diagnostic clearer.
+  - Verdict: **Codex won δ=-0.0245** (132 LOC vs Claude 236) — first true Codex victory, but artifacts rolled back. Merged Claude (functional equivalent: 9 NEW tests, 268 pass total).
+
+**End state numbers (template fix/watchdog-dushnost AND QA Legal sync/template-update-2026-04-26):**
+- 72 codex-implement tests (60 original + 12 across Y26/Y18/Y20)
+- 24 codex-inline-dual (Y19)
+- 16 codex-ask (Y23)
+- 19 live attack matrix (Z5+Z7+Y22)
+- 35 invariants (Z1) + 5 Y25 message tests = 40
+- 36 enforcer (existing)
+- 18 gate
+- ~28 judge axis tests (Y21 logarithmic)
+- = **268 tests pass total** + selftest 6/6
+
+**Sync chain in QA Legal (9 commits on sync/template-update-2026-04-26):**
+- 32439b2 → 15630ab → 3461f93 → ad1c4a9 → b5ffdd6 → 3155463 → cba8eab → 4e591a7 → 5ac252c (Z12)
+
+**ALL OPEN FOLLOW-UPS NOW CLOSED.** No deferred items. Pipeline 100% complete.
+
+**Cumulative session (Rounds 3-7, 8 dual-implement runs):**
+- Z1 (Always-Dual via 4 invariants → 12 vectors)
+- Y23 (codex-ask v0.125 parser)
+- Z5 (live attack matrix → revealed V02+V03)
+- Z7 (V02+V03 fixes → 18/18 PASS)
+- Z8/Y26 (sandbox bypass — restored Codex contribution)
+- Z10 (Y19+Y22 — TIE 0.000, first true merit)
+- Z11 (Y18+Y20 — TIE -0.0099)
+- Z12 (Y21+Y25 — Codex won δ=-0.0245)
+
+12 commits in template + 9 commits in QA Legal + memory Round 3-7.
+
+### Round 6 — Y18/Y19/Y20/Y22 polish + first true-merit verdicts — COMPLETE 2026-04-26
 ### Round 6 — Y18/Y19/Y20/Y22 polish + first true-merit verdicts — COMPLETE 2026-04-26
 
 **Goal:** After Y26 fix restored Codex contribution, close remaining infrastructure follow-ups (Y18/Y19/Y20/Y22) via 2 grouped dual runs. Each becomes the FIRST runs where Codex produces real diff and judge gives meritocratic verdict.
@@ -578,6 +620,11 @@ pipeline-checkpoint-PLAN в†’ IMPLEMENT_WAVE_1 в†’ IMPLEMENT_WAVE_2 в�
 
 ## Auto-Generated Summaries
 
+### 2026-04-26 16:07 (commit `03ec7a7`)
+**Message:** chore(work): commit Z12 task spec (Y21 logarithmic diff_size + Y25 unavailability diagnostic)
+**Files:** 1
+
+
 ### 2026-04-26 15:45 (commit `bb3a0bf`)
 **Message:** chore(work): commit Z11 task spec (Y18 fence parser + Y20 status logic)
 **Files:** 1
@@ -949,6 +996,7 @@ pipeline-checkpoint-PLAN в†’ IMPLEMENT_WAVE_1 в†’ IMPLEMENT_WAVE_2 в�
 
 **Architectural status:**
 Always-Dual protocol fully operational: CLAUDE.md + AGENTS.md + enforcer hook + codex-gate bypass + DUAL_TEAMS phase mode + dual-teams-spawn.py + codex-inline-dual.py + judge.py + stability layer + warm pool + streaming+cherry-pick docs.
+
 
 
 
