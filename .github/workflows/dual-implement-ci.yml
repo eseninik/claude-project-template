@@ -1,0 +1,67 @@
+name: Dual Implement CI
+
+"on":
+  pull_request:
+  push:
+    branches:
+      - main
+      - "fix/*"
+
+jobs:
+  tests:
+    name: Full pytest suite
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pyyaml
+
+      - name: Run all pytest suites
+        run: python -m pytest .claude/scripts/test_*.py .claude/hooks/test_*.py -q --tb=line
+
+  selftest:
+    name: Dual teams selftest
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run selftest
+        run: python .claude/scripts/dual-teams-selftest.py
+
+  attack-matrix:
+    name: Live attack matrix
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+
+      - name: Run live attack matrix
+        run: python -m pytest .claude/hooks/test_enforcer_live_attacks.py -v
