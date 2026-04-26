@@ -44,6 +44,15 @@ MIRROR_DIRS: list[str] = [
     ".claude/shared/work-templates",
 ]
 
+# Top-level files mirrored for full QA-Legal parity (Z33).
+# Not inside any MIRROR_DIRS category; part of dual-implement infrastructure
+# rolled out in Round 8 (Z26 added CI workflow + CHANGELOG, Z32 added mypy.ini).
+MIRROR_TOP_FILES: list[str] = [
+    ".github/workflows/dual-implement-ci.yml",
+    "CHANGELOG.md",
+    "mypy.ini",
+]
+
 # Files inside MIRROR_DIRS that must NEVER be copied (secrets, caches, etc.)
 EXCLUDE_NAMES: set[str] = {
     "__pycache__",
@@ -310,6 +319,64 @@ def mirror_category(
                 shutil.copy2(s, t)
 
 
+def mirror_top_file(
+    src_root: Path,
+    tgt_root: Path,
+    rel_path: str,
+    plan: Plan,
+    apply: bool,
+    force: bool = False,
+    snapshot: RollbackSnapshot | None = None,
+) -> None:
+    """Mirror a single top-level file (Z33 - full QA-Legal parity).
+
+    Honors the same per-file semantics as ``mirror_category``:
+      * skip identical files (count under ``same_files``)
+      * skip locally modified targets unless ``--force``
+      * record changes in ``plan.changed_files`` / ``plan.new_files``
+      * snapshot the prior target into ``snapshot`` before overwrite
+    """
+    logger.info(
+        "mirror_top_file.enter rel_path=%s apply=%s force=%s",
+        rel_path,
+        apply,
+        force,
+    )
+    s = src_root / rel_path
+    t = tgt_root / rel_path
+    if not s.is_file():
+        logger.info("mirror_top_file.exit copied=False reason=missing-source rel_path=%s", rel_path)
+        return
+    if s.name in EXCLUDE_NAMES:
+        plan.skipped_files.append((rel_path, "secret-name"))
+        logger.info("mirror_top_file.exit copied=False reason=excluded rel_path=%s", rel_path)
+        return
+    if t.exists():
+        if filecmp.cmp(s, t, shallow=False):
+            plan.same_files += 1
+            logger.info("mirror_top_file.exit copied=False reason=identical rel_path=%s", rel_path)
+            return
+        if _should_skip_locally_modified(tgt_root, t, rel_path, plan, force):
+            logger.info(
+                "mirror_top_file.exit copied=False reason=locally-modified rel_path=%s",
+                rel_path,
+            )
+            return
+        plan.changed_files.append((str(s), str(t)))
+        if apply:
+            t.parent.mkdir(parents=True, exist_ok=True)
+            if snapshot is not None:
+                snapshot.capture(t, rel_path)
+            shutil.copy2(s, t)
+        logger.info("mirror_top_file.exit copied=%s reason=changed rel_path=%s", apply, rel_path)
+    else:
+        plan.new_files.append((str(s), str(t)))
+        if apply:
+            t.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(s, t)
+        logger.info("mirror_top_file.exit copied=%s reason=new rel_path=%s", apply, rel_path)
+
+
 def merge_settings(
     src_root: Path,
     tgt_root: Path,
@@ -442,6 +509,8 @@ def main() -> int:
     snapshot = RollbackSnapshot(tgt_root) if args.apply else None
     for rel in MIRROR_DIRS:
         mirror_category(src_root, tgt_root, rel, plan, args.apply, args.force, snapshot)
+    for top in MIRROR_TOP_FILES:
+        mirror_top_file(src_root, tgt_root, top, plan, args.apply, args.force, snapshot)
     merge_settings(src_root, tgt_root, plan, args.apply, args.force, snapshot)
     merge_gitignore(tgt_root, plan, args.apply, args.force, snapshot)
     if snapshot is not None and snapshot.snapshot_dir is not None:
