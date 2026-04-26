@@ -114,6 +114,7 @@ _BASH_DUAL_TOOLING: frozenset = frozenset({
     ".claude/scripts/verdict-summarizer.py",
     ".claude/scripts/worktree-cleaner.py",
     ".claude/scripts/codex-cost-report.py",
+    ".claude/scripts/sync-template-to-target.py",
 })
 
 _BASH_MUTATING_VERBS: frozenset = frozenset({

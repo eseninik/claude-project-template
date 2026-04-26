@@ -10,6 +10,7 @@ Run:
 from __future__ import annotations
 
 import argparse
+import os
 import importlib.util
 import logging
 import re
@@ -62,6 +63,7 @@ def _make_args(tmpdir, **overrides):
         spec_dir=Path(tmpdir) / "work" / "inline",
         codex_timeout=3600,
         log_dir=Path(tmpdir) / "logs",
+        result_dir=Path(tmpdir) / "work" / "codex-implementations",
     )
     for k, v in overrides.items():
         setattr(ns, k, v)
@@ -372,6 +374,78 @@ class TestPrepLive(unittest.TestCase):
                     cid.prep(args, project_root=tmp)
             self.assertEqual(fake_git.call_count, 0)
 
+
+    def test_inline_dual_result_in_main_work_dir(self):
+        # AC-1 (Y19): default --result-dir resolves to main project_root
+        # work/codex-implementations/, NOT the codex worktree's own copy.
+        # Verifies the spawned codex-implement.py command line carries an
+        # ABSOLUTE --result-dir pointing under project_root.
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            args = _make_args(td, task_id="y19a", dry_run=False)
+
+            fake_git = mock.MagicMock(return_value=subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="", stderr=""
+            ))
+            fake_proc = mock.MagicMock()
+            fake_proc.pid = 4242
+
+            scripts_dir = tmp / ".claude" / "scripts"
+            scripts_dir.mkdir(parents=True, exist_ok=True)
+            (scripts_dir / "codex-implement.py").write_text("# fake\n", encoding="utf-8")
+
+            with mock.patch.object(cid, "_run_git", fake_git), \
+                 mock.patch.object(cid.subprocess, "Popen", return_value=fake_proc):
+                result = cid.prep(args, project_root=tmp)
+
+            cmd = result.codex_job.command
+            self.assertIn("--result-dir", cmd,
+                          "spawn cmd missing --result-dir flag: " + repr(cmd))
+            rd_idx = cmd.index("--result-dir")
+            rd_value = Path(cmd[rd_idx + 1])
+            self.assertTrue(rd_value.is_absolute(),
+                            "--result-dir must be absolute, got: " + str(rd_value))
+            # The default lands UNDER project_root/work/codex-implementations,
+            # never under the codex worktree.
+            expected = (tmp / "work" / "codex-implementations").resolve()
+            self.assertEqual(rd_value.resolve(), expected,
+                             "default --result-dir must equal project_root/work/codex-implementations; "
+                             "got " + str(rd_value))
+            codex_wt = result.pair.codex_path.resolve()
+            self.assertFalse(
+                str(rd_value.resolve()).startswith(str(codex_wt) + os.sep)
+                or rd_value.resolve() == codex_wt,
+                "--result-dir leaked into codex worktree: " + str(rd_value),
+            )
+
+    def test_inline_dual_respects_result_dir_flag(self):
+        # AC-2 (Y19): explicit --result-dir overrides default.
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            override = tmp / "custom" / "codex-out"
+            override.mkdir(parents=True, exist_ok=True)
+            args = _make_args(td, task_id="y19b", dry_run=False)
+            args.result_dir = override
+
+            fake_git = mock.MagicMock(return_value=subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="", stderr=""
+            ))
+            fake_proc = mock.MagicMock()
+            fake_proc.pid = 4343
+
+            scripts_dir = tmp / ".claude" / "scripts"
+            scripts_dir.mkdir(parents=True, exist_ok=True)
+            (scripts_dir / "codex-implement.py").write_text("# fake\n", encoding="utf-8")
+
+            with mock.patch.object(cid, "_run_git", fake_git), \
+                 mock.patch.object(cid.subprocess, "Popen", return_value=fake_proc):
+                result = cid.prep(args, project_root=tmp)
+
+            cmd = result.codex_job.command
+            self.assertIn("--result-dir", cmd)
+            rd_value = Path(cmd[cmd.index("--result-dir") + 1])
+            self.assertEqual(rd_value.resolve(), override.resolve(),
+                             "explicit --result-dir override not honored")
 
 # --- render_status_block --------------------------------------------------- #
 
