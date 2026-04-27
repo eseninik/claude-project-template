@@ -1,0 +1,501 @@
+#!/usr/bin/env python3
+"""Codex Image Bridge v0.4 — multi-image, per-request mailbox, concurrent-safe.
+
+What v0.4 adds over v0.3:
+- Per-request mailbox dir /tmp/codex-image-mailbox/by-id/<request_id>/
+  with result.png and meta.json. status field: inflight -> ready / error.
+  Solves concurrent-request collision.
+- Bridge ALWAYS persists per-request mailbox even when HTTP client disconnects.
+- Response carries X-Bridge-Request-Id header so callers can poll.
+- /v1/bridge/jobs/<id> GET endpoint for late pickup (returns data_b64 if ready).
+- TTL cleanup of stale per-request dirs on each request (24h default).
+- Atomicity: result.png renamed into place BEFORE meta.json marks status=ready.
+"""
+
+import base64
+import hashlib
+import json
+import logging
+import os
+import re
+import shutil
+import subprocess
+import time
+import uuid
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+LOG_LEVEL = os.environ.get("BRIDGE_LOG_LEVEL", "INFO")
+HOST = os.environ.get("BRIDGE_HOST", "127.0.0.1")
+PORT = int(os.environ.get("BRIDGE_PORT", "18799"))
+CODEX_BIN = os.environ.get("CODEX_BIN", "codex")
+CODEX_MODEL = os.environ.get("CODEX_MODEL", "gpt-5.5")
+CODEX_TIMEOUT_SEC = int(os.environ.get("CODEX_TIMEOUT_SEC", "300"))
+CODEX_HOME = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex")))
+GENERATED_DIR = CODEX_HOME / "generated_images"
+WORK_DIR = Path(os.environ.get("BRIDGE_WORKDIR", "/tmp/codex-image-bridge"))
+WORK_DIR.mkdir(parents=True, exist_ok=True)
+MAILBOX_DIR = Path(os.environ.get("MAILBOX_DIR", "/tmp/codex-image-mailbox"))
+MAILBOX_DIR.mkdir(parents=True, exist_ok=True)
+BY_ID_DIR = MAILBOX_DIR / "by-id"
+BY_ID_DIR.mkdir(parents=True, exist_ok=True)
+MAX_INPUT_IMAGES = int(os.environ.get("BRIDGE_MAX_INPUT_IMAGES", "16"))
+JOBS_TTL_SEC = int(os.environ.get("BRIDGE_JOBS_TTL_SEC", str(24 * 3600)))
+REQUEST_ID_RE = re.compile(r"^[0-9a-f]{8,32}$")
+
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL.upper(), logging.INFO),
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+log = logging.getLogger("bridge")
+
+DATA_URL_RE = re.compile(r"^data:(?P<mime>[^;,]+)(?P<params>(?:;[^,]+)*),(?P<payload>.+)$", re.DOTALL)
+
+
+class BridgeError(Exception):
+    pass
+
+
+def decode_data_url(url):
+    m = DATA_URL_RE.match(url)
+    if not m:
+        raise BridgeError("image_url is not a data: URL")
+    mime = m.group("mime") or "image/png"
+    params = m.group("params") or ""
+    payload = m.group("payload")
+    if ";base64" in params:
+        data = base64.b64decode(payload)
+    else:
+        from urllib.parse import unquote_to_bytes
+        data = unquote_to_bytes(payload)
+    return data, mime
+
+
+def ext_for_mime(mime):
+    return {
+        "image/png": ".png",
+        "image/jpeg": ".jpg",
+        "image/jpg": ".jpg",
+        "image/webp": ".webp",
+    }.get(mime.lower(), ".png")
+
+
+def build_prompt_text(prompt, size, is_edit, num_images=1):
+    size_hint = ("\n\nTarget size: " + size + ".") if size else ""
+    if is_edit and num_images > 1:
+        n = str(num_images)
+        wrapper = (
+            "Use the built-in image_gen tool to PRODUCE A NEW IMAGE that combines, "
+            "composites, or transforms the " + n + " attached input images according "
+            "to the instructions below. All " + n + " images are present in the "
+            "conversation context as attached inputs (image 1, image 2, ..., image " + n + "). "
+            "Do not write code, do not run shell or python commands, do not look up files. "
+            "Call image_gen exactly once with all " + n + " images as input and the "
+            "instructions as the prompt. Then reply with a single short line, nothing else.\n\n"
+            "--- EDIT/COMPOSITE INSTRUCTIONS ---\n"
+        )
+    elif is_edit:
+        wrapper = (
+            "Use the built-in image_gen tool to EDIT the attached input image "
+            "according to the instructions below. Do not write any code, do not run "
+            "shell or python commands, do not look up files. Call image_gen exactly "
+            "once with the attached image as input_image and the instructions as the "
+            "prompt. Then reply with a single short line, nothing else.\n\n"
+            "--- EDIT INSTRUCTIONS ---\n"
+        )
+    else:
+        wrapper = (
+            "Use the built-in image_gen tool to GENERATE a new image from the prompt "
+            "below. Do not write any code, do not run shell or python commands, do not "
+            "look up files. Call image_gen exactly once. Then reply with a single short "
+            "line, nothing else.\n\n--- IMAGE PROMPT ---\n"
+        )
+    return wrapper + prompt.strip() + size_hint + "\n"
+
+
+def _snapshot_generated_dirs():
+    if not GENERATED_DIR.exists():
+        return set()
+    return {p.name for p in GENERATED_DIR.iterdir() if p.is_dir()}
+
+
+def write_meta(rid_dir, **kwargs):
+    """Atomically write meta.json with given fields merged."""
+    meta_path = rid_dir / "meta.json"
+    data = {}
+    if meta_path.exists():
+        try:
+            data = json.loads(meta_path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    data.update(kwargs)
+    data["updated_at"] = time.time()
+    tmp = meta_path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    os.replace(tmp, meta_path)
+    return data
+
+
+def deliver_to_mailbox(png_path, request_id, sub_id):
+    """Atomically copy PNG into per-request and global mailbox.
+    Order: write per-request file first, then update global last.png.
+    Caller marks meta.json status=ready AFTER this returns.
+    """
+    rid_dir = BY_ID_DIR / request_id
+    rid_dir.mkdir(parents=True, exist_ok=True)
+
+    sha = hashlib.sha256(png_path.read_bytes()).hexdigest()[:8]
+    size = png_path.stat().st_size
+
+    result_path = rid_dir / f"result-{sub_id}.png"
+    tmp_path = result_path.with_suffix(".png.tmp")
+    shutil.copy2(png_path, tmp_path)
+    os.replace(tmp_path, result_path)
+
+    last_global = MAILBOX_DIR / "last.png"
+    tmp_global = last_global.with_suffix(".png.tmp")
+    shutil.copy2(png_path, tmp_global)
+    os.replace(tmp_global, last_global)
+
+    return {
+        "request_id": request_id,
+        "sub_id": sub_id,
+        "result_path": str(result_path),
+        "source_path": str(png_path),
+        "size_bytes": size,
+        "sha8": sha,
+    }
+
+
+def cleanup_stale_jobs():
+    """Remove per-request dirs older than JOBS_TTL_SEC. Best-effort."""
+    if not BY_ID_DIR.exists():
+        return
+    now = time.time()
+    removed = 0
+    for d in BY_ID_DIR.iterdir():
+        if not d.is_dir():
+            continue
+        try:
+            age = now - d.stat().st_mtime
+        except OSError:
+            continue
+        if age > JOBS_TTL_SEC:
+            try:
+                shutil.rmtree(d, ignore_errors=True)
+                removed += 1
+            except Exception:
+                pass
+    if removed:
+        log.info("ttl cleanup: removed %d stale job dirs", removed)
+
+
+def run_codex_once(prompt_text, input_image_paths, sub_id):
+    workdir = WORK_DIR / sub_id
+    workdir.mkdir(parents=True, exist_ok=True)
+    prompt_file = workdir / "prompt.txt"
+    prompt_file.write_text(prompt_text, encoding="utf-8")
+    last_message_file = workdir / "last-message.txt"
+
+    cmd = [
+        CODEX_BIN, "exec",
+        "--full-auto",
+        "--skip-git-repo-check",
+        "--color", "never",
+        "-m", CODEX_MODEL,
+        "-c", "sandbox_workspace_write.network_access=true",
+        "-o", str(last_message_file),
+    ]
+    for ip in input_image_paths:
+        cmd.extend(["-i", str(ip)])
+
+    log.info("[%s] codex spawn: inputs=%d, prompt_len=%d",
+             sub_id, len(input_image_paths), len(prompt_text))
+
+    before = _snapshot_generated_dirs()
+    t0 = time.time()
+    stdin_fh = prompt_file.open("rb")
+    try:
+        proc = subprocess.Popen(
+            cmd, stdin=stdin_fh, cwd=str(workdir),
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+    finally:
+        stdin_fh.close()
+
+    session_dir = None
+    early_png = None
+    deadline = t0 + CODEX_TIMEOUT_SEC
+    poll = 0.4
+
+    try:
+        while True:
+            if proc.poll() is not None:
+                break
+            after = _snapshot_generated_dirs()
+            new_dirs = after - before
+            if new_dirs and session_dir is None:
+                session_dir = max(
+                    (GENERATED_DIR / name for name in new_dirs),
+                    key=lambda p: p.stat().st_mtime,
+                )
+                log.info("[%s] session dir appeared: %s (after %.1fs)",
+                         sub_id, session_dir.name, time.time() - t0)
+            if session_dir is not None:
+                pngs = sorted(session_dir.glob("*.png"), key=lambda p: p.stat().st_mtime)
+                if pngs:
+                    latest = pngs[-1]
+                    if latest.stat().st_size > 0:
+                        try:
+                            with latest.open("rb") as fh:
+                                head = fh.read(8)
+                            if head.startswith(b"\x89PNG\r\n\x1a\n"):
+                                early_png = latest
+                                log.info("[%s] PNG ready (size=%d) at %.1fs",
+                                         sub_id, latest.stat().st_size, time.time() - t0)
+                                proc.terminate()
+                                try:
+                                    proc.wait(timeout=2)
+                                except subprocess.TimeoutExpired:
+                                    proc.kill()
+                                    proc.wait(timeout=2)
+                                break
+                        except OSError:
+                            pass
+            if time.time() > deadline:
+                proc.kill()
+                proc.wait(timeout=5)
+                raise BridgeError("codex exec exceeded " + str(CODEX_TIMEOUT_SEC) + "s")
+            time.sleep(poll)
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait(timeout=5)
+
+    elapsed = time.time() - t0
+    log.info("[%s] codex exit=%s elapsed=%.1fs early=%s",
+             sub_id, proc.returncode, elapsed, early_png is not None)
+
+    if early_png is not None:
+        return early_png
+
+    try:
+        stdout_bytes, stderr_bytes = proc.communicate(timeout=2)
+    except subprocess.TimeoutExpired:
+        stdout_bytes, stderr_bytes = b"", b""
+    err = (stderr_bytes or b"").decode("utf-8", "replace")
+
+    if proc.returncode not in (0, None) and not session_dir:
+        raise BridgeError("codex exec failed (code " + str(proc.returncode) + "): " + err[-300:])
+
+    if session_dir is None:
+        raise BridgeError("no new generated_images session created during codex run")
+
+    grace = time.time() + 10
+    while time.time() < grace:
+        pngs = sorted(session_dir.glob("*.png"), key=lambda p: p.stat().st_mtime)
+        if pngs:
+            return pngs[-1]
+        time.sleep(0.3)
+    raise BridgeError("session dir " + str(session_dir) + " created but no PNG inside")
+
+
+def handle_image_request(payload, is_edit):
+    request_id = uuid.uuid4().hex[:12]
+    rid_dir = BY_ID_DIR / request_id
+    rid_dir.mkdir(parents=True, exist_ok=True)
+
+    cleanup_stale_jobs()
+
+    prompt = payload.get("prompt", "").strip()
+    if not prompt:
+        write_meta(rid_dir, status="error", error="missing prompt", request_id=request_id)
+        raise BridgeError("missing prompt")
+    n = int(payload.get("n", 1) or 1)
+    size = payload.get("size") or None
+    images_in = payload.get("images") or []
+
+    write_meta(
+        rid_dir,
+        status="inflight",
+        request_id=request_id,
+        is_edit=is_edit,
+        n=n,
+        size=size,
+        prompt_excerpt=prompt[:200],
+        prompt_hash=hashlib.sha256(prompt.encode()).hexdigest()[:12],
+        num_images_in=len(images_in),
+        started_at=time.time(),
+    )
+
+    log.info("[%s] request: edit=%s n=%d size=%s prompt_len=%d images_in=%d",
+             request_id, is_edit, n, size, len(prompt), len(images_in))
+
+    input_image_paths = []
+    if is_edit:
+        if not images_in:
+            write_meta(rid_dir, status="error", error="edit requires at least one input image")
+            raise BridgeError("edit requires at least one input image")
+        if len(images_in) > MAX_INPUT_IMAGES:
+            log.warning("[%s] %d input images exceeds cap %d truncating",
+                        request_id, len(images_in), MAX_INPUT_IMAGES)
+            images_in = images_in[:MAX_INPUT_IMAGES]
+        for idx, item in enumerate(images_in):
+            url = item.get("image_url") or item.get("url") or item
+            if isinstance(url, dict):
+                url = url.get("url") or url.get("image_url")
+            if not isinstance(url, str):
+                write_meta(rid_dir, status="error", error="bad image_url")
+                raise BridgeError("input image #" + str(idx + 1) + " must carry image_url string")
+            data, mime = decode_data_url(url)
+            ext = ext_for_mime(mime)
+            ip = WORK_DIR / (request_id + "-input-" + str(idx + 1) + ext)
+            ip.write_bytes(data)
+            input_image_paths.append(ip)
+
+    prompt_text = build_prompt_text(prompt, size, is_edit, num_images=len(input_image_paths))
+    out_entries = []
+    delivered = []
+    for i in range(n):
+        sub_id = request_id + "-" + str(i + 1)
+        try:
+            png_path = run_codex_once(prompt_text, input_image_paths, sub_id)
+        except BridgeError as e:
+            log.error("[%s] sub %d failed: %s", request_id, i + 1, e)
+            write_meta(rid_dir, status="error", error=str(e), partial_count=len(out_entries))
+            if not out_entries:
+                raise
+            break
+        info = deliver_to_mailbox(png_path, request_id, sub_id)
+        delivered.append(info)
+        b64 = base64.b64encode(png_path.read_bytes()).decode("ascii")
+        out_entries.append({"b64_json": b64})
+
+    write_meta(
+        rid_dir,
+        status="ready",
+        delivered=delivered,
+        finished_at=time.time(),
+    )
+
+    return {
+        "created": int(time.time()),
+        "data": out_entries,
+        "_bridge": {"request_id": request_id, "version": "0.4"},
+    }
+
+
+def get_job_status(request_id):
+    if not REQUEST_ID_RE.match(request_id):
+        return None
+    rid_dir = BY_ID_DIR / request_id
+    if not rid_dir.exists():
+        return None
+    meta_path = rid_dir / "meta.json"
+    if not meta_path.exists():
+        return {"status": "unknown"}
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        return {"status": "meta_error", "error": str(e)}
+    if meta.get("status") == "ready":
+        delivered = meta.get("delivered", [])
+        b64_list = []
+        for d in delivered:
+            rp = Path(d.get("result_path", ""))
+            if rp.exists():
+                b64_list.append(base64.b64encode(rp.read_bytes()).decode("ascii"))
+        meta["data_b64"] = b64_list
+    return meta
+
+
+class BridgeHandler(BaseHTTPRequestHandler):
+    server_version = "CodexImageBridge/0.4"
+
+    def log_message(self, format, *args):
+        log.info("http %s - %s", self.address_string(), format % args)
+
+    def _read_json(self):
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        if length <= 0:
+            return {}
+        raw = self.rfile.read(length)
+        try:
+            return json.loads(raw.decode("utf-8"))
+        except Exception as e:
+            raise BridgeError("invalid JSON body: " + str(e))
+
+    def _send_json(self, status, payload, extra_headers=None):
+        body = json.dumps(payload).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        if extra_headers:
+            for k, v in extra_headers.items():
+                self.send_header(k, str(v))
+        self.end_headers()
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError) as e:
+            log.warning("client disconnected before response delivery: %s", e)
+
+    def _send_error(self, status, message, code="bridge_error"):
+        log.warning("http error %d: %s", status, message)
+        self._send_json(status, {"error": {"message": message, "type": code, "code": code}})
+
+    def do_GET(self):
+        if self.path == "/health":
+            self._send_json(200, {"status": "ok", "model": CODEX_MODEL, "version": "0.4"})
+            return
+        m = re.match(r"^/v1/bridge/jobs/([0-9a-f]{8,32})$", self.path)
+        if m:
+            rid = m.group(1)
+            data = get_job_status(rid)
+            if data is None:
+                self._send_error(404, "unknown request_id " + rid, "not_found")
+                return
+            self._send_json(200, data)
+            return
+        self._send_error(404, "unknown path " + self.path, "not_found")
+
+    def do_POST(self):
+        path = self.path.rstrip("/")
+        is_edit = path.endswith("/v1/images/edits")
+        is_gen = path.endswith("/v1/images/generations")
+        if not (is_edit or is_gen):
+            self._send_error(404, "unknown path " + self.path, "not_found")
+            return
+        try:
+            payload = self._read_json()
+        except BridgeError as e:
+            self._send_error(400, str(e), "bad_request")
+            return
+        try:
+            result = handle_image_request(payload, is_edit=is_edit)
+        except BridgeError as e:
+            self._send_error(502, str(e), "codex_failed")
+            return
+        except Exception as e:
+            log.exception("unhandled handler error")
+            self._send_error(500, "internal error: " + str(e), "internal_error")
+            return
+        rid = result.get("_bridge", {}).get("request_id", "")
+        self._send_json(200, result, extra_headers={"X-Bridge-Request-Id": rid})
+
+
+def main():
+    GENERATED_DIR.mkdir(parents=True, exist_ok=True)
+    log.info("Codex Image Bridge v0.4 starting on %s:%d (codex=%s model=%s timeout=%ss jobs_ttl=%ss)",
+             HOST, PORT, CODEX_BIN, CODEX_MODEL, CODEX_TIMEOUT_SEC, JOBS_TTL_SEC)
+    server = ThreadingHTTPServer((HOST, PORT), BridgeHandler)
+    server.daemon_threads = True
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        log.info("shutting down")
+    finally:
+        server.server_close()
+
+
+if __name__ == "__main__":
+    main()

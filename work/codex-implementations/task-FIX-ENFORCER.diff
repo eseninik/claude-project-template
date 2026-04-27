@@ -1,0 +1,152 @@
+diff --git a/.claude/hooks/codex-delegate-enforcer.py b/.claude/hooks/codex-delegate-enforcer.py
+index 81098ec..559a64c 100644
+--- a/.claude/hooks/codex-delegate-enforcer.py
++++ b/.claude/hooks/codex-delegate-enforcer.py
+@@ -85,6 +85,42 @@ def get_project_dir() -> Path:
+     """Resolve project root. Honors CLAUDE_PROJECT_DIR env."""
+     return Path(os.environ.get("CLAUDE_PROJECT_DIR", ".")).resolve()
+ 
++def is_dual_teams_worktree(project_dir: Path) -> bool:
++    """True iff project_dir or any ancestor contains .dual-base-ref."""
++    logger = logging.getLogger(HOOK_NAME)
++    logger.info("is_dual_teams_worktree.enter project=%s", project_dir)
++    current = project_dir
++    seen: set[Path] = set()
++    while True:
++        try:
++            resolved = current.resolve()
++        except OSError as exc:
++            logger.debug("is_dual_teams_worktree.resolve-error path=%s exc=%s", current, exc)
++            resolved = current.absolute()
++        if resolved in seen:
++            logger.info(
++                "is_dual_teams_worktree.exit project=%s result=False reason=cycle",
++                project_dir,
++            )
++            return False
++        seen.add(resolved)
++        sentinel = current / ".dual-base-ref"
++        try:
++            if sentinel.is_file():
++                logger.info(
++                    "is_dual_teams_worktree.exit project=%s result=True sentinel=%s",
++                    project_dir,
++                    sentinel,
++                )
++                return True
++        except OSError as exc:
++            logger.debug("is_dual_teams_worktree.probe-error sentinel=%s exc=%s", sentinel, exc)
++        parent = current.parent
++        if parent == current:
++            logger.info("is_dual_teams_worktree.exit project=%s result=False", project_dir)
++            return False
++        current = parent
++
+ def resolve_target(project_dir: Path, target_raw: str):
+     """Normalize raw file_path to absolute Path inside project_dir."""
+     logger = logging.getLogger(HOOK_NAME)
+@@ -394,6 +430,9 @@ def decide(payload: dict, project_dir: Path) -> bool:
+     if tool_name not in {"Edit", "Write", "MultiEdit"}:
+         logger.info("decide.passthrough reason=non-edit-tool tool=%s", tool_name)
+         return True
++    if is_dual_teams_worktree(project_dir):
++        logger.info("decide.passthrough reason=dual-teams-worktree project=%s", project_dir)
++        return True
+     raw_targets = extract_targets(payload)
+     if not raw_targets:
+         logger.info("decide.passthrough reason=no-targets")
+diff --git a/.claude/hooks/test_codex_delegate_enforcer.py b/.claude/hooks/test_codex_delegate_enforcer.py
+index 1261aba..ab2bfc1 100644
+--- a/.claude/hooks/test_codex_delegate_enforcer.py
++++ b/.claude/hooks/test_codex_delegate_enforcer.py
+@@ -22,6 +22,8 @@ production .codex/ and work/ directories are never touched.
+ from __future__ import annotations
+ 
+ import importlib.util
++import contextlib
++import io
+ import json
+ import os
+ import shutil
+@@ -286,6 +288,74 @@ class TestAC12Cases(BaseEnforcerTest):
+         self.assertEqual(out.strip(), "")
+ 
+ 
++class TestDualTeamsSentinel(unittest.TestCase):
++    """Regression tests for dual-teams worktree sentinel detection."""
++
++    @classmethod
++    def setUpClass(cls) -> None:
++        cls.mod = _load_module()
++
++    def test_dual_teams_worktree_true_in_project_dir(self) -> None:
++        with tempfile.TemporaryDirectory(prefix="codex-enforcer-sentinel-") as tmpdir:
++            project_dir = Path(tmpdir).resolve()
++            (project_dir / ".dual-base-ref").write_text("main\n", encoding="utf-8")
++
++            self.assertTrue(self.mod.is_dual_teams_worktree(project_dir))
++
++    def test_dual_teams_worktree_true_in_parent_dir(self) -> None:
++        with tempfile.TemporaryDirectory(prefix="codex-enforcer-sentinel-") as tmpdir:
++            project_dir = Path(tmpdir).resolve()
++            nested = project_dir / "worktrees" / "validation" / "claude"
++            nested.mkdir(parents=True)
++            (project_dir / ".dual-base-ref").write_text("main\n", encoding="utf-8")
++
++            self.assertTrue(self.mod.is_dual_teams_worktree(nested))
++
++    def test_dual_teams_worktree_false_without_sentinel(self) -> None:
++        with tempfile.TemporaryDirectory(prefix="codex-enforcer-sentinel-") as tmpdir:
++            project_dir = Path(tmpdir).resolve()
++            nested = project_dir / "a" / "b" / "c"
++            nested.mkdir(parents=True)
++
++            self.assertFalse(self.mod.is_dual_teams_worktree(nested))
++
++    def test_dual_teams_worktree_false_for_directory_sentinel(self) -> None:
++        with tempfile.TemporaryDirectory(prefix="codex-enforcer-sentinel-") as tmpdir:
++            project_dir = Path(tmpdir).resolve()
++            (project_dir / ".dual-base-ref").mkdir()
++
++            self.assertFalse(self.mod.is_dual_teams_worktree(project_dir))
++
++
++class TestDualTeamsDecide(BaseEnforcerTest):
++    """Regression tests for the dual-teams passthrough in decide()."""
++
++    def setUp(self) -> None:
++        super().setUp()
++        self.mod = _load_module()
++        self.script_rel = ".claude/scripts/foo.py"
++        (self.root / ".claude" / "scripts").mkdir(parents=True)
++        (self.root / self.script_rel).write_text("# foo\n", encoding="utf-8")
++
++    def test_decide_allows_edit_when_sentinel_present_without_result(self) -> None:
++        (self.root / ".dual-base-ref").write_text("main\n", encoding="utf-8")
++        shutil.rmtree(self.root / "work", ignore_errors=True)
++
++        with contextlib.redirect_stdout(io.StringIO()) as stdout:
++            allowed = self.mod.decide(self._edit_payload(self.script_rel), self.root)
++
++        self.assertTrue(allowed)
++        self.assertEqual(stdout.getvalue().strip(), "")
++
++    def test_decide_denies_edit_when_sentinel_absent_without_result(self) -> None:
++        with contextlib.redirect_stdout(io.StringIO()) as stdout:
++            allowed = self.mod.decide(self._edit_payload(self.script_rel), self.root)
++
++        self.assertFalse(allowed)
++        parsed = json.loads(stdout.getvalue())
++        self.assertEqual(parsed["hookSpecificOutput"]["permissionDecision"], "deny")
++
++
+ class TestHelpers(unittest.TestCase):
+     """Direct unit tests of helper functions (no subprocess)."""
+ 
+@@ -404,4 +474,4 @@ class TestHelpers(unittest.TestCase):
+ 
+ 
+ if __name__ == "__main__":
+-    unittest.main(verbosity=2)
+\ No newline at end of file
++    unittest.main(verbosity=2)

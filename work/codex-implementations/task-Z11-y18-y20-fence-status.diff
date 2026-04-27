@@ -1,0 +1,291 @@
+diff --git a/.claude/scripts/codex-implement.py b/.claude/scripts/codex-implement.py
+index 77c68b9..2e0f9c0 100644
+--- a/.claude/scripts/codex-implement.py
++++ b/.claude/scripts/codex-implement.py
+@@ -355,6 +355,33 @@ def parse_scope_fence(section_text: str) -> ScopeFence:
+                 else:
+                     fence.forbidden.append(entry)
+ 
++        if not fence.allowed:
++            _log(logging.DEBUG, "parse_scope_fence code-block fallback")
++            in_block = False
++            fallback_allowed = 0
++            for line in section_text.splitlines():
++                stripped = line.strip()
++                if stripped.startswith("```"):
++                    in_block = not in_block
++                    continue
++                if not in_block:
++                    continue
++
++                entry = stripped
++                if not entry or entry.startswith("#") or entry.startswith("//"):
++                    continue
++                entry = re.split(r"\s+\(", entry, maxsplit=1)[0].strip()
++                entry = entry.strip("`").strip()
++                if not entry:
++                    continue
++                fence.allowed.append(entry)
++                fallback_allowed += 1
++            _log(
++                logging.DEBUG,
++                "parse_scope_fence code-block fallback complete",
++                allowed_added=fallback_allowed,
++            )
++
+         _log(
+             logging.DEBUG,
+             "exit: parse_scope_fence",
+@@ -455,7 +482,13 @@ def parse_task_file(task_path: Path) -> Task:
+         frontmatter, body = parse_frontmatter(text)
+         sections = split_sections(body)
+ 
+-        scope_fence = parse_scope_fence(sections.get("Scope Fence", ""))
++        scope_section = sections.get("Scope Fence", "")
++        if not scope_section:
++            for section_name, section_text in sections.items():
++                if section_name.startswith("Scope Fence "):
++                    scope_section = section_text
++                    break
++        scope_fence = parse_scope_fence(scope_section)
+         test_commands = parse_test_commands(
+             sections.get("Test Commands (run after implementation)", "")
+             or sections.get("Test Commands", "")
+@@ -1041,6 +1074,37 @@ class TestRunResult:
+     outputs: list[dict[str, object]]
+ 
+ 
++def determine_run_status(
++    scope: Optional[ScopeCheckResult],
++    test_run: Optional[TestRunResult],
++    codex_run: Optional[CodexRunResult],
++    timed_out: bool,
++) -> str:
++    """Return the run status from actual gates: timeout, scope, and tests."""
++    _log(
++        logging.DEBUG,
++        "entry: determine_run_status",
++        scope_status=scope.status if scope else "skipped",
++        tests_all_passed=test_run.all_passed if test_run else None,
++        codex_returncode=codex_run.returncode if codex_run else None,
++        timed_out=timed_out,
++    )
++    try:
++        if timed_out:
++            status = "timeout"
++        elif scope is not None and scope.status == "fail":
++            status = "scope-violation"
++        elif test_run is not None and not test_run.all_passed:
++            status = "fail"
++        else:
++            status = "pass"
++        _log(logging.DEBUG, "exit: determine_run_status", status=status)
++        return status
++    except Exception:
++        logger.exception("determine_run_status failed")
++        raise
++
++
+ def run_test_commands(
+     commands: list[str],
+     worktree: Path,
+@@ -1399,7 +1463,12 @@ def main(argv: Optional[list[str]] = None) -> int:
+         )
+ 
+         if codex_run.timed_out:
+-            status = "timeout"
++            status = determine_run_status(
++                scope=scope,
++                test_run=test_run,
++                codex_run=codex_run,
++                timed_out=True,
++            )
+             rollback_worktree(worktree, base_sha)
+         else:
+             diff_text = capture_diff(worktree, base_sha)
+@@ -1410,7 +1479,12 @@ def main(argv: Optional[list[str]] = None) -> int:
+ 
+             scope = run_scope_check(diff_file, task.scope_fence, project_root)
+             if scope.status == "fail":
+-                status = "scope-violation"
++                status = determine_run_status(
++                    scope=scope,
++                    test_run=test_run,
++                    codex_run=codex_run,
++                    timed_out=False,
++                )
+                 rollback_worktree(worktree, base_sha)
+                 # Do NOT void diff_text on scope-violation — the diff is the
+                 # single most important diagnostic artifact for post-mortem
+@@ -1418,14 +1492,12 @@ def main(argv: Optional[list[str]] = None) -> int:
+                 # false positive). See dual-1-postmortem.md Bug #8.
+             else:
+                 test_run = run_test_commands(task.test_commands, worktree)
+-                if codex_run.returncode != 0 and not test_run.all_passed:
+-                    status = "fail"
+-                elif not test_run.all_passed:
+-                    status = "fail"
+-                elif codex_run.returncode != 0:
+-                    status = "fail"
+-                else:
+-                    status = "pass"
++                status = determine_run_status(
++                    scope=scope,
++                    test_run=test_run,
++                    codex_run=codex_run,
++                    timed_out=False,
++                )
+ 
+         result_path = result_dir / f"task-{task.task_id}-result.md"
+         write_result_file(
+diff --git a/.claude/scripts/test_codex_implement.py b/.claude/scripts/test_codex_implement.py
+index cb1b59b..5656e83 100644
+--- a/.claude/scripts/test_codex_implement.py
++++ b/.claude/scripts/test_codex_implement.py
+@@ -181,6 +181,52 @@ class TestScopeFenceParser(unittest.TestCase):
+         fence = codex_impl.parse_scope_fence(txt)
+         self.assertEqual(fence.allowed, ["foo/bar.py", "baz/qux.py"])
+ 
++    def test_parse_scope_fence_code_block_syntax(self):
++        txt = (
++            "## Scope Fence \u2014 files you MAY modify\n\n"
++            "```\n"
++            ".claude/hooks/foo.py\n"
++            "src/bar/baz.py\n"
++            "```\n"
++        )
++        fence = codex_impl.parse_scope_fence(txt)
++        self.assertEqual(fence.allowed, [".claude/hooks/foo.py", "src/bar/baz.py"])
++
++    def test_parse_scope_fence_code_block_strips_comments_and_blanks(self):
++        txt = (
++            "```\n"
++            "\n"
++            "# comment\n"
++            "  // comment\n"
++            ".claude/hooks/foo.py\n"
++            "\n"
++            "src/bar/baz.py\n"
++            "```\n"
++        )
++        fence = codex_impl.parse_scope_fence(txt)
++        self.assertEqual(fence.allowed, [".claude/hooks/foo.py", "src/bar/baz.py"])
++
++    def test_parse_scope_fence_code_block_strips_trailing_parens(self):
++        txt = (
++            "```\n"
++            "CLAUDE.md (only the X section)\n"
++            "```\n"
++        )
++        fence = codex_impl.parse_scope_fence(txt)
++        self.assertEqual(fence.allowed, ["CLAUDE.md"])
++
++    def test_parse_scope_fence_falls_back_to_legacy_when_bold_present(self):
++        txt = (
++            "**Allowed paths (may be written):**\n"
++            "- `legacy/path.py`\n"
++            "\n"
++            "```\n"
++            "code/block/path.py\n"
++            "```\n"
++        )
++        fence = codex_impl.parse_scope_fence(txt)
++        self.assertEqual(fence.allowed, ["legacy/path.py"])
++
+ 
+ class TestTestCommandParser(unittest.TestCase):
+     def test_extracts_commands_from_bash_block(self):
+@@ -261,6 +307,30 @@ class TestParseTaskFile(unittest.TestCase):
+             self.assertEqual(len(task.test_commands), 2)
+             self.assertEqual(len(task.acceptance_criteria), 3)
+ 
++    def test_scope_fence_heading_suffix_uses_code_block(self):
++        text = (
++            "---\n"
++            "executor: codex\n"
++            "---\n"
++            "\n"
++            "# Task T7\n"
++            "\n"
++            "## Scope Fence \u2014 files you MAY modify\n"
++            "\n"
++            "```\n"
++            ".claude/hooks/foo.py\n"
++            "src/bar/baz.py\n"
++            "```\n"
++        )
++        with tempfile.TemporaryDirectory() as td:
++            p = Path(td) / "T7-scope.md"
++            p.write_text(text, encoding="utf-8")
++            task = codex_impl.parse_task_file(p)
++            self.assertEqual(
++                task.scope_fence.allowed,
++                [".claude/hooks/foo.py", "src/bar/baz.py"],
++            )
++
+     def test_missing_file_raises(self):
+         with self.assertRaises(FileNotFoundError):
+             codex_impl.parse_task_file(Path("/definitely/not/there.md"))
+@@ -495,6 +565,62 @@ class TestWriteResultFile(unittest.TestCase):
+             self.assertIn("NOTE: all good", content)
+ 
+ 
++class TestDetermineRunStatus(unittest.TestCase):
++    def test_status_pass_when_tests_pass_despite_codex_returncode_nonzero(self):
++        scope = codex_impl.ScopeCheckResult(status="pass", message="in-scope")
++        test_run = codex_impl.TestRunResult(all_passed=True, outputs=[])
++        codex_run = codex_impl.CodexRunResult(
++            returncode=1,
++            stdout="",
++            stderr="failed to record rollout items",
++            timed_out=False,
++            self_report=[],
++        )
++        status = codex_impl.determine_run_status(
++            scope=scope,
++            test_run=test_run,
++            codex_run=codex_run,
++            timed_out=False,
++        )
++        self.assertEqual(status, "pass")
++
++    def test_status_fail_when_tests_fail(self):
++        scope = codex_impl.ScopeCheckResult(status="pass", message="in-scope")
++        test_run = codex_impl.TestRunResult(all_passed=False, outputs=[])
++        codex_run = codex_impl.CodexRunResult(
++            returncode=0,
++            stdout="",
++            stderr="",
++            timed_out=False,
++            self_report=[],
++        )
++        status = codex_impl.determine_run_status(
++            scope=scope,
++            test_run=test_run,
++            codex_run=codex_run,
++            timed_out=False,
++        )
++        self.assertEqual(status, "fail")
++
++    def test_status_scope_violation_overrides_test_pass(self):
++        scope = codex_impl.ScopeCheckResult(status="fail", message="out-of-scope")
++        test_run = codex_impl.TestRunResult(all_passed=True, outputs=[])
++        codex_run = codex_impl.CodexRunResult(
++            returncode=0,
++            stdout="",
++            stderr="",
++            timed_out=False,
++            self_report=[],
++        )
++        status = codex_impl.determine_run_status(
++            scope=scope,
++            test_run=test_run,
++            codex_run=codex_run,
++            timed_out=False,
++        )
++        self.assertEqual(status, "scope-violation")
++
++
+ class TestPreflightCleanTreeGuard(unittest.TestCase):
+     """Regression suite for the dirty-tree preflight check.
+ 

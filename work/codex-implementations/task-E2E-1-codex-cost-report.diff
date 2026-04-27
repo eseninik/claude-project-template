@@ -1,0 +1,431 @@
+diff --git a/.claude/scripts/codex-cost-report.py b/.claude/scripts/codex-cost-report.py
+new file mode 100644
+index 0000000..772c3c5
+--- /dev/null
++++ b/.claude/scripts/codex-cost-report.py
+@@ -0,0 +1,299 @@
++#!/usr/bin/env python3
++"""Summarize codex-implement and codex-fix structured logs."""
++from __future__ import annotations
++import argparse
++from collections.abc import Iterator
++import json
++import logging
++import re
++import sys
++from datetime import datetime, timezone, timedelta
++from pathlib import Path
++
++logger = logging.getLogger("codex_cost_report")
++class JsonFormatter(logging.Formatter):
++    def format(self, record: logging.LogRecord) -> str:
++        payload = {"ts": datetime.now(timezone.utc).isoformat(), "level": record.levelname, "logger": record.name, "msg": record.getMessage()}
++        context = getattr(record, "context", None)
++        if context: payload.update(context)
++        if record.exc_info: payload["exc"] = self.formatException(record.exc_info)
++        return json.dumps(payload, ensure_ascii=False)
++
++def _log(level: int, msg: str, **fields: object) -> None:
++    logger.log(level, msg, extra={"context": fields})
++
++def configure_logging(verbose: bool) -> None:
++    _log(logging.DEBUG, "entry: configure_logging", verbose=verbose)
++    handler = logging.StreamHandler(sys.stderr)
++    handler.setFormatter(JsonFormatter())
++    logger.handlers.clear()
++    logger.addHandler(handler)
++    logger.setLevel(logging.DEBUG if verbose else logging.WARNING)
++    logger.propagate = False
++    _log(logging.DEBUG, "exit: configure_logging", level=logger.level)
++
++def parse_args(argv: list[str]) -> argparse.Namespace:
++    _log(logging.DEBUG, "entry: parse_args", argc=len(argv))
++    parser = argparse.ArgumentParser(description="Report duration and token-ish counts from Codex logs.")
++    parser.add_argument("--log-dir", default=".claude/logs", type=Path, help="Directory containing codex-*.log files.")
++    parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
++    parser.add_argument("--since-hours", type=float, default=None, metavar="N", help="Only include runs started within the last N hours.")
++    parser.add_argument("--verbose", action="store_true", help="Enable DEBUG structured logs on stderr.")
++    args = parser.parse_args(argv)
++    _log(logging.DEBUG, "exit: parse_args", json=args.json, since_hours=args.since_hours)
++    return args
++
++def parse_ts(value: object) -> datetime | None:
++    _log(logging.DEBUG, "entry: parse_ts", has_value=bool(value))
++    if not value:
++        _log(logging.DEBUG, "exit: parse_ts", parsed=False)
++        return None
++    try:
++        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
++        _log(logging.DEBUG, "exit: parse_ts", parsed=True)
++        return parsed
++    except ValueError:
++        logger.exception("timestamp parse failed", extra={"context": {"value": value}})
++        return None
++
++def duration_seconds(start_text: object, end_text: object) -> float | None:
++    _log(logging.DEBUG, "entry: duration_seconds", has_start=bool(start_text), has_end=bool(end_text))
++    start = parse_ts(start_text)
++    end = parse_ts(end_text)
++    if start is None or end is None:
++        _log(logging.DEBUG, "exit: duration_seconds", duration=None)
++        return None
++    if (start.tzinfo is None) != (end.tzinfo is None):
++        start = start.replace(tzinfo=None)
++        end = end.replace(tzinfo=None)
++    result = round((end - start).total_seconds(), 3)
++    _log(logging.DEBUG, "exit: duration_seconds", duration=result)
++    return result
++
++def within_window(start_text: object, since_hours: float | None) -> bool:
++    _log(logging.DEBUG, "entry: within_window", start_ts=start_text, since_hours=since_hours)
++    if since_hours is None:
++        _log(logging.DEBUG, "exit: within_window", included=True)
++        return True
++    start = parse_ts(start_text)
++    if start is None:
++        _log(logging.DEBUG, "exit: within_window", included=False)
++        return False
++    now = datetime.now(timezone.utc) if start.tzinfo is not None else datetime.now()
++    included = start >= now - timedelta(hours=since_hours)
++    _log(logging.DEBUG, "exit: within_window", included=included)
++    return included
++
++def value_after_flag(argv: list[str], flag: str) -> str | None:
++    _log(logging.DEBUG, "entry: value_after_flag", flag=flag, argc=len(argv))
++    prefix = flag + "="
++    for index, item in enumerate(argv):
++        if item == flag and index + 1 < len(argv):
++            _log(logging.DEBUG, "exit: value_after_flag", found=True)
++            return argv[index + 1]
++        if isinstance(item, str) and item.startswith(prefix):
++            _log(logging.DEBUG, "exit: value_after_flag", found=True)
++            return item[len(prefix):]
++    _log(logging.DEBUG, "exit: value_after_flag", found=False)
++    return None
++
++def derive_task_id(task_value: str | None, log_file: Path) -> str:
++    _log(logging.DEBUG, "entry: derive_task_id", task_value=task_value, log_file=str(log_file))
++    task_name = Path(task_value).name if task_value else ""
++    candidates = [task_name, task_value or "", log_file.stem]
++    patterns = (r"task[-_]?([A-Za-z0-9][A-Za-z0-9_.-]*)", r"codex-(?:implement|fix)-([A-Za-z0-9][A-Za-z0-9_.-]*)")
++    for candidate in candidates:
++        for pattern in patterns:
++            match = re.search(pattern, str(candidate), re.IGNORECASE)
++            if match:
++                task_id = Path(match.group(1)).stem
++                _log(logging.DEBUG, "exit: derive_task_id", task_id=task_id)
++                return task_id
++    _log(logging.DEBUG, "exit: derive_task_id", task_id="unknown")
++    return "unknown"
++
++def new_run(log_file: Path, entry: dict[str, object]) -> dict[str, object]:
++    _log(logging.DEBUG, "entry: new_run", log_file=str(log_file))
++    argv = entry.get("argv") or []
++    if not isinstance(argv, list):
++        argv = []
++    task_value = value_after_flag(argv, "--task")
++    run = {
++        "task_id": derive_task_id(task_value, log_file),
++        "start_ts": entry.get("ts"),
++        "end_ts": None,
++        "duration_s": None,
++        "status": None,
++        "returncode": None,
++        "stdout_len": None,
++        "stderr_len": None,
++        "model": value_after_flag(argv, "--model"),
++        "reasoning": value_after_flag(argv, "--reasoning"),
++        "log_file": str(log_file),
++    }
++    _log(logging.DEBUG, "exit: new_run", task_id=run["task_id"])
++    return run
++
++def finish_run(run: dict[str, object], end_ts: object = None) -> dict[str, object]:
++    _log(logging.DEBUG, "entry: finish_run", task_id=run.get("task_id"), end_ts=end_ts)
++    if run["end_ts"] is None:
++        run["end_ts"] = end_ts or run["start_ts"]
++    run["duration_s"] = duration_seconds(run["start_ts"], run["end_ts"])
++    _log(logging.DEBUG, "exit: finish_run", duration_s=run["duration_s"])
++    return run
++
++def apply_event(run: dict[str, object], entry: dict[str, object]) -> None:
++    _log(logging.DEBUG, "entry: apply_event", msg=entry.get("msg"))
++    msg = entry.get("msg")
++    if msg == "effective reasoning resolved":
++        run["reasoning"] = entry.get("reasoning", run["reasoning"])
++    elif msg == "entry: run_codex":
++        run["reasoning"] = entry.get("reasoning", run["reasoning"])
++        run["model"] = entry.get("model", run["model"])
++    elif msg == "exit: run_codex":
++        run["returncode"] = entry.get("returncode")
++        run["stdout_len"] = entry.get("stdout_len")
++        run["stderr_len"] = entry.get("stderr_len")
++    elif msg == "exit: main":
++        run["status"] = entry.get("status")
++        run["end_ts"] = entry.get("ts")
++    _log(logging.DEBUG, "exit: apply_event", task_id=run.get("task_id"))
++
++def iter_log_events(log_file: Path) -> Iterator[object]:
++    _log(logging.DEBUG, "entry: iter_log_events", log_file=str(log_file))
++    with log_file.open("r", encoding="utf-8", errors="replace") as handle:
++        for line_no, line in enumerate(handle, start=1):
++            try:
++                yield json.loads(line)
++            except json.JSONDecodeError:
++                logger.warning("malformed log line skipped", extra={"context": {"log_file": str(log_file), "line_no": line_no}})
++    _log(logging.DEBUG, "exit: iter_log_events", log_file=str(log_file))
++
++def parse_log_file(log_file: Path) -> list[dict[str, object]]:
++    _log(logging.DEBUG, "entry: parse_log_file", log_file=str(log_file))
++    runs = []
++    current = None
++    last_ts = None
++    try:
++        for entry in iter_log_events(log_file):
++            if not isinstance(entry, dict):
++                continue
++            msg = entry.get("msg")
++            if msg == "entry: main":
++                if current is not None:
++                    runs.append(finish_run(current, last_ts))
++                current = new_run(log_file, entry)
++                last_ts = entry.get("ts")
++                continue
++            if current is None:
++                continue
++            if entry.get("ts"):
++                last_ts = entry.get("ts")
++            apply_event(current, entry)
++            if msg == "exit: main":
++                runs.append(finish_run(current))
++                current = None
++                last_ts = None
++        if current is not None:
++            runs.append(finish_run(current, last_ts))
++        _log(logging.DEBUG, "exit: parse_log_file", runs=len(runs))
++        return runs
++    except OSError:
++        logger.exception("log file read failed", extra={"context": {"log_file": str(log_file)}})
++        return runs
++def matching_logs(log_dir: Path) -> list[Path]:
++    _log(logging.DEBUG, "entry: matching_logs", log_dir=str(log_dir))
++    if not log_dir.is_dir():
++        _log(logging.DEBUG, "exit: matching_logs", count=0)
++        return []
++    paths = sorted(path for path in log_dir.glob("codex-*.log") if path.is_file())
++    _log(logging.DEBUG, "exit: matching_logs", count=len(paths))
++    return paths
++
++def build_summary(runs: list[dict[str, object]]) -> dict[str, object]:
++    _log(logging.DEBUG, "entry: build_summary", runs=len(runs))
++    summary = {"runs": len(runs), "pass": 0, "fail": 0, "total_duration_s": 0.0}
++    for run in runs:
++        if run.get("status") == "pass": summary["pass"] += 1
++        elif run.get("status") == "fail": summary["fail"] += 1
++        summary["total_duration_s"] += run.get("duration_s") or 0.0
++    summary["total_duration_s"] = round(summary["total_duration_s"], 3)
++    _log(logging.DEBUG, "exit: build_summary", summary=summary)
++    return summary
++
++def make_report(log_dir: Path, since_hours: float | None) -> dict[str, object]:
++    _log(logging.INFO, "entry: make_report", log_dir=str(log_dir), since_hours=since_hours)
++    runs = []
++    for log_file in matching_logs(log_dir):
++        runs.extend(parse_log_file(log_file))
++    runs = [run for run in runs if within_window(run.get("start_ts"), since_hours)]
++    runs.sort(key=lambda run: (run.get("start_ts") or "", run.get("task_id") or ""))
++    data = {
++        "generated_at": datetime.now(timezone.utc).isoformat(),
++        "log_dir": str(log_dir),
++        "window_hours": since_hours,
++        "summary": build_summary(runs),
++        "runs": runs,
++    }
++    _log(logging.INFO, "exit: make_report", runs=len(runs))
++    return data
++
++def status_counts_text(runs: list[dict[str, object]]) -> str:
++    _log(logging.DEBUG, "entry: status_counts_text", runs=len(runs))
++    counts = {}
++    for run in runs:
++        status = run.get("status") or "unknown"
++        counts[status] = counts.get(status, 0) + 1
++    result = ", ".join(f"{key}={counts[key]}" for key in sorted(counts)) or "none"
++    _log(logging.DEBUG, "exit: status_counts_text", result=result)
++    return result
++
++def render_markdown(data: dict[str, object]) -> str:
++    _log(logging.DEBUG, "entry: render_markdown", runs=len(data["runs"]))
++    if not data["runs"]:
++        result = f"No codex runs found in {data['log_dir']}."
++        _log(logging.DEBUG, "exit: render_markdown", empty=True)
++        return result
++    summary = data["summary"]
++    lines = [
++        "# Codex Cost Report",
++        "",
++        f"- generated_at: {data['generated_at']}",
++        f"- log_dir: {data['log_dir']}",
++        f"- run_count: {summary['runs']}",
++        f"- total_duration_s: {summary['total_duration_s']}",
++        f"- status_counts: {status_counts_text(data['runs'])}",
++        "",
++        "| Task | Status | Duration | Reasoning | Model | Stdout | Stderr |",
++        "| --- | --- | ---: | --- | --- | ---: | ---: |",
++    ]
++    for run in data["runs"]:
++        duration = "" if run["duration_s"] is None else f"{run['duration_s']:.1f}s"
++        lines.append(
++            f"| {run['task_id']} | {run['status'] or ''} | {duration} | "
++            f"{run['reasoning'] or ''} | {run['model'] or ''} | "
++            f"{run['stdout_len'] if run['stdout_len'] is not None else ''} | "
++            f"{run['stderr_len'] if run['stderr_len'] is not None else ''} |"
++        )
++    result = "\n".join(lines)
++    _log(logging.DEBUG, "exit: render_markdown", empty=False)
++    return result
++
++def render_json(data: dict[str, object]) -> str:
++    _log(logging.DEBUG, "entry: render_json", runs=len(data["runs"]))
++    result = json.dumps(data, indent=2, sort_keys=True)
++    _log(logging.DEBUG, "exit: render_json", bytes=len(result))
++    return result
++
++def main(argv: list[str] | None = None) -> int:
++    raw_argv = sys.argv[1:] if argv is None else argv
++    args = parse_args(raw_argv)
++    configure_logging(args.verbose)
++    _log(logging.INFO, "entry: main", argv=raw_argv)
++    data = make_report(args.log_dir, args.since_hours)
++    print(render_json(data) if args.json else render_markdown(data))
++    _log(logging.INFO, "exit: main", exit_code=0)
++    return 0
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/.claude/scripts/test_codex_cost_report.py b/.claude/scripts/test_codex_cost_report.py
+new file mode 100644
+index 0000000..b341f7c
+--- /dev/null
++++ b/.claude/scripts/test_codex_cost_report.py
+@@ -0,0 +1,120 @@
++import importlib.util
++import json
++import tempfile
++import unittest
++from datetime import datetime, timedelta, timezone
++from pathlib import Path
++
++
++SCRIPT_PATH = Path(__file__).with_name("codex-cost-report.py")
++SPEC = importlib.util.spec_from_file_location("codex_cost_report", SCRIPT_PATH)
++report = importlib.util.module_from_spec(SPEC)
++SPEC.loader.exec_module(report)
++
++
++def write_log(log_dir, name, events):
++    path = Path(log_dir) / name
++    lines = [json.dumps(event) if isinstance(event, dict) else event for event in events]
++    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
++    return path
++
++
++def event(ts, msg, **fields):
++    payload = {"ts": ts, "level": "info", "logger": "codex_implement", "msg": msg}
++    payload.update(fields)
++    return payload
++
++
++class CodexCostReportTests(unittest.TestCase):
++    def test_single_happy_path_log_expected_row(self):
++        with tempfile.TemporaryDirectory() as root:
++            log_dir = Path(root)
++            write_log(log_dir, "codex-implement-T1.log", [
++                event("2026-04-25T10:00:00+00:00", "entry: main", argv=["--task", "work/task-E2E-1.md", "--model", "gpt-5.5"]),
++                event("2026-04-25T10:00:01+00:00", "effective reasoning resolved", reasoning="high"),
++                event("2026-04-25T10:00:05+00:00", "exit: run_codex", returncode=0, stdout_len=12, stderr_len=3),
++                event("2026-04-25T10:00:10+00:00", "exit: main", status="pass", exit_code=0),
++            ])
++            data = report.make_report(log_dir, None)
++            text = report.render_markdown(data)
++            self.assertIn("| E2E-1 | pass | 10.0s | high | gpt-5.5 | 12 | 3 |", text)
++
++    def test_multiple_runs_sorted_by_start_then_task(self):
++        with tempfile.TemporaryDirectory() as root:
++            log_dir = Path(root)
++            write_log(log_dir, "codex-implement-many.log", [
++                event("2026-04-25T10:00:00", "entry: main", argv=["--task", "task-B.md"]),
++                event("2026-04-25T10:00:02", "exit: main", status="pass"),
++                event("2026-04-25T09:00:00", "entry: main", argv=["--task", "task-A.md"]),
++                event("2026-04-25T09:00:01", "exit: main", status="fail"),
++            ])
++            runs = report.make_report(log_dir, None)["runs"]
++            self.assertEqual([run["task_id"] for run in runs], ["A", "B"])
++
++    def test_malformed_json_line_skipped(self):
++        with tempfile.TemporaryDirectory() as root:
++            log_dir = Path(root)
++            write_log(log_dir, "codex-implement-bad.log", [
++                "{not-json",
++                event("2026-04-25T10:00:00", "entry: main", argv=["--task", "task-OK.md"]),
++                event("2026-04-25T10:00:01", "exit: main", status="pass"),
++            ])
++            with self.assertLogs(report.logger, level="WARNING"):
++                runs = report.make_report(log_dir, None)["runs"]
++            self.assertEqual(len(runs), 1)
++
++    def test_since_hours_filter(self):
++        with tempfile.TemporaryDirectory() as root:
++            log_dir = Path(root)
++            now = datetime.now(timezone.utc)
++            write_log(log_dir, "codex-implement-window.log", [
++                event((now - timedelta(hours=3)).isoformat(), "entry: main", argv=["--task", "task-OLD.md"]),
++                event((now - timedelta(hours=3, seconds=-1)).isoformat(), "exit: main", status="pass"),
++                event((now - timedelta(minutes=30)).isoformat(), "entry: main", argv=["--task", "task-NEW.md"]),
++                event((now - timedelta(minutes=29)).isoformat(), "exit: main", status="pass"),
++            ])
++            runs = report.make_report(log_dir, 1)["runs"]
++            self.assertEqual([run["task_id"] for run in runs], ["NEW"])
++
++    def test_status_counts(self):
++        with tempfile.TemporaryDirectory() as root:
++            log_dir = Path(root)
++            write_log(log_dir, "codex-implement-status.log", [
++                event("2026-04-25T10:00:00", "entry: main", argv=["--task", "task-P.md"]),
++                event("2026-04-25T10:00:01", "exit: main", status="pass"),
++                event("2026-04-25T10:01:00", "entry: main", argv=["--task", "task-F.md"]),
++                event("2026-04-25T10:01:01", "exit: main", status="fail"),
++            ])
++            self.assertEqual(report.make_report(log_dir, None)["summary"]["pass"], 1)
++            self.assertEqual(report.make_report(log_dir, None)["summary"]["fail"], 1)
++
++    def test_json_round_trip(self):
++        with tempfile.TemporaryDirectory() as root:
++            log_dir = Path(root)
++            write_log(log_dir, "codex-fix-T2.log", [
++                event("2026-04-25T10:00:00", "entry: main", argv=["--task=task-T2.md"]),
++                event("2026-04-25T10:00:01", "exit: main", status="pass"),
++            ])
++            loaded = json.loads(report.render_json(report.make_report(log_dir, None)))
++            self.assertEqual(set(["generated_at", "log_dir", "window_hours", "summary", "runs"]).issubset(loaded), True)
++            self.assertEqual(set(["task_id", "start_ts", "end_ts", "duration_s", "status", "returncode", "stdout_len", "stderr_len", "model", "reasoning", "log_file"]).issubset(loaded["runs"][0]), True)
++
++    def test_no_logs_exit_zero_empty_summary(self):
++        with tempfile.TemporaryDirectory() as root:
++            data = report.make_report(Path(root), None)
++            self.assertEqual(data["runs"], [])
++            self.assertEqual(data["summary"], {"runs": 0, "pass": 0, "fail": 0, "total_duration_s": 0.0})
++            self.assertIn("No codex runs found", report.render_markdown(data))
++
++    def test_duration_computed_from_ts_diff(self):
++        with tempfile.TemporaryDirectory() as root:
++            log_dir = Path(root)
++            write_log(log_dir, "codex-implement-duration.log", [
++                event("2026-04-25T10:00:00", "entry: main", argv=["--task", "task-D.md"]),
++                event("2026-04-25T10:02:03.500000", "exit: main", status="pass"),
++            ])
++            self.assertEqual(report.make_report(log_dir, None)["runs"][0]["duration_s"], 123.5)
++
++
++if __name__ == "__main__":
++    unittest.main()

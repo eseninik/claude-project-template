@@ -1,0 +1,1012 @@
+diff --git a/.claude/scripts/archive-active-context.py b/.claude/scripts/archive-active-context.py
+new file mode 100644
+index 0000000..4cb029a
+--- /dev/null
++++ b/.claude/scripts/archive-active-context.py
+@@ -0,0 +1,253 @@
++#!/usr/bin/env python3
++"""Archive the oldest Round section from activeContext.md when it grows too large."""
++from __future__ import annotations
++
++import argparse
++import json
++import logging
++import re
++import sys
++from datetime import date
++from pathlib import Path
++from typing import Sequence
++
++
++DEFAULT_ACTIVE_CONTEXT = ".claude/memory/activeContext.md"
++DEFAULT_ARCHIVE_DIR = ".claude/memory/archive"
++DEFAULT_LINE_LIMIT = 200
++ROUND_HEADING_RE = re.compile(r"^(#{2,3})\s+Round\s+(\d+)\b", re.IGNORECASE)
++HEADING_RE = re.compile(r"^(#{1,6})\s+")
++
++logger = logging.getLogger("archive_active_context")
++
++
++class JsonFormatter(logging.Formatter):
++    """Small JSON formatter consistent with other local maintenance scripts."""
++
++    def format(self, record: logging.LogRecord) -> str:
++        payload = {
++            "level": record.levelname,
++            "logger": record.name,
++            "message": record.getMessage(),
++        }
++        context = getattr(record, "context", None)
++        if context:
++            payload.update(context)
++        if record.exc_info:
++            payload["exc_info"] = self.formatException(record.exc_info)
++        return json.dumps(payload, sort_keys=True)
++
++
++def configure_logging(verbose: bool) -> None:
++    """Configure stderr logging."""
++    logger.debug("entry", extra={"context": {"function": "configure_logging", "verbose": verbose}})
++    handler = logging.StreamHandler(sys.stderr)
++    handler.setFormatter(JsonFormatter())
++    root = logging.getLogger()
++    root.handlers.clear()
++    root.addHandler(handler)
++    root.setLevel(logging.DEBUG if verbose else logging.INFO)
++    logger.debug("exit", extra={"context": {"function": "configure_logging", "level": root.level}})
++
++
++def parse_args(argv: Sequence[str]) -> argparse.Namespace:
++    """Parse CLI options."""
++    logger.debug("entry", extra={"context": {"function": "parse_args", "argc": len(argv)}})
++    parser = argparse.ArgumentParser(description="Archive the oldest activeContext.md Round section if over the line limit.")
++    parser.add_argument("--active-context", default=DEFAULT_ACTIVE_CONTEXT, help="Path to activeContext.md.")
++    parser.add_argument("--archive-dir", default=DEFAULT_ARCHIVE_DIR, help="Directory for archived Round sections.")
++    parser.add_argument("--line-limit", type=int, default=DEFAULT_LINE_LIMIT, help="Maximum active context lines before archiving.")
++    parser.add_argument("--dry-run", action="store_true", help="Preview the archive action without writing files.")
++    parser.add_argument("--verbose", action="store_true", help="Enable DEBUG JSON logs on stderr.")
++    args = parser.parse_args(list(argv))
++    if args.line_limit < 1:
++        parser.error("--line-limit must be positive")
++    logger.debug("exit", extra={"context": {"function": "parse_args", "dry_run": args.dry_run}})
++    return args
++
++
++def _line_count(content: str) -> int:
++    """Count lines in a way that matches activeContext.md curation checks."""
++    logger.debug("entry", extra={"context": {"function": "_line_count", "chars": len(content)}})
++    count = len(content.splitlines())
++    logger.debug("exit", extra={"context": {"function": "_line_count", "lines": count}})
++    return count
++
++
++def _extract_oldest_round(content: str) -> tuple[str, str]:
++    """Return the lowest-numbered Round section and the content with that section removed."""
++    logger.debug("entry", extra={"context": {"function": "_extract_oldest_round", "chars": len(content)}})
++    lines = content.splitlines(keepends=True)
++    candidates: list[tuple[int, int, int]] = []
++    for index, line in enumerate(lines):
++        match = ROUND_HEADING_RE.match(line)
++        if match:
++            candidates.append((int(match.group(2)), len(match.group(1)), index))
++
++    if not candidates:
++        logger.debug("exit", extra={"context": {"function": "_extract_oldest_round", "found": False}})
++        return "", content
++
++    round_number, heading_level, start = min(candidates, key=lambda item: (item[0], item[2]))
++    end = len(lines)
++    for index in range(start + 1, len(lines)):
++        heading_match = HEADING_RE.match(lines[index])
++        round_match = ROUND_HEADING_RE.match(lines[index])
++        if heading_match and len(heading_match.group(1)) < heading_level:
++            end = index
++            break
++        if heading_level == 2 and heading_match and len(heading_match.group(1)) == 2:
++            end = index
++            break
++        if heading_level == 3 and round_match and len(round_match.group(1)) == 3:
++            end = index
++            break
++
++    archived = "".join(lines[start:end]).strip("\n") + "\n"
++    remaining = "".join(lines[:start] + lines[end:])
++    logger.debug(
++        "exit",
++        extra={
++            "context": {
++                "function": "_extract_oldest_round",
++                "found": True,
++                "round": round_number,
++                "archived_lines": _line_count(archived),
++            }
++        },
++    )
++    return archived, remaining
++
++
++def _round_slug(section: str) -> str:
++    """Return the roundX slug for an archived section."""
++    logger.debug("entry", extra={"context": {"function": "_round_slug"}})
++    first_line = section.splitlines()[0] if section.splitlines() else ""
++    match = ROUND_HEADING_RE.match(first_line)
++    if not match:
++        logger.debug("exit", extra={"context": {"function": "_round_slug", "slug": "round-unknown"}})
++        return "round-unknown"
++    slug = "round" + match.group(2)
++    logger.debug("exit", extra={"context": {"function": "_round_slug", "slug": slug}})
++    return slug
++
++
++def _archive_path(archive_dir: Path, section: str, today_value: date) -> Path:
++    """Compute an archive path for the section."""
++    logger.debug("entry", extra={"context": {"function": "_archive_path", "archive_dir": str(archive_dir)}})
++    path = archive_dir / ("active-" + today_value.isoformat() + "-" + _round_slug(section) + ".md")
++    logger.debug("exit", extra={"context": {"function": "_archive_path", "path": str(path)}})
++    return path
++
++
++def _resolve_archive_path(path: Path, section: str) -> Path:
++    """Avoid clobbering a different archive with the same date and round."""
++    logger.debug("entry", extra={"context": {"function": "_resolve_archive_path", "path": str(path)}})
++    if not path.exists():
++        logger.debug("exit", extra={"context": {"function": "_resolve_archive_path", "path": str(path)}})
++        return path
++    try:
++        if path.read_text(encoding="utf-8") == section:
++            logger.debug("exit", extra={"context": {"function": "_resolve_archive_path", "path": str(path), "identical": True}})
++            return path
++    except OSError:
++        logger.exception("archive_read_failed", extra={"context": {"function": "_resolve_archive_path", "path": str(path)}})
++        raise
++
++    for suffix in range(2, 1000):
++        candidate = path.with_name(path.stem + "-" + str(suffix) + path.suffix)
++        if not candidate.exists():
++            logger.debug("exit", extra={"context": {"function": "_resolve_archive_path", "path": str(candidate)}})
++            return candidate
++    raise RuntimeError("could not allocate unique archive path for " + str(path))
++
++
++def archive_active_context(active_context: Path, archive_dir: Path, line_limit: int, dry_run: bool, today_value: date | None = None) -> tuple[int, str]:
++    """Archive one oldest Round section if activeContext.md exceeds line_limit."""
++    logger.debug(
++        "entry",
++        extra={
++            "context": {
++                "function": "archive_active_context",
++                "active_context": str(active_context),
++                "archive_dir": str(archive_dir),
++                "line_limit": line_limit,
++                "dry_run": dry_run,
++            }
++        },
++    )
++    today_value = today_value or date.today()
++    if not active_context.exists():
++        message = "no archive needed: activeContext.md missing"
++        logger.info("missing_active_context", extra={"context": {"function": "archive_active_context", "path": str(active_context)}})
++        logger.debug("exit", extra={"context": {"function": "archive_active_context", "returncode": 0}})
++        return 0, message
++
++    content = active_context.read_text(encoding="utf-8")
++    if _line_count(content) <= line_limit:
++        message = "no archive needed"
++        logger.debug("exit", extra={"context": {"function": "archive_active_context", "returncode": 0, "action": "noop"}})
++        return 0, message
++
++    archived_section, remaining_content = _extract_oldest_round(content)
++    if not archived_section:
++        message = "no archive needed: no Round section found"
++        logger.warning("no_round_section", extra={"context": {"function": "archive_active_context", "path": str(active_context)}})
++        logger.debug("exit", extra={"context": {"function": "archive_active_context", "returncode": 0, "action": "noop"}})
++        return 0, message
++
++    archived_lines = _line_count(archived_section)
++    archive_path = _archive_path(archive_dir, archived_section, today_value)
++    if dry_run:
++        message = "would archive: " + str(archived_lines) + " lines -> " + str(archive_path)
++        logger.debug("exit", extra={"context": {"function": "archive_active_context", "returncode": 0, "action": "dry_run"}})
++        return 0, message
++
++    archive_dir.mkdir(parents=True, exist_ok=True)
++    final_path = _resolve_archive_path(archive_path, archived_section)
++    final_path.write_text(archived_section, encoding="utf-8")
++    active_context.write_text(remaining_content, encoding="utf-8")
++    message = "archived: " + str(archived_lines) + " lines -> " + str(final_path)
++    logger.info(
++        "archived_active_context",
++        extra={"context": {"function": "archive_active_context", "lines": archived_lines, "path": str(final_path)}},
++    )
++    logger.debug("exit", extra={"context": {"function": "archive_active_context", "returncode": 0, "action": "archived"}})
++    return 0, message
++
++
++def run(args: argparse.Namespace, today_value: date | None = None) -> int:
++    """Run the archive command and print the user-facing result."""
++    logger.debug("entry", extra={"context": {"function": "run", "dry_run": args.dry_run}})
++    try:
++        code, message = archive_active_context(
++            Path(args.active_context),
++            Path(args.archive_dir),
++            args.line_limit,
++            args.dry_run,
++            today_value=today_value,
++        )
++        print(message)
++        logger.debug("exit", extra={"context": {"function": "run", "returncode": code}})
++        return code
++    except (OSError, RuntimeError) as exc:
++        logger.exception("archive_active_context_failed", extra={"context": {"function": "run"}})
++        print("error: " + str(exc), file=sys.stderr)
++        logger.debug("exit", extra={"context": {"function": "run", "returncode": 2}})
++        return 2
++
++
++def main(argv: Sequence[str] | None = None) -> int:
++    """CLI entry point."""
++    if argv is None:
++        argv = sys.argv[1:]
++    args = parse_args(argv)
++    configure_logging(args.verbose)
++    logger.debug("entry", extra={"context": {"function": "main", "argc": len(argv)}})
++    code = run(args)
++    logger.debug("exit", extra={"context": {"function": "main", "returncode": code}})
++    return code
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/.claude/scripts/generate-changelog.py b/.claude/scripts/generate-changelog.py
+new file mode 100644
+index 0000000..3b950f9
+--- /dev/null
++++ b/.claude/scripts/generate-changelog.py
+@@ -0,0 +1,244 @@
++#!/usr/bin/env python3
++"""Generate CHANGELOG.md sections from pipeline-checkpoint-* git tags."""
++from __future__ import annotations
++
++import argparse
++import json
++import logging
++import subprocess
++import sys
++from pathlib import Path
++from typing import Sequence
++
++
++BEGIN_MARKER = "<!-- pipeline-checkpoint-changelog:start -->"
++END_MARKER = "<!-- pipeline-checkpoint-changelog:end -->"
++DEFAULT_OUTPUT = "CHANGELOG.md"
++GIT_TIMEOUT_SECONDS = 30
++
++DEFAULT_PREAMBLE = """# Changelog
++
++All notable changes are tracked here. Release sections are anchored to `pipeline-checkpoint-*` tags and commit subjects use Conventional Commits-style titles where available.
++
++## Round 8 (Z23)
++### Changes
++- Determinism 10/10.
++
++## Round 8 (Z20)
++### Changes
++- Security 10/10.
++
++## Round 8 (Z17)
++### Changes
++- Reliability 10/10.
++
++## Round 8 (Z14)
++### Changes
++- Functional Coverage 10/10.
++
++## Round 7 (Z12)
++### Changes
++- Y21 + Y25 close all initial Y18-Y25 follow-ups.
++"""
++
++logger = logging.getLogger("generate_changelog")
++
++
++class JsonFormatter(logging.Formatter):
++    """Small JSON formatter for stderr diagnostics."""
++
++    def format(self, record: logging.LogRecord) -> str:
++        payload = {
++            "level": record.levelname,
++            "logger": record.name,
++            "message": record.getMessage(),
++        }
++        context = getattr(record, "context", None)
++        if context:
++            payload.update(context)
++        if record.exc_info:
++            payload["exc_info"] = self.formatException(record.exc_info)
++        return json.dumps(payload, sort_keys=True)
++
++
++def configure_logging(verbose: bool) -> None:
++    """Configure stderr JSON logging."""
++    logger.debug("entry", extra={"context": {"function": "configure_logging", "verbose": verbose}})
++    handler = logging.StreamHandler(sys.stderr)
++    handler.setFormatter(JsonFormatter())
++    root = logging.getLogger()
++    root.handlers.clear()
++    root.addHandler(handler)
++    root.setLevel(logging.DEBUG if verbose else logging.INFO)
++    logger.debug("exit", extra={"context": {"function": "configure_logging", "level": root.level}})
++
++
++def parse_args(argv: Sequence[str]) -> argparse.Namespace:
++    """Parse CLI arguments."""
++    logger.debug("entry", extra={"context": {"function": "parse_args", "argc": len(argv)}})
++    parser = argparse.ArgumentParser(description="Generate CHANGELOG.md from pipeline-checkpoint-* tags.")
++    parser.add_argument("--repo", default=".", help="Git repository root.")
++    parser.add_argument("--output", default=DEFAULT_OUTPUT, help="Output changelog path, relative to repo unless absolute.")
++    parser.add_argument("--stdout", action="store_true", help="Print generated changelog instead of writing it.")
++    parser.add_argument("--verbose", action="store_true", help="Enable DEBUG JSON logs on stderr.")
++    args = parser.parse_args(list(argv))
++    logger.debug("exit", extra={"context": {"function": "parse_args", "stdout": args.stdout}})
++    return args
++
++
++def run_git(repo: Path, args: Sequence[str]) -> str:
++    """Run a git command and return stdout."""
++    logger.debug("entry", extra={"context": {"function": "run_git", "repo": str(repo), "args": list(args)}})
++    try:
++        proc = subprocess.run(
++            ["git", *args],
++            cwd=repo,
++            check=False,
++            capture_output=True,
++            text=True,
++            encoding="utf-8",
++            errors="replace",
++            timeout=GIT_TIMEOUT_SECONDS,
++        )
++    except (OSError, subprocess.SubprocessError):
++        logger.exception("git_invocation_failed", extra={"context": {"function": "run_git", "args": list(args)}})
++        raise
++    if proc.returncode != 0:
++        message = proc.stderr.strip() or ("git exited " + str(proc.returncode))
++        logger.error("git_failed", extra={"context": {"function": "run_git", "returncode": proc.returncode, "stderr": message}})
++        raise RuntimeError(message)
++    logger.debug("exit", extra={"context": {"function": "run_git", "stdout_chars": len(proc.stdout)}})
++    return proc.stdout
++
++
++def list_checkpoint_tags(repo: Path) -> list[str]:
++    """Return pipeline-checkpoint tags sorted by tag creation date."""
++    logger.debug("entry", extra={"context": {"function": "list_checkpoint_tags", "repo": str(repo)}})
++    stdout = run_git(
++        repo,
++        [
++            "for-each-ref",
++            "refs/tags/pipeline-checkpoint-*",
++            "--sort=creatordate",
++            "--format=%(refname:short)",
++        ],
++    )
++    tags = [line.strip() for line in stdout.splitlines() if line.strip()]
++    logger.debug("exit", extra={"context": {"function": "list_checkpoint_tags", "count": len(tags)}})
++    return tags
++
++
++def commit_titles_between(repo: Path, previous_tag: str | None, tag: str) -> list[str]:
++    """Return formatted commit titles between previous_tag and tag."""
++    logger.debug(
++        "entry",
++        extra={"context": {"function": "commit_titles_between", "previous_tag": previous_tag, "tag": tag}},
++    )
++    revision = tag if previous_tag is None else previous_tag + ".." + tag
++    stdout = run_git(repo, ["log", revision, "--format=- %s"])
++    titles = [line.rstrip() for line in stdout.splitlines() if line.strip()]
++    if not titles:
++        titles = ["- No commits recorded."]
++    logger.debug("exit", extra={"context": {"function": "commit_titles_between", "count": len(titles)}})
++    return titles
++
++
++def format_tag_section(tag: str, commit_titles: Sequence[str]) -> str:
++    """Render one changelog section for a pipeline checkpoint tag."""
++    logger.debug("entry", extra={"context": {"function": "format_tag_section", "tag": tag, "commits": len(commit_titles)}})
++    lines = ["## " + tag, "### Changes", *commit_titles]
++    section = "\n".join(lines)
++    logger.debug("exit", extra={"context": {"function": "format_tag_section", "chars": len(section)}})
++    return section
++
++
++def generate_checkpoint_sections(repo: Path) -> str:
++    """Generate all checkpoint-tag sections, newest first."""
++    logger.debug("entry", extra={"context": {"function": "generate_checkpoint_sections", "repo": str(repo)}})
++    tags = list_checkpoint_tags(repo)
++    entries: list[tuple[str, list[str]]] = []
++    previous_tag: str | None = None
++    for tag in tags:
++        entries.append((tag, commit_titles_between(repo, previous_tag, tag)))
++        previous_tag = tag
++    sections = [format_tag_section(tag, titles) for tag, titles in reversed(entries)]
++    text = "\n\n".join(sections)
++    logger.debug("exit", extra={"context": {"function": "generate_checkpoint_sections", "sections": len(sections)}})
++    return text
++
++
++def build_changelog(existing_content: str, checkpoint_sections: str) -> str:
++    """Build a complete CHANGELOG.md while replacing the managed checkpoint block."""
++    logger.debug("entry", extra={"context": {"function": "build_changelog", "existing_chars": len(existing_content)}})
++    block = BEGIN_MARKER + "\n" + checkpoint_sections.rstrip() + "\n" + END_MARKER + "\n"
++    if BEGIN_MARKER in existing_content and END_MARKER in existing_content:
++        start = existing_content.index(BEGIN_MARKER)
++        end = existing_content.index(END_MARKER, start) + len(END_MARKER)
++        prefix = existing_content[:start].rstrip()
++        suffix = existing_content[end:].strip()
++        parts = [prefix, block.rstrip()]
++        if suffix:
++            parts.append(suffix)
++        text = "\n\n".join(part for part in parts if part) + "\n"
++        logger.debug("exit", extra={"context": {"function": "build_changelog", "chars": len(text), "replaced": True}})
++        return text
++    prefix = existing_content.strip() or DEFAULT_PREAMBLE.strip()
++    text = prefix + "\n\n" + block
++    logger.debug("exit", extra={"context": {"function": "build_changelog", "chars": len(text), "replaced": False}})
++    return text
++
++
++def output_path(repo: Path, output: str) -> Path:
++    """Resolve the changelog output path."""
++    logger.debug("entry", extra={"context": {"function": "output_path", "repo": str(repo), "output": output}})
++    path = Path(output)
++    resolved = path if path.is_absolute() else repo / path
++    logger.debug("exit", extra={"context": {"function": "output_path", "path": str(resolved)}})
++    return resolved
++
++
++def generate_changelog(repo: Path, output: Path) -> str:
++    """Generate changelog text from repo tags and existing output content."""
++    logger.debug("entry", extra={"context": {"function": "generate_changelog", "repo": str(repo), "output": str(output)}})
++    existing = output.read_text(encoding="utf-8") if output.exists() else ""
++    sections = generate_checkpoint_sections(repo)
++    text = build_changelog(existing, sections)
++    logger.debug("exit", extra={"context": {"function": "generate_changelog", "chars": len(text)}})
++    return text
++
++
++def run(args: argparse.Namespace) -> int:
++    """Run the changelog generator."""
++    logger.debug("entry", extra={"context": {"function": "run", "stdout": args.stdout}})
++    try:
++        repo = Path(args.repo).resolve()
++        out_path = output_path(repo, args.output)
++        text = generate_changelog(repo, out_path)
++        if args.stdout:
++            print(text, end="")
++        else:
++            out_path.write_text(text, encoding="utf-8")
++            print("wrote " + str(out_path))
++        logger.debug("exit", extra={"context": {"function": "run", "returncode": 0}})
++        return 0
++    except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
++        logger.exception("generate_changelog_failed", extra={"context": {"function": "run"}})
++        print("error: " + str(exc), file=sys.stderr)
++        logger.debug("exit", extra={"context": {"function": "run", "returncode": 2}})
++        return 2
++
++
++def main(argv: Sequence[str] | None = None) -> int:
++    """CLI entry point."""
++    if argv is None:
++        argv = sys.argv[1:]
++    args = parse_args(argv)
++    configure_logging(args.verbose)
++    logger.debug("entry", extra={"context": {"function": "main", "argc": len(argv)}})
++    code = run(args)
++    logger.debug("exit", extra={"context": {"function": "main", "returncode": code}})
++    return code
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/.claude/scripts/test_archive_active_context.py b/.claude/scripts/test_archive_active_context.py
+new file mode 100644
+index 0000000..58b8fad
+--- /dev/null
++++ b/.claude/scripts/test_archive_active_context.py
+@@ -0,0 +1,90 @@
++"""Tests for archive-active-context.py."""
++from __future__ import annotations
++
++import argparse
++import importlib.util
++import io
++import logging
++import tempfile
++import unittest
++from contextlib import redirect_stdout
++from datetime import date
++from pathlib import Path
++
++
++SCRIPT_PATH = Path(__file__).with_name("archive-active-context.py")
++SPEC = importlib.util.spec_from_file_location("archive_active_context", SCRIPT_PATH)
++mod = importlib.util.module_from_spec(SPEC)
++SPEC.loader.exec_module(mod)
++
++
++def _args(active_context: Path, archive_dir: Path, line_limit: int = 200, dry_run: bool = False) -> argparse.Namespace:
++    return argparse.Namespace(
++        active_context=str(active_context),
++        archive_dir=str(archive_dir),
++        line_limit=line_limit,
++        dry_run=dry_run,
++        verbose=False,
++    )
++
++
++class ArchiveActiveContextTests(unittest.TestCase):
++    TODAY = date(2026, 4, 26)
++
++    def setUp(self) -> None:
++        logging.getLogger().setLevel(logging.CRITICAL)
++
++    def test_archive_when_under_200_lines_noop(self) -> None:
++        with tempfile.TemporaryDirectory() as tmp:
++            root = Path(tmp)
++            active = root / "activeContext.md"
++            archive_dir = root / "archive"
++            active.write_text("# Active Context\n\n## Round 1\nshort\n", encoding="utf-8")
++            buf = io.StringIO()
++            with redirect_stdout(buf):
++                rc = mod.run(_args(active, archive_dir, dry_run=True), today_value=self.TODAY)
++            self.assertEqual(rc, 0)
++            self.assertIn("no archive needed", buf.getvalue())
++            self.assertEqual(active.read_text(encoding="utf-8"), "# Active Context\n\n## Round 1\nshort\n")
++            self.assertFalse(archive_dir.exists())
++
++    def test_archive_when_over_200_lines_extracts_oldest_round(self) -> None:
++        with tempfile.TemporaryDirectory() as tmp:
++            root = Path(tmp)
++            active = root / "activeContext.md"
++            archive_dir = root / "archive"
++            round_two = "## Round 2\n" + "\n".join("new " + str(i) for i in range(120)) + "\n"
++            round_one = "## Round 1\n" + "\n".join("old " + str(i) for i in range(120)) + "\n"
++            active.write_text("# Active Context\n\n" + round_two + "\n" + round_one, encoding="utf-8")
++            buf = io.StringIO()
++            with redirect_stdout(buf):
++                rc = mod.run(_args(active, archive_dir), today_value=self.TODAY)
++            self.assertEqual(rc, 0)
++            self.assertIn("archived:", buf.getvalue())
++            archived = archive_dir / "active-2026-04-26-round1.md"
++            self.assertTrue(archived.exists())
++            self.assertIn("## Round 1", archived.read_text(encoding="utf-8"))
++            remaining = active.read_text(encoding="utf-8")
++            self.assertIn("## Round 2", remaining)
++            self.assertNotIn("## Round 1", remaining)
++
++    def test_archive_preserves_header(self) -> None:
++        content = "# Active Context\n\n> Keep this header.\n\n## Round 3\nnew\n\n## Round 1\nold\n"
++        archived, remaining = mod._extract_oldest_round(content)
++        self.assertIn("## Round 1", archived)
++        self.assertTrue(remaining.startswith("# Active Context\n\n> Keep this header.\n"))
++        self.assertIn("## Round 3", remaining)
++        self.assertNotIn("## Round 1", remaining)
++
++    def test_archive_supports_current_focus_round_headings(self) -> None:
++        content = "# Active Context\n\n## Current Focus\n\n### Round 3\nnew\n\n### Round 1\nold\n\n## Session Log\nkeep\n"
++        archived, remaining = mod._extract_oldest_round(content)
++        self.assertIn("### Round 1", archived)
++        self.assertNotIn("## Session Log", archived)
++        self.assertIn("### Round 3", remaining)
++        self.assertIn("## Session Log", remaining)
++        self.assertNotIn("### Round 1", remaining)
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/.claude/scripts/test_generate_changelog.py b/.claude/scripts/test_generate_changelog.py
+new file mode 100644
+index 0000000..8e303b6
+--- /dev/null
++++ b/.claude/scripts/test_generate_changelog.py
+@@ -0,0 +1,41 @@
++"""Tests for generate-changelog.py."""
++from __future__ import annotations
++
++import importlib.util
++import logging
++import unittest
++from pathlib import Path
++from unittest import mock
++
++
++SCRIPT_PATH = Path(__file__).with_name("generate-changelog.py")
++SPEC = importlib.util.spec_from_file_location("generate_changelog", SCRIPT_PATH)
++mod = importlib.util.module_from_spec(SPEC)
++SPEC.loader.exec_module(mod)
++
++
++class GenerateChangelogTests(unittest.TestCase):
++    def setUp(self) -> None:
++        logging.getLogger().setLevel(logging.CRITICAL)
++
++    def test_generate_changelog_format(self) -> None:
++        with mock.patch.object(mod, "list_checkpoint_tags", return_value=["pipeline-checkpoint-ONE", "pipeline-checkpoint-TWO"]):
++            with mock.patch.object(mod, "commit_titles_between", side_effect=[["- feat: first"], ["- fix: second"]]):
++                sections = mod.generate_checkpoint_sections(Path("."))
++        text = mod.build_changelog("", sections)
++        self.assertTrue(text.startswith("# Changelog\n"))
++        self.assertIn("## Round 7 (Z12)", text)
++        self.assertIn(mod.BEGIN_MARKER, text)
++        self.assertIn("## pipeline-checkpoint-TWO\n### Changes\n- fix: second", text)
++        self.assertIn("## pipeline-checkpoint-ONE\n### Changes\n- feat: first", text)
++        self.assertLess(text.index("## pipeline-checkpoint-TWO"), text.index("## pipeline-checkpoint-ONE"))
++        self.assertTrue(text.endswith("\n"))
++
++    def test_generate_changelog_idempotent(self) -> None:
++        first = mod.build_changelog("", "## pipeline-checkpoint-ONE\n### Changes\n- feat: first")
++        second = mod.build_changelog(first, "## pipeline-checkpoint-ONE\n### Changes\n- feat: first")
++        self.assertEqual(first, second)
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/.github/workflows/dual-implement-ci.yml b/.github/workflows/dual-implement-ci.yml
+new file mode 100644
+index 0000000..8d80c1f
+--- /dev/null
++++ b/.github/workflows/dual-implement-ci.yml
+@@ -0,0 +1,67 @@
++name: Dual Implement CI
++
++"on":
++  pull_request:
++  push:
++    branches:
++      - main
++      - "fix/*"
++
++jobs:
++  tests:
++    name: Full pytest suite
++    runs-on: ubuntu-latest
++
++    steps:
++      - name: Checkout
++        uses: actions/checkout@v4
++
++      - name: Set up Python
++        uses: actions/setup-python@v5
++        with:
++          python-version: "3.12"
++
++      - name: Install test dependencies
++        run: |
++          python -m pip install --upgrade pip
++          python -m pip install pytest pyyaml
++
++      - name: Run all pytest suites
++        run: python -m pytest .claude/scripts/test_*.py .claude/hooks/test_*.py -q --tb=line
++
++  selftest:
++    name: Dual teams selftest
++    runs-on: ubuntu-latest
++
++    steps:
++      - name: Checkout
++        uses: actions/checkout@v4
++
++      - name: Set up Python
++        uses: actions/setup-python@v5
++        with:
++          python-version: "3.12"
++
++      - name: Run selftest
++        run: python .claude/scripts/dual-teams-selftest.py
++
++  attack-matrix:
++    name: Live attack matrix
++    runs-on: ubuntu-latest
++
++    steps:
++      - name: Checkout
++        uses: actions/checkout@v4
++
++      - name: Set up Python
++        uses: actions/setup-python@v5
++        with:
++          python-version: "3.12"
++
++      - name: Install test dependencies
++        run: |
++          python -m pip install --upgrade pip
++          python -m pip install pytest
++
++      - name: Run live attack matrix
++        run: python -m pytest .claude/hooks/test_enforcer_live_attacks.py -v
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+new file mode 100644
+index 0000000..8b64554
+--- /dev/null
++++ b/CHANGELOG.md
+@@ -0,0 +1,281 @@
++# Changelog
++
++All notable changes are tracked here. Release sections are anchored to `pipeline-checkpoint-*` tags and commit subjects use Conventional Commits-style titles where available.
++
++## Round 8 (Z23)
++### Changes
++- Determinism 10/10.
++
++## Round 8 (Z20)
++### Changes
++- Security 10/10.
++
++## Round 8 (Z17)
++### Changes
++- Reliability 10/10.
++
++## Round 8 (Z14)
++### Changes
++- Functional Coverage 10/10.
++
++## Round 7 (Z12)
++### Changes
++- Y21 + Y25 close all initial Y18-Y25 follow-ups.
++
++<!-- pipeline-checkpoint-changelog:start -->
++## pipeline-checkpoint-SESSION-PAUSE-2026-04-25
++### Changes
++- session-pause: full resume context (Y6-Y17 chain + architecture + open follow-ups + relogin protocol)
++- y17-live: Y15+Y16+Y17 codification + LIVE verified — PowerShell-first 8x faster than fighting harness
++
++## pipeline-checkpoint-Y15Y16Y17_DONE
++### Changes
++- No commits recorded.
++
++## pipeline-checkpoint-Y15Y16_DONE
++### Changes
++- fix-Y16/claude: embed Y14 PowerShell-first section in spawn-agent.py generated prompts (claude won 0.84 vs 0.43)
++- fix-Y15/claude: codify Y14 PowerShell-first pattern in template + CLAUDE.md (TIE, claude won)
++- y15+y16 specs: codify Y14 PowerShell-first pattern in template + spawn-agent.py
++
++## pipeline-checkpoint-Y14_ARCHITECTURAL_FINDING
++### Changes
++- y14-finding: sub-agent Write structurally blocked by harness; codified PowerShell workaround as canonical pattern; reverted misleading Edit/Write wildcards
++- y11-live spec: live verification of target-path sentinel fix
++
++## pipeline-checkpoint-FOLLOWUPS_FINAL
++### Changes
++- knowledge: Y11 entry + 5-reader meta-pattern (chain Y6/Y7/Y8/Y9/Y10/Y11 closed)
++
++## pipeline-checkpoint-Y11_FIX
++### Changes
++- fix-Y11: target-path sentinel detection (catches sub-agent CLAUDE_PROJECT_DIR=main)
++
++## pipeline-checkpoint-E2E_COMPLETE
++### Changes
++- e2e: codex-cost-report + dual-history-archive (Claude won both)
++- knowledge: Y10 harness UI denial — root cause + fix entry
++- e2e specs: codex-cost-report + dual-history-archive (verify Y8/Y9/Y10 fixes)
++- merge winners V-1 V-2 V-3 V-4 (Phase 2/3 dual-implement results)
++- fix-Y10: explicit permissions.allow for sub-agent Edit/Write in worktrees/**
++- phase-followups: Y8 + Y9 fixed, knowledge.md + activeContext updated
++
++## pipeline-checkpoint-FOLLOWUPS_COMPLETE
++### Changes
++- fix-Y9/codex: dual-teams-spawn forwards --result-dir to codex-wave
++- fix-Y8/codex: codex-gate exempts dual-teams worktrees via .dual-base-ref sentinel
++- y8/y9 specs: codex-gate sentinel + dual-teams-spawn --result-dir
++
++## pipeline-checkpoint-ROUND2_COMPLETE
++### Changes
++- phase7/round2: PIPELINE_COMPLETE — Y6+Y7 fixed, 2x clean dual + 2x selftest
++
++## pipeline-checkpoint-PHASE3
++### Changes
++- No commits recorded.
++
++## pipeline-checkpoint-PHASE456
++### Changes
++- fix-Y6/Y7-selftest/codex: dual-teams-selftest.py — end-to-end regression detector
++
++## pipeline-checkpoint-PHASE2
++### Changes
++- No commits recorded.
++
++## pipeline-checkpoint-PHASE1
++### Changes
++- fix-Y6/codex: enforcer recognizes dual-teams worktrees via .dual-base-ref sentinel
++- fix-bootstrap: gitignore .dual-base-ref + Round 2 pipeline + enforcer task spec
++- session-checkpoint: round 1 complete, round 2 failed, restart context saved
++- merge FIX-B: .dual-base-ref sidecar (Y2 supporting; TIE→claude)
++- merge FIX-A: judge diff-baseline (Y2 fix; TIE→claude)
++- fix-A/claude: judge diff-baseline — score all 6 axes on committed+untracked worktrees
++- fix-B/claude: write .dual-base-ref sidecar after every worktree creation
++- fix-docs: heredoc + Windows .CMD gotchas in task template (Y1+Y3)
++- observability: task specs T-A/T-B/T-C (dual-status + codex-health + pipeline-status)
++
++## pipeline-checkpoint-V2-FINAL
++### Changes
++- codex-primary-v2: T14 integration smoke complete — 5/5 tools validated end-to-end
++- codex-wave: strip UNC prefix at all forward paths (edge case #2)
++
++## pipeline-checkpoint-V2-WAVE3-DONE
++### Changes
++- codex-primary-v2: Wave 3 COMPLETE — T5+T8+T9+T10+T11+T12+T13 all landed
++- dual-T5: merge Claude-side winner (judge.py 3-file split, 28 tests)
++- dual-T10: merge Claude-side winner (warm Codex pool, 20 tests)
++- dual-T8T9: merge Claude-side winner (rate-limit backoff + circuit breaker, 60 tests)
++- dual-T10/claude: warm Codex pool + tests
++- dual-T5/claude: judge.py + judge_axes.py + tests (split for writability)
++- dual-T8T9/claude: rate-limit backoff + circuit breaker + tests
++- Wave 3 specs: T8T9-stability + T10-warm-pool + T5-judge (retry, split into 3 files)
++- codex-wave: strip \?\ UNC prefix before git worktree add (Windows parallel fix)
++- Phase A docs: T11 streaming judge + T13 cherry-pick hybrid + T12 codex-integration Always-Dual section
++
++## pipeline-checkpoint-V2-WAVE2-PARTIAL
++### Changes
++- dual-T3/claude: implement dual-teams-spawn.py + tests
++- dual-T4: integrate finalized version (+22 tests, log-handle bug auto-fixed)
++- dual-T4/claude: implement codex-inline-dual.py + tests
++- codex-primary-v2: Wave 2 intermediate — T3 Claude winner (merged), T4 partial, T5 deferred
++- codex-gate: exempt worktrees/** — dual-operation bypass (same pattern as enforcer)
++- enforcer: exempt worktrees/** — dual-operation paths
++- codex-primary-v2: Wave 2 specs — T3 (dual-teams-spawn) + T4 (codex-inline-dual) + T5 (judge.py)
++- codex-primary-v2: T6 — enforcer hook wired in settings.json
++
++## pipeline-checkpoint-V2-T1-DONE
++### Changes
++- dual-T1: archive Codex loser + preserve claude/codex diff history
++- dual-T1: merge Claude-side winner (codex-delegate-enforcer.py)
++- dual-T1/claude: implement codex-delegate-enforcer.py + tests
++- codex-primary-v2: DUAL_TEAMS phase doc + AGENTS.md dual contract notice
++- codex-primary-v2: bootstrap enforcer stub + T1 full spec
++- codex-primary-v2: CLAUDE.md — Always-Dual protocol (MANDATORY, blocking)
++- codex-primary: migrate gpt-5.4 -> gpt-5.5 across all files (110 replacements, 24 files)
++
++## pipeline-checkpoint-PIPELINE_COMPLETE
++### Changes
++- wave-smoke: codex-wave.py live-exercised 2-way parallel
++- wave-smoke: merge 2 parallel GPT-5.5 tasks (wave-a + wave-b)
++- wave-b: add git_worktree_list.py (GPT-5.5 via wave)
++- wave-a: add codex_env_check.py (GPT-5.5 via wave)
++- wave-smoke: 2 tiny task specs for codex-wave.py parallel live test
++- codex-primary: automated iteration memory via --iterate-from
++- pipeline: mark PROOF_OF_CONCEPT status PASS (was stale PENDING)
++- codex-primary: PIPELINE_COMPLETE — DOCUMENT phase done
++- codex-primary: speed layer + AGENTS.md shared context
++
++## pipeline-checkpoint-DUAL2_COMPLETE
++### Changes
++- dual-2: judgment + archive of loser diff
++- dual-2: merge Claude-side winner (--sort-by flag)
++- dual-2/claude: add --sort-by flag to list_codex_scripts.py
++- dual-2: spec with python (not py -3) to avoid sandbox Finding #10
++
++## pipeline-checkpoint-POST_DUAL1_FIXES
++### Changes
++- codex-primary: fix 4 bugs surfaced by dual-1 live run
++- dual-1: post-mortem + 3 new bugs + 2 findings from Level 3 live run
++- dual-1: merge Claude-side winner (--json flag for list_codex_scripts.py)
++- dual-1/claude: add --json flag to list_codex_scripts.py
++- codex-primary: spec for Level 3 dual-implement live task (add --json to list_codex_scripts.py)
++
++## pipeline-checkpoint-POC_SUCCESS_GPT55
++### Changes
++- codex-primary: PoC SUCCESS on gpt-5.5 via chatgpt backend-api
++- codex-primary: route gpt-5.5 via chatgpt backend-api provider
++
++## pipeline-checkpoint-POC_SUCCESS_v54
++### Changes
++- codex-primary: PoC SUCCESS on gpt-5.4 — architecture fully validated
++- codex-primary: pass Codex prompt via stdin not argv
++- codex-primary: add --model flag, default gpt-5.4
++- gitignore .codex/ runtime state; sync activeContext
++- codex-primary: recreate task-PoC.md (previously wiped by rollback)
++
++## pipeline-checkpoint-POC_FIX_v1
++### Changes
++- codex-primary: fix PoC bugs #1-#3 — clean-tree preflight guard
++
++## pipeline-checkpoint-POC_FAIL
++### Changes
++- codex-primary: PoC FAIL — 3 critical bugs found + collateral damage doc
++
++## pipeline-checkpoint-IMPLEMENT_WAVE_2
++### Changes
++- codex-primary: Wave 2 complete — skill + ADR + CLAUDE.md section
++
++## pipeline-checkpoint-IMPLEMENT_WAVE_1
++### Changes
++- codex-primary: Wave 1 complete — foundations (5 teammates, 89 tests)
++
++## pipeline-checkpoint-PLAN
++### Changes
++- codex-primary: PLAN phase complete — tech-spec + 8 tasks + waves
++- bridge-stubs: canonical template + auto-sync across all staging dirs
++- bridge-stubs: session-task-class.py for dp-notifier staging dirs
++- codex-round5 FINAL: PASS — zero findings
++- codex-round4 fix: end-to-end fail-closed path test
++- codex-round3 fix: fail closed on lock timeout + concurrency regression tests
++- codex-round2 fix: hold lock across Codex call, eliminates cooldown-reload race
++- codex-review fixes: BLOCKER /watchdog off + file lock + HALT integration test
++- quality: atomic state writes + 19 stress/integration tests + 5 TP tests
++- pipeline-checkpoint-SYNC+VERIFY: mirror to new-project template + evidence
++- pipeline-checkpoint-IMPL+TESTS: severity-graded watchdog + classifier + tests
++- pipeline-checkpoint-SPEC: freeze watchdog-fix spec + FP corpus
++- docs(autoresearch): finalize quarantine state + expanded stub validation matrix
++- feat: autoresearch integration — experiment-loop skill v2 (Bayram Annakov MIT)
++- Revert "feat: autoresearch integration — experiment-loop skill v2 (Bayram Annakov MIT)"
++- Revert "docs(autoresearch): finalize quarantine state + expanded stub validation matrix"
++- docs(autoresearch): finalize quarantine state + expanded stub validation matrix
++- feat: autoresearch integration — experiment-loop skill v2 (Bayram Annakov MIT)
++- fix: dedup chunks in semantic-search indexer (ChromaDB DuplicateIDError)
++- feat: MemPalace cherry-pick — knowledge graph, semantic search, 4-layer context
++- feat: webinar insights integration — 6 harness improvements from Claude Code architecture analysis
++- feat: ECC cherry-pick integration — 13 skills, security guide, hook profiles, fleet sync
++- sync: server dev changes — codex integration, QA skills, settings fix
++- sync: push all local changes for server dev migration
++- feat: agent memory mandatory + re-verify loop + skill-development removed
++- feat: global skills migration + mandatory phases tested + skill evolution examples
++- feat: compress CLAUDE.md 526→221 lines + mandatory pipeline phases + reference guides
++- feat: integrate best-practice patterns — agent memory, auto-research, fresh verification, skill evolution, examples
++- feat: add spawn-agent.py — one-command teammate spawning with auto-type detection
++- feat: add generate-prompt.py — skill auto-discovery via YAML roles field
++- feat: post-E2E improvements — full skills restored, global cleanup, AO fixes verified
++- feat: AO Hybrid E2E validated + synced to 8 bots
++- chore: update memory after bot fleet sync (8 bots synced)
++- fix: sync new-project template CLAUDE.md with main project
++- feat: memory decay integration + hooks + skills + observations system
++- feat: PreCompact memory save hook — auto-saves context before compaction
++
++## pipeline-checkpoint-EVALUATE
++### Changes
++- feat: OpenClaw pipeline COMPLETE — POST_TEST passed, user approved KEEP
++
++## pipeline-checkpoint-IMPLEMENT
++### Changes
++- feat: OpenClaw-inspired memory restructure — knowledge.md, daily logs, simplified rules
++- feat: Auto-Claude integration — typed memory, agent registry, Graphiti, Ralph Loop removal
++- feat: scalable pipeline v2 — full autonomous project development system
++- feat: skills audit & cleanup — 44 to 14 skills (68% reduction)
++- feat: implement autonomous pipeline system for compaction-resilient execution
++- feat: plan execution enforcer with minimal CLAUDE.md footprint
++- feat: implement three-level memory system
++- docs: add prompts for applying smart decision making to other projects
++- feat: add wave parallelization detection
++- feat: intelligent dependency analysis for plan execution
++- docs: make upgrade prompt universal and flexible
++- docs: add short upgrade prompt for other projects
++- docs: add v2.0 complete documentation and upgrade guide
++- feat: v2.0 - universal parallelization detection without explicit plan files
++- refactor: improve AUTO-CHECK rule for flexible plan detection
++- refactor: CLAUDE.md variant B - progressive disclosure
++- refactor: restructure CLAUDE.md with Context Loading Triggers
++- feat: integrate Anthropic Constitution principles into CLAUDE.md
++- feat: add AUTO-CHECK for plan detection in skill selection
++- feat: add BLOCKING rule for plan execution with subagent-driven-development
++- feat: add MANDATORY decision algorithm for Worktree Mode
++- fix: clarify Worktree Mode is for file conflicts, not to avoid them
++- feat: implement Worktree Mode v2.1 for parallel task execution
++- feat: add orchestration and automation skills
++- feat: improve skill selection workflow with checkpoints
++- fix: remove Quick Skill Selection table
++- refactor: restructure CLAUDE.md with blocking rules and compact format
++- chore: remove INSTALLATION_GUIDE.md
++- feat: add 12 new skills and installation guide
++- feat: switch to dev/main branch workflow
++- fix: update init-project based on testing
++- fix: add SSH key paths to config for Windows compatibility
++- feat: fully automatic /init-project without any questions
++- fix: use master branch instead of main
++- feat: add interactive /init-project command
++- refactor: restructure skills system with hybrid architecture
++- feat: improve workflow rules for skills, testing, and fixes
++- fix: remove brainstorming and writing-plans skills from planning stage
++- docs: add Execution Mode Decision rule to CLAUDE.md
++- Add Project Initialization section for Claude
++- docs: use --squash merge for cleaner main branch history
++- feat: add optional skills support for proposal stage
++- docs: add comprehensive CI/CD setup guide and server setup script
++- Initial template setup
++<!-- pipeline-checkpoint-changelog:end -->

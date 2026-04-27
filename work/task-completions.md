@@ -233,3 +233,33 @@
 | 2026-04-24 20:18 | 14 | T8: Rate-limit backoff in codex-implement.py (DUAL | main | PASSED |
 | 2026-04-24 20:18 | 15 | T9: Circuit breaker + Claude-fallback (DUAL) | main | PASSED |
 | 2026-04-24 20:18 | 16 | T10: Warm Codex pool via app-server (DUAL) | main | PASSED |
+| 2026-04-24 20:42 | 20 | T14: Live DUAL_TEAMS validation | main | PASSED | no modified files |
+| 2026-04-25 10:33 | 1 | Phase 1: FIX вЂ” sentinel-based Y6+Y7 fix | main | PASSED |
+| 2026-04-25 10:55 | 2 | Phase 2: VALIDATE-1 вЂ” first clean dual-teams run | main | PASSED |
+| 2026-04-25 10:58 | 4 | Phase 4: NEW VERIFICATION TASK вЂ” dual-teams-self | main | PASSED |
+| 2026-04-25 10:58 | 5 | Phase 5: SELFTEST iteration 1 вЂ” first clean run  | main | PASSED |
+| 2026-04-25 10:58 | 6 | Phase 6: SELFTEST iteration 2 вЂ” second clean run | main | PASSED |
+| 2026-04-25 11:08 | 3 | Phase 3: VALIDATE-2 вЂ” second clean dual-teams ru | main | PASSED |
+| 2026-04-25 11:11 | 7 | Phase 7: COMMIT + memory updates | main | PASSED |
+| 2026-04-26 08:15 | 1 | Recon: SSH server + OpenClaw + Codex auth state | main | PASSED |
+| 2026-04-26 08:23 | 3 | Check Codex CLI image generation capability | main | PASSED |
+| 2026-04-26 08:23 | 2 | Inspect OpenClaw image-generation-provider | main | PASSED |
+| 2026-04-26 08:30 | 4 | Design and implement bridge | main | PASSED |
+| 2026-04-26 08:52 | 5 | Live test: edit user portrait via OpenClaw | main | PASSED |
+| 2026-04-26 13:05 | 6 | Iter 1: live agent edit test (mailbox recovery pat | main | PASSED |
+| 2026-04-26 13:12 | 7 | Iter 2: if iter 1 failed вЂ” diagnose root cause | main | PASSED |
+| 2026-04-26 13:12 | 9 | Final: Р“РѕС€Р° sends Telegram DM to user | main | PASSED |
+| 2026-04-26 15:22 | 10 | Run regression matrix: 0/1/3/5 input images via cu | main | PASSED |
+| 2026-04-26 15:22 | 11 | Update Р“РѕС€РёРЅР° TOOLS.md with multi-image awar | main | PASSED |
+| 2026-04-26 15:27 | 12 | E2E live: Р“РѕС€Р° merges 2 photos via image_gener | main | PASSED |
+| 2026-04-26 15:29 | 13 | Final DM to РќРёРєРёС‚Рµ with multi-image confirma | main | PASSED |
+| 2026-04-26 16:06 | 14 | v0.4 Bridge: per-request mailbox + ready markers | main | PASSED |
+| 2026-04-26 16:06 | 15 | image-gen.sh: one-shot agent helper with built-in  | main | PASSED |
+| 2026-04-26 16:10 | 17 | Concurrent stress test: 3 parallel requests | main | PASSED |
+| 2026-04-26 16:12 | 16 | TOOLS.md: helper-first guidance | main | PASSED |
+| 2026-04-26 16:39 | 18 | Stability matrix: 10 diverse scenarios via Р“РѕС€С | main | PASSED |
+| 2026-04-27 07:43 | 2 | Resolve DNS for VS Code Remote Tunnels endpoints | main | PASSED |
+| 2026-04-27 07:48 | 1 | Build PIPELINE.md for Remote Tunnels deployment | main | PASSED |
+| 2026-04-27 07:48 | 3 | Install VS Code CLI on Contabo (user-scope) | main | PASSED |
+| 2026-04-27 07:50 | 4 | Configure code tunnel as user systemd service | main | PASSED |
+| 2026-04-27 07:53 | 5 | Disable VS Code auto-port-forwarding (security) | main | PASSED |

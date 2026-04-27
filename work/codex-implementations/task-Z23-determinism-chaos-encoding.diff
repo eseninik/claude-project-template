@@ -1,0 +1,177 @@
+diff --git a/.claude/scripts/test_codex_implement.py b/.claude/scripts/test_codex_implement.py
+index 3eeb34a..d752c9b 100644
+--- a/.claude/scripts/test_codex_implement.py
++++ b/.claude/scripts/test_codex_implement.py
+@@ -720,6 +720,74 @@ class TestWriteResultFile(unittest.TestCase):
+             self.assertIn("NOTE: all good", content)
+ 
+ 
++def test_no_bom_in_codex_implement_outputs(tmp_path):
++    """codex-implement.py result.md outputs use UTF-8 no-BOM."""
++    task_path = tmp_path / "T1-encoding.md"
++    task_path.write_text(TASK_SAMPLE, encoding="utf-8")
++    task = codex_impl.parse_task_file(task_path)
++    result_path = tmp_path / "task-test-result.md"
++
++    codex_impl.write_result_file(
++        result_path=result_path,
++        task=task,
++        status="pass",
++        diff="diff --git a/a b/a\n",
++        test_run=codex_impl.TestRunResult(all_passed=True, outputs=[]),
++        codex_run=codex_impl.CodexRunResult(
++            returncode=0,
++            stdout="",
++            stderr="",
++            timed_out=False,
++            self_report=["NOTE: encoding fixture"],
++        ),
++        scope=codex_impl.ScopeCheckResult(status="pass", message="in-scope"),
++        base_sha="deadbeef",
++        timestamp="2026-04-26T00:00:00+00:00",
++    )
++
++    raw = result_path.read_bytes()
++    assert not raw.startswith(b"\xef\xbb\xbf"), "BOM in result.md output"
++
++
++def test_no_direct_codex_cli_outside_helper():
++    """Only _build_codex_argv() may construct write-mode Codex CLI argv."""
++    repo_root = Path(__file__).resolve().parents[2]
++    py_files = list(repo_root.glob(".claude/scripts/*.py")) + list(
++        repo_root.glob(".claude/hooks/*.py")
++    )
++    py_files = [
++        f
++        for f in py_files
++        if f.name != "codex-implement.py" and not f.name.startswith("test_")
++    ]
++
++    danger_flag = "--dangerously" + "-bypass-approvals-and-sandbox"
++    workspace_write = "--sandbox workspace-write"
++    cmd_exec_patterns = ("codex.cmd exec", "codex.CMD exec")
++    legacy_full_auto = "--full" + "-auto"
++    violations: list[str] = []
++
++    for pyf in py_files:
++        text = pyf.read_text(encoding="utf-8", errors="replace")
++        lower_text = text.lower()
++        compact = " ".join(
++            text.replace('"', "").replace("'", "").replace(",", " ").split()
++        )
++        for pat in (danger_flag, workspace_write, *cmd_exec_patterns):
++            if pat.lower() in lower_text:
++                violations.append(f"{pyf.name} hardcodes Codex CLI flag: {pat}")
++        if legacy_full_auto in text and "workspace-write" in text:
++            violations.append(
++                f"{pyf.name} hardcodes legacy workspace-write argv with {legacy_full_auto}"
++            )
++        if legacy_full_auto in compact and "--sandbox workspace-write" in compact:
++            violations.append(
++                f"{pyf.name} hardcodes tokenized workspace-write argv with {legacy_full_auto}"
++            )
++
++    assert violations == []
++
++
+ class TestPreflightCleanTreeGuard(unittest.TestCase):
+     """Regression suite for the dirty-tree preflight check.
+ 
+diff --git a/.claude/scripts/test_determinism_chaos.py b/.claude/scripts/test_determinism_chaos.py
+new file mode 100644
+index 0000000..1acfb01
+--- /dev/null
++++ b/.claude/scripts/test_determinism_chaos.py
+@@ -0,0 +1,46 @@
++#!/usr/bin/env python3
++"""Chaos tests for Codex helper determinism."""
++
++from __future__ import annotations
++
++import importlib.util
++import os
++import re
++import sys
++from pathlib import Path
++
++
++_THIS = Path(__file__).resolve()
++_SCRIPT = _THIS.parent / "codex-implement.py"
++
++spec = importlib.util.spec_from_file_location("codex_implement", _SCRIPT)
++if spec is None or spec.loader is None:
++    raise ImportError(f"Cannot load {_SCRIPT}")
++codex_impl = importlib.util.module_from_spec(spec)
++sys.modules["codex_implement"] = codex_impl
++spec.loader.exec_module(codex_impl)
++
++
++def test_argv_chaos_30_runs_identical():
++    """30 invocations of _build_codex_argv produce identical argv."""
++    results = [
++        codex_impl._build_codex_argv("codex", "gpt-5.5", Path("/wt"), "<provider>")
++        for _ in range(30)
++    ]
++    prefixes = [tuple(r[:8]) for r in results]
++    assert all(p == prefixes[0] for p in prefixes), "argv prefix non-deterministic"
++    assert all(r == results[0] for r in results), "argv non-deterministic"
++
++    joined = "\n".join(results[0])
++    assert str(os.getpid()) not in joined, "argv contains current PID"
++    timestamp_like = re.compile(r"\d{4}-\d{2}-\d{2}|T\d{2}:\d{2}:\d{2}|\d{10,}")
++    assert not timestamp_like.search(joined), "argv contains timestamp-like value"
++
++
++def test_env_chaos_30_runs_identical():
++    """30 invocations of _build_codex_env produce identical env (after sorting)."""
++    results = [codex_impl._build_codex_env(Path("/wt"), Path("/proj")) for _ in range(30)]
++    keys_sets = [frozenset(r.keys()) for r in results]
++    assert all(k == keys_sets[0] for k in keys_sets), "env keys non-deterministic"
++    allowlists = [r.get("CODEX_FS_READ_ALLOWLIST", "") for r in results]
++    assert all(a == allowlists[0] for a in allowlists), "FS allowlist non-deterministic"
+diff --git a/.claude/scripts/test_spawn_agent.py b/.claude/scripts/test_spawn_agent.py
+index 6106510..539e789 100644
+--- a/.claude/scripts/test_spawn_agent.py
++++ b/.claude/scripts/test_spawn_agent.py
+@@ -21,6 +21,7 @@ Stdlib only; works on Windows + POSIX.
+ 
+ from __future__ import annotations
+ 
++import importlib.util
+ import logging
+ import subprocess
+ import sys
+@@ -53,6 +54,17 @@ SPAWN_SCRIPT = REPO_ROOT / ".claude" / "scripts" / "spawn-agent.py"
+ Y14_HEADING = "## CRITICAL — sub-agent file write mechanism (Y14 finding)"
+ 
+ 
++def load_spawn_agent_module():
++    """Load spawn-agent.py so tests can inspect helper output directly."""
++    spec = importlib.util.spec_from_file_location("spawn_agent_under_test", SPAWN_SCRIPT)
++    if spec is None or spec.loader is None:
++        raise ImportError(f"Cannot load {SPAWN_SCRIPT}")
++    module = importlib.util.module_from_spec(spec)
++    sys.modules["spawn_agent_under_test"] = module
++    spec.loader.exec_module(module)
++    return module
++
++
+ def run_spawn(*extra_args: str) -> subprocess.CompletedProcess:
+     """Invoke ``spawn-agent.py`` with the given extra CLI flags.
+ 
+@@ -245,6 +257,15 @@ class Y14InjectionTests(unittest.TestCase):
+         logger.info("event=test.detect_only.exit pass=true")
+ 
+ 
++def test_spawn_agent_y14_block_uses_utf8_no_bom_template() -> None:
++    """spawn-agent.py Y14 block embeds UTF8Encoding(False) (no-BOM)."""
++    spawn_agent = load_spawn_agent_module()
++    block = spawn_agent.build_y14_block()
++    assert "UTF8Encoding" in block and "$false" in block, "no-BOM template missing"
++    assert "[System.IO.File]::WriteAllText" in block, "PowerShell no-BOM write missing"
++    assert "Set-Content -Encoding utf8" in block, "legacy Set-Content note missing"
++
++
+ # ---------------------------------------------------------------------------
+ # Entry point
+ # ---------------------------------------------------------------------------

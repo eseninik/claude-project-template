@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+"""Extract first image from /v1/bridge/jobs/<id> response into output file.
+
+Usage: extract-job.py <output_png>   (response JSON read from stdin)
+"""
+import sys
+import json
+import base64
+from pathlib import Path
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("usage: extract-job.py <out>", file=sys.stderr)
+        sys.exit(2)
+    out = sys.argv[1]
+    raw = sys.stdin.read()
+    try:
+        d = json.loads(raw)
+    except Exception as e:
+        print(f"bad json: {e}", file=sys.stderr)
+        sys.exit(1)
+    b64s = d.get("data_b64") or []
+    if not b64s:
+        print("no data_b64 in job response", file=sys.stderr)
+        sys.exit(1)
+    Path(out).write_bytes(base64.b64decode(b64s[0]))
+
+
+if __name__ == "__main__":
+    main()

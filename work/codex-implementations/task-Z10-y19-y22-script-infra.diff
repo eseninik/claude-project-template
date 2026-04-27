@@ -1,0 +1,244 @@
+diff --git a/.claude/hooks/codex-delegate-enforcer.py b/.claude/hooks/codex-delegate-enforcer.py
+index eaee31e..48e4370 100644
+--- a/.claude/hooks/codex-delegate-enforcer.py
++++ b/.claude/hooks/codex-delegate-enforcer.py
+@@ -110,6 +110,7 @@ _BASH_DUAL_TOOLING: frozenset = frozenset({
+     ".claude/scripts/codex-ask.py",
+     ".claude/scripts/codex-scope-check.py",
+     ".claude/scripts/codex-pool.py",
++    ".claude/scripts/sync-template-to-target.py",
+     ".claude/scripts/dual-history-archive.py",
+     ".claude/scripts/verdict-summarizer.py",
+     ".claude/scripts/worktree-cleaner.py",
+diff --git a/.claude/hooks/test_enforcer_live_attacks.py b/.claude/hooks/test_enforcer_live_attacks.py
+index 6205b8c..ba32ba1 100644
+--- a/.claude/hooks/test_enforcer_live_attacks.py
++++ b/.claude/hooks/test_enforcer_live_attacks.py
+@@ -350,7 +350,7 @@ def test_v12_stale_artifact_wrong_path_denied(
+ 
+ 
+ # ======================================================================
+-# ALLOW VECTORS (A01-A06) - each must produce no deny JSON
++# ALLOW VECTORS (A01-A07) - each must produce no deny JSON
+ # ======================================================================
+ 
+ def test_a01_work_md_allowed(project_root: Path) -> None:
+@@ -402,3 +402,10 @@ def test_a06_valid_cover_allowed(
+     tmp_cover_artifact("a06", ["src/auth.py"], status="pass")
+     r = _run_enforcer(_edit_payload(target), project_root)
+     _assert_allow(r)
++
++
++def test_a07_sync_script_invocation_allowed(project_root: Path) -> None:
++    """A7 - sync-template-to-target.py is project-owned dual tooling."""
++    cmd = "py -3 .claude/scripts/sync-template-to-target.py --tgt /tmp/foo --apply"
++    r = _run_enforcer(_bash_payload(cmd), project_root)
++    _assert_allow(r)
+diff --git a/.claude/scripts/codex-inline-dual.py b/.claude/scripts/codex-inline-dual.py
+index 7ca7757..a6afd90 100644
+--- a/.claude/scripts/codex-inline-dual.py
++++ b/.claude/scripts/codex-inline-dual.py
+@@ -19,6 +19,7 @@ Usage:
+         --test "py -3 tests/test_foo.py" \\
+         [--task-id my-id] \\
+         [--speed balanced] \\
++        [--result-dir work/codex-implementations] \\
+         [--dry-run]
+ 
+ Exit codes:
+@@ -139,6 +140,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
+                             "(default: work/codex-implementations/inline)")
+         p.add_argument("--codex-timeout", default=3600, type=int,
+                        help="Timeout passed to background codex-implement.py (default: 3600)")
++        p.add_argument("--result-dir", default=Path("work/codex-implementations"),
++                       type=Path,
++                       help="Directory for Codex task-{id}-result.md output "
++                            "(default: work/codex-implementations)")
+         p.add_argument("--log-dir", default=Path("work/codex-primary/logs"), type=Path,
+                        help="Directory for structured logs")
+         _log(logging.DEBUG, "exit: build_arg_parser")
+@@ -500,6 +505,7 @@ def spawn_codex_background(
+     log_dir: Path,
+     task_id: str,
+     dry_run: bool,
++    result_dir: Optional[Path] = None,
+ ) -> CodexJob:
+     """Launch codex-implement.py as a detached subprocess; capture PID + log path.
+ 
+@@ -512,6 +518,7 @@ def spawn_codex_background(
+         spec_path=str(spec_path),
+         codex_worktree=str(codex_worktree),
+         speed=speed,
++        result_dir=str(result_dir) if result_dir is not None else None,
+         dry_run=dry_run,
+     )
+     try:
+@@ -519,6 +526,9 @@ def spawn_codex_background(
+         if not dry_run and not script.exists():
+             raise FileNotFoundError(f"codex-implement.py not found at {script}")
+ 
++        if result_dir is None:
++            result_dir = project_root / "work" / "codex-implementations"
++
+         log_dir.mkdir(parents=True, exist_ok=True)
+         log_path = log_dir / f"codex-inline-{task_id}.log"
+ 
+@@ -529,6 +539,7 @@ def spawn_codex_background(
+             "--worktree", str(codex_worktree),
+             "--speed", speed,
+             "--timeout", str(timeout),
++            "--result-dir", str(result_dir),
+         ]
+ 
+         if dry_run:
+@@ -686,6 +697,11 @@ def prep(args: argparse.Namespace, project_root: Path) -> PrepResult:
+             prompt_path.write_text(prompt_text, encoding="utf-8")
+             _log(logging.INFO, "wrote prompt", path=str(prompt_path), bytes=len(prompt_text))
+ 
++        raw_result_dir = getattr(args, "result_dir", Path("work/codex-implementations"))
++        result_dir = (
++            raw_result_dir if raw_result_dir.is_absolute()
++            else (project_root / raw_result_dir)
++        )
+         log_dir = args.log_dir if args.log_dir.is_absolute() else (project_root / args.log_dir)
+         codex_job = spawn_codex_background(
+             project_root=project_root,
+@@ -693,6 +709,7 @@ def prep(args: argparse.Namespace, project_root: Path) -> PrepResult:
+             codex_worktree=pair.codex_path,
+             speed=args.speed,
+             timeout=args.codex_timeout,
++            result_dir=result_dir,
+             log_dir=log_dir,
+             task_id=task_id,
+             dry_run=args.dry_run,
+@@ -748,4 +765,4 @@ def main(argv: Optional[list[str]] = None) -> int:
+ 
+ 
+ if __name__ == "__main__":
+-    sys.exit(main())
+\ No newline at end of file
++    sys.exit(main())
+diff --git a/work/sync-template-to-target.py b/.claude/scripts/sync-template-to-target.py
+similarity index 100%
+rename from work/sync-template-to-target.py
+rename to .claude/scripts/sync-template-to-target.py
+diff --git a/.claude/scripts/test_codex_inline_dual.py b/.claude/scripts/test_codex_inline_dual.py
+index 8271b37..9692edf 100644
+--- a/.claude/scripts/test_codex_inline_dual.py
++++ b/.claude/scripts/test_codex_inline_dual.py
+@@ -61,6 +61,7 @@ def _make_args(tmpdir, **overrides):
+         worktree_base=Path(tmpdir) / "worktrees" / "inline",
+         spec_dir=Path(tmpdir) / "work" / "inline",
+         codex_timeout=3600,
++        result_dir=Path(tmpdir) / "work" / "codex-implementations",
+         log_dir=Path(tmpdir) / "logs",
+     )
+     for k, v in overrides.items():
+@@ -197,6 +198,7 @@ class TestArgParser(unittest.TestCase):
+         self.assertEqual(args.scope, "a.py")
+         self.assertEqual(args.test, ["cmd"])
+         self.assertEqual(args.speed, "balanced")  # AC8: default speed
++        self.assertEqual(args.result_dir, Path("work/codex-implementations"))
+         self.assertFalse(args.dry_run)
+ 
+     def test_multiple_test_flags_append(self):
+@@ -312,6 +314,92 @@ class TestPrepDryRun(unittest.TestCase):
+ 
+ 
+ class TestPrepLive(unittest.TestCase):
++    def test_inline_dual_result_in_main_work_dir(self):
++        """Y19: default result.md location is the main project's work/ dir."""
++        with tempfile.TemporaryDirectory() as td:
++            tmp = Path(td)
++            task_id = "y19default"
++
++            fake_git = mock.MagicMock(return_value=subprocess.CompletedProcess(
++                args=[], returncode=0, stdout="", stderr=""
++            ))
++            fake_proc = mock.MagicMock()
++            fake_proc.pid = 12345
++
++            scripts_dir = tmp / ".claude" / "scripts"
++            scripts_dir.mkdir(parents=True, exist_ok=True)
++            (scripts_dir / "codex-implement.py").write_text(
++                "# fake\n", encoding="utf-8"
++            )
++
++            with mock.patch.object(cid, "find_project_root", return_value=tmp), \
++                 mock.patch.object(cid, "setup_logging"), \
++                 mock.patch.object(cid, "_run_git", fake_git), \
++                 mock.patch.object(
++                     cid.subprocess, "Popen", return_value=fake_proc,
++                 ) as fake_popen:
++                rc = cid.main([
++                    "--describe", "Add --quiet flag to foo.py",
++                    "--scope", ".claude/scripts/foo.py",
++                    "--test", "py -3 tests/test_foo.py",
++                    "--task-id", task_id,
++                ])
++
++            self.assertEqual(rc, cid.EXIT_OK)
++            cmd = fake_popen.call_args.args[0]
++            result_dir = Path(cmd[cmd.index("--result-dir") + 1])
++            expected_dir = tmp / "work" / "codex-implementations"
++            expected_result = expected_dir / f"task-{task_id}-result.md"
++            codex_worktree_result = (
++                tmp / "worktrees" / "inline" / task_id / "codex" / "work"
++                / "codex-implementations" / f"task-{task_id}-result.md"
++            )
++            self.assertEqual(result_dir, expected_dir)
++            self.assertEqual(result_dir / f"task-{task_id}-result.md", expected_result)
++            self.assertNotEqual(expected_result, codex_worktree_result)
++
++    def test_inline_dual_respects_result_dir_flag(self):
++        """Y19: --result-dir overrides where codex-implement writes result.md."""
++        with tempfile.TemporaryDirectory() as td:
++            tmp = Path(td)
++            task_id = "y19override"
++            override_dir = tmp / "custom-results"
++
++            fake_git = mock.MagicMock(return_value=subprocess.CompletedProcess(
++                args=[], returncode=0, stdout="", stderr=""
++            ))
++            fake_proc = mock.MagicMock()
++            fake_proc.pid = 12345
++
++            scripts_dir = tmp / ".claude" / "scripts"
++            scripts_dir.mkdir(parents=True, exist_ok=True)
++            (scripts_dir / "codex-implement.py").write_text(
++                "# fake\n", encoding="utf-8"
++            )
++
++            with mock.patch.object(cid, "find_project_root", return_value=tmp), \
++                 mock.patch.object(cid, "setup_logging"), \
++                 mock.patch.object(cid, "_run_git", fake_git), \
++                 mock.patch.object(
++                     cid.subprocess, "Popen", return_value=fake_proc,
++                 ) as fake_popen:
++                rc = cid.main([
++                    "--describe", "Add --quiet flag to foo.py",
++                    "--scope", ".claude/scripts/foo.py",
++                    "--test", "py -3 tests/test_foo.py",
++                    "--task-id", task_id,
++                    "--result-dir", str(override_dir),
++                ])
++
++            self.assertEqual(rc, cid.EXIT_OK)
++            cmd = fake_popen.call_args.args[0]
++            result_dir = Path(cmd[cmd.index("--result-dir") + 1])
++            self.assertEqual(result_dir, override_dir)
++            self.assertEqual(
++                result_dir / f"task-{task_id}-result.md",
++                override_dir / f"task-{task_id}-result.md",
++            )
++
+     def test_happy_path_creates_spec_prompt_and_spawns_codex(self):
+         """AC8 happy path: describe+scope+test -> transient spec + 2 worktrees +
+         prompt + codex PID.
+@@ -404,4 +492,4 @@ class TestRenderStatusBlock(unittest.TestCase):
+ 
+ 
+ if __name__ == "__main__":
+-    unittest.main(verbosity=2)
+\ No newline at end of file
++    unittest.main(verbosity=2)

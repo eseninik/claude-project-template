@@ -1,0 +1,259 @@
+diff --git a/.claude/hooks/codex-delegate-enforcer.py b/.claude/hooks/codex-delegate-enforcer.py
+index 9338764..3b90f7b 100644
+--- a/.claude/hooks/codex-delegate-enforcer.py
++++ b/.claude/hooks/codex-delegate-enforcer.py
+@@ -139,6 +139,20 @@ _BASH_PWSH_LAUNCHERS: frozenset = frozenset({
+     "powershell", "powershell.exe", "pwsh", "pwsh.exe",
+ })
+ 
++_SCHEDULER_VERBS: frozenset = frozenset({
++    "schtasks", "at", "crontab", "Register-ScheduledTask",
++})
++_SCHEDULER_CASELESS_VERBS: frozenset = frozenset({
++    "schtasks", "register-scheduledtask",
++})
++_SCHEDULER_POSIX_CASED_VERBS: frozenset = frozenset({"at", "crontab"})
++
++_MCP_TOOL_RE = re.compile(r"^mcp__(?P<server>\w+)__(?P<action>\w+).*$")
++_MCP_WRITE_TOOL_RE = re.compile(
++    r"^mcp__.*?(write|edit|create|patch|put|append|delete|remove|update).*$",
++    re.IGNORECASE,
++)
++
+ 
+ def _build_logger(project_dir: Path) -> logging.Logger:
+     """Create enforcer logger: file if writable else stderr-only."""
+@@ -584,6 +598,110 @@ def _normalize_path_token(token: str) -> str:
+     return token.strip().strip("'\"").replace("\\", "/")
+ 
+ 
++def _scheduler_verb_from_token(token: str) -> str:
++    """Return normalized scheduler verb if token invokes a scheduler."""
++    logger = logging.getLogger(HOOK_NAME)
++    logger.debug("scheduler_verb_from_token.enter token=%r", token[:120])
++    if not token:
++        logger.debug("scheduler_verb_from_token.exit match=")
++        return ""
++    name = Path(token).name
++    lowered = name.lower()
++    if lowered.endswith(".exe"):
++        name = name[:-4]
++        lowered = name.lower()
++    if sys.platform == "win32":
++        all_lower = {v.lower() for v in _SCHEDULER_VERBS}
++        match = lowered if lowered in all_lower else ""
++    elif lowered in _SCHEDULER_CASELESS_VERBS:
++        match = lowered
++    elif name in _SCHEDULER_POSIX_CASED_VERBS:
++        match = name
++    else:
++        match = ""
++    logger.debug("scheduler_verb_from_token.exit match=%s", match)
++    return match
++
++
++def _classify_scheduler(tokens: list, scheduler_verb: str) -> dict:
++    """Classify scheduler tools by recursively parsing embedded commands."""
++    logger = logging.getLogger(HOOK_NAME)
++    logger.info(
++        "classify.scheduler.enter verb=%s argc=%d", scheduler_verb, len(tokens)
++    )
++    payload = ""
++    if scheduler_verb == "schtasks":
++        for i, tok in enumerate(tokens[1:], start=1):
++            lower = tok.lower()
++            if lower == "/tr" and i + 1 < len(tokens):
++                payload = tokens[i + 1]
++                break
++            if lower.startswith("/tr:") or lower.startswith("/tr="):
++                payload = tok[4:]
++                break
++    elif scheduler_verb == "register-scheduledtask":
++        for i, tok in enumerate(tokens[1:], start=1):
++            lower = tok.lower()
++            if lower == "-argument" and i + 1 < len(tokens):
++                payload = tokens[i + 1]
++                break
++            if lower.startswith("-argument:") or lower.startswith("-argument="):
++                payload = tok.split(":", 1)[1] if ":" in tok else tok.split("=", 1)[1]
++                break
++    else:
++        logger.info(
++            "classify.scheduler.exit verb=%s decision=require_cover reason=%s",
++            scheduler_verb, "scheduler-opaque-payload",
++        )
++        return {
++            "decision": "require_cover",
++            "reason": "scheduler-opaque-payload",
++            "targets": ["<scheduler-opaque-payload>"],
++        }
++
++    if not payload:
++        logger.info(
++            "classify.scheduler.exit verb=%s decision=require_cover reason=%s",
++            scheduler_verb, "scheduler-opaque-payload",
++        )
++        return {
++            "decision": "require_cover",
++            "reason": "scheduler-opaque-payload",
++            "targets": ["<scheduler-opaque-payload>"],
++        }
++
++    nested = parse_bash_command(payload)
++    if nested["decision"] != "allow":
++        logger.info(
++            "classify.scheduler.exit verb=%s decision=%s reason=%s targets=%s",
++            scheduler_verb, nested["decision"], nested["reason"], nested["targets"],
++        )
++        return nested
++    logger.info(
++        "classify.scheduler.exit verb=%s decision=allow reason=scheduler-payload-allow",
++        scheduler_verb,
++    )
++    return {"decision": "allow", "reason": "scheduler-payload-allow", "targets": []}
++
++
++def _is_code_path_token(token: str) -> bool:
++    """True iff an argv token is path-like and names a code-extension file."""
++    logger = logging.getLogger(HOOK_NAME)
++    logger.debug("is_code_path_token.enter token=%r", token[:120])
++    raw = token.strip().strip("'\"")
++    if raw.startswith("--") and "=" in raw:
++        flag, value = raw.split("=", 1)
++        if re.match(r"^--[A-Za-z0-9][A-Za-z0-9_-]*$", flag):
++            raw = value
++    norm = _normalize_path_token(raw)
++    result = _looks_like_path(norm) and is_code_extension(norm)
++    logger.debug(
++        "is_code_path_token.exit token=%r normalized=%r result=%s",
++        token[:120], norm, result,
++    )
++    return result
++
++
+ def _is_dual_tooling_invocation(tokens: list) -> bool:
+     """True iff tokens reference a project-owned dual-implement script."""
+     for tok in tokens[1:6]:
+@@ -677,6 +795,7 @@ def _classify_single_command(command: str) -> dict:
+         logger.info("classify.dual-tooling cmd=%r", command[:120])
+         return {"decision": "allow", "reason": "dual-tooling", "targets": []}
+     verb = _command_basename(tokens[0])
++    scheduler_verb = _scheduler_verb_from_token(tokens[0])
+ 
+     # I2: redirect to a code path is a write regardless of leading verb
+     # (echo > foo.py, cat > foo.py, printf > foo.py, etc.). Check first.
+@@ -754,7 +873,37 @@ def _classify_single_command(command: str) -> dict:
+         if result is not None:
+             return result
+ 
+-    return {"decision": "allow", "reason": "unknown-verb-allowed", "targets": []}
++    if scheduler_verb:
++        return _classify_scheduler(tokens, scheduler_verb)
++
++    code_targets: list = []
++    for arg in tokens[1:]:
++        if not _is_code_path_token(arg):
++            continue
++        target = arg
++        if target.startswith("--") and "=" in target:
++            flag, value = target.split("=", 1)
++            if re.match(r"^--[A-Za-z0-9][A-Za-z0-9_-]*$", flag):
++                target = value
++        code_targets.append(_normalize_path_token(target))
++    if code_targets:
++        logger.info(
++            "classify.unknown-verb-with-code-path-argv.enter verb=%s targets=%s",
++            verb, code_targets,
++        )
++        logger.info(
++            "classify.unknown-verb-with-code-path-argv.exit decision=require_cover "
++            "verb=%s targets=%s",
++            verb, code_targets,
++        )
++        return {
++            "decision": "require_cover",
++            "reason": "unknown-verb-with-code-path-argv",
++            "targets": code_targets,
++        }
++
++    logger.info("classify.unknown-verb-no-code-paths verb=%s", verb)
++    return {"decision": "allow", "reason": "unknown-verb-no-code-paths", "targets": []}
+ 
+ 
+ def _has_inplace_flag(tokens: list) -> bool:
+@@ -1048,6 +1197,10 @@ def extract_targets(payload: dict) -> list:
+                 ep = edit.get("file_path")
+                 if isinstance(ep, str) and ep:
+                     paths.append(ep)
++    elif isinstance(tool_name, str) and _MCP_TOOL_RE.match(tool_name):
++        p = tool_input.get("path") or tool_input.get("file_path")
++        if isinstance(p, str) and p:
++            paths.append(p)
+     seen: set = set()
+     unique: list = []
+     for p in paths:
+@@ -1063,10 +1216,11 @@ def decide(payload: dict, project_dir: Path) -> bool:
+     event = payload.get("hook_event_name", "") if isinstance(payload, dict) else ""
+     tool_name = payload.get("tool_name", "") if isinstance(payload, dict) else ""
+     logger.info("decide.enter event=%s tool=%s", event, tool_name)
++    is_mcp_tool = isinstance(tool_name, str) and bool(_MCP_TOOL_RE.match(tool_name))
+     if event and event != "PreToolUse":
+         logger.info("decide.passthrough reason=non-PreToolUse event=%s", event)
+         return True
+-    if tool_name not in {"Edit", "Write", "MultiEdit", "Bash", "NotebookEdit"}:
++    if tool_name not in {"Edit", "Write", "MultiEdit", "Bash", "NotebookEdit"} and not is_mcp_tool:
+         logger.info("decide.passthrough reason=unknown-tool tool=%s", tool_name)
+         return True
+     if is_dual_teams_worktree(project_dir):
+@@ -1075,9 +1229,24 @@ def decide(payload: dict, project_dir: Path) -> bool:
+ 
+     if tool_name == "Bash":
+         return _decide_bash(payload, project_dir)
++    if is_mcp_tool:
++        return _decide_mcp(payload, project_dir, tool_name)
+     return _decide_edit(payload, project_dir, tool_name)
+ 
+ 
++def _decide_mcp(payload: dict, project_dir: Path, tool_name: str) -> bool:
++    """MCP branch: write-like tools reuse Edit/Write cover enforcement."""
++    logger = logging.getLogger(HOOK_NAME)
++    logger.info("decide_mcp.enter tool=%s", tool_name)
++    if not _MCP_WRITE_TOOL_RE.match(tool_name):
++        logger.info("decide_mcp.exit allowed=True reason=mcp-read-only tool=%s", tool_name)
++        return True
++    logger.info("decide_mcp.mcp-write-tool-detected tool=%s", tool_name)
++    allowed = _decide_edit(payload, project_dir, tool_name)
++    logger.info("decide_mcp.exit allowed=%s reason=mcp-write-tool tool=%s", allowed, tool_name)
++    return allowed
++
++
+ def _decide_edit(payload: dict, project_dir: Path, tool_name: str) -> bool:
+     """Edit/Write/MultiEdit/NotebookEdit branch."""
+     logger = logging.getLogger(HOOK_NAME)
+@@ -1149,7 +1318,12 @@ def _decide_bash(payload: dict, project_dir: Path) -> bool:
+         return False
+     for target in targets:
+         if target.startswith("<") and target.endswith(">"):
+-            emit_deny(target, "bash-no-cover", project_dir, tool_name="Bash")
++            reason_code = (
++                parsed["reason"]
++                if parsed["reason"] == "scheduler-opaque-payload"
++                else "bash-no-cover"
++            )
++            emit_deny(target, reason_code, project_dir, tool_name="Bash")
+             logger.info("decide_bash.exit allowed=False reason=opaque-target target=%s", target)
+             return False
+         norm = _normalize_path_token(target)
+diff --git a/.claude/settings.json b/.claude/settings.json
+index 0a2a2d3..a31d0ed 100644
+--- a/.claude/settings.json
++++ b/.claude/settings.json
+@@ -129,7 +129,7 @@
+     ],
+     "PreToolUse": [
+       {
+-        "matcher": "Edit|Write|MultiEdit|Bash|NotebookEdit",
++        "matcher": "Edit|Write|MultiEdit|Bash|NotebookEdit|mcp__.*",
+         "hooks": [
+           {
+             "type": "command",

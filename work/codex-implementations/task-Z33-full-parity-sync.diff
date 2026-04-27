@@ -1,0 +1,205 @@
+diff --git a/.claude/scripts/sync-template-to-target.py b/.claude/scripts/sync-template-to-target.py
+index 1565d06..91ef974 100644
+--- a/.claude/scripts/sync-template-to-target.py
++++ b/.claude/scripts/sync-template-to-target.py
+@@ -44,6 +44,12 @@ MIRROR_DIRS: list[str] = [
+     ".claude/shared/work-templates",
+ ]
+ 
++MIRROR_TOP_FILES: list[str] = [
++    ".github/workflows/dual-implement-ci.yml",
++    "CHANGELOG.md",
++    "mypy.ini",
++]
++
+ # Files inside MIRROR_DIRS that must NEVER be copied (secrets, caches, etc.)
+ EXCLUDE_NAMES: set[str] = {
+     "__pycache__",
+@@ -270,6 +276,48 @@ def collect_dir(root: Path) -> list[Path]:
+     return out
+ 
+ 
++def mirror_file(
++    src_file: Path,
++    tgt_file: Path,
++    rel_display: str,
++    tgt_root: Path,
++    plan: Plan,
++    apply: bool,
++    force: bool = False,
++    snapshot: RollbackSnapshot | None = None,
++) -> None:
++    logger.info(
++        "mirror_file.enter rel_display=%s apply=%s force=%s",
++        rel_display,
++        apply,
++        force,
++    )
++    if not src_file.is_file():
++        logger.info("mirror_file.exit action=missing-source rel_display=%s", rel_display)
++        return
++    if tgt_file.exists():
++        if filecmp.cmp(src_file, tgt_file, shallow=False):
++            plan.same_files += 1
++            logger.info("mirror_file.exit action=same rel_display=%s", rel_display)
++            return
++        if _should_skip_locally_modified(tgt_root, tgt_file, rel_display, plan, force):
++            logger.info("mirror_file.exit action=skipped rel_display=%s", rel_display)
++            return
++        plan.changed_files.append((str(src_file), str(tgt_file)))
++        if apply:
++            tgt_file.parent.mkdir(parents=True, exist_ok=True)
++            if snapshot is not None:
++                snapshot.capture(tgt_file, rel_display)
++            shutil.copy2(src_file, tgt_file)
++        logger.info("mirror_file.exit action=changed rel_display=%s", rel_display)
++        return
++    plan.new_files.append((str(src_file), str(tgt_file)))
++    if apply:
++        tgt_file.parent.mkdir(parents=True, exist_ok=True)
++        shutil.copy2(src_file, tgt_file)
++    logger.info("mirror_file.exit action=new rel_display=%s", rel_display)
++
++
+ def mirror_category(
+     src_root: Path,
+     tgt_root: Path,
+@@ -291,23 +339,7 @@ def mirror_category(
+         if s.name in EXCLUDE_NAMES:
+             plan.skipped_files.append((rel_display, "secret-name"))
+             continue
+-        if t.exists():
+-            if filecmp.cmp(s, t, shallow=False):
+-                plan.same_files += 1
+-                continue
+-            if _should_skip_locally_modified(tgt_root, t, rel_display, plan, force):
+-                continue
+-            plan.changed_files.append((str(s), str(t)))
+-            if apply:
+-                t.parent.mkdir(parents=True, exist_ok=True)
+-                if snapshot is not None:
+-                    snapshot.capture(t, rel_display)
+-                shutil.copy2(s, t)
+-        else:
+-            plan.new_files.append((str(s), str(t)))
+-            if apply:
+-                t.parent.mkdir(parents=True, exist_ok=True)
+-                shutil.copy2(s, t)
++        mirror_file(s, t, rel_display, tgt_root, plan, apply, force, snapshot)
+ 
+ 
+ def merge_settings(
+@@ -442,6 +474,8 @@ def main() -> int:
+     snapshot = RollbackSnapshot(tgt_root) if args.apply else None
+     for rel in MIRROR_DIRS:
+         mirror_category(src_root, tgt_root, rel, plan, args.apply, args.force, snapshot)
++    for rel in MIRROR_TOP_FILES:
++        mirror_file(src_root / rel, tgt_root / rel, rel, tgt_root, plan, args.apply, args.force, snapshot)
+     merge_settings(src_root, tgt_root, plan, args.apply, args.force, snapshot)
+     merge_gitignore(tgt_root, plan, args.apply, args.force, snapshot)
+     if snapshot is not None and snapshot.snapshot_dir is not None:
+diff --git a/.claude/scripts/test_sync_template_to_target.py b/.claude/scripts/test_sync_template_to_target.py
+index 402e856..a62fddc 100644
+--- a/.claude/scripts/test_sync_template_to_target.py
++++ b/.claude/scripts/test_sync_template_to_target.py
+@@ -16,6 +16,9 @@ sys.modules["sync_template_to_target"] = sync
+ SPEC.loader.exec_module(sync)
+ 
+ REL_FILE = ".claude/scripts/example.py"
++TOP_DUAL_CI = ".github/workflows/dual-implement-ci.yml"
++TOP_CHANGELOG = "CHANGELOG.md"
++TOP_MYPY = "mypy.ini"
+ 
+ 
+ def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+@@ -48,6 +51,32 @@ def _make_sync_fixture(tmp_path: Path) -> tuple[Path, Path, Path]:
+     return src, tgt, tgt / REL_FILE
+ 
+ 
++def _commit_target_files(tgt: Path, *rel_files: str) -> None:
++    _git(tgt, "init", "-q")
++    _git(tgt, "config", "user.email", "test@example.invalid")
++    _git(tgt, "config", "user.name", "Test User")
++    _git(tgt, "add", *rel_files)
++    _git(tgt, "commit", "-q", "-m", "initial")
++
++
++def _run_template_sync(src: Path, tgt: Path, force: bool = False) -> int:
++    old_argv = sys.argv
++    sys.argv = [
++        "sync-template-to-target.py",
++        "--src",
++        str(src),
++        "--tgt",
++        str(tgt),
++        "--apply",
++    ]
++    if force:
++        sys.argv.append("--force")
++    try:
++        return sync.main()
++    finally:
++        sys.argv = old_argv
++
++
+ def _apply_scripts_sync(src: Path, tgt: Path, force: bool) -> tuple[object, object]:
+     plan = sync.Plan()
+     snapshot = sync.RollbackSnapshot(tgt)
+@@ -63,6 +92,57 @@ def _apply_scripts_sync(src: Path, tgt: Path, force: bool) -> tuple[object, obje
+     return plan, snapshot
+ 
+ 
++def test_mirror_top_files_constant_lists_three_files() -> None:
++    assert sync.MIRROR_TOP_FILES == [TOP_DUAL_CI, TOP_CHANGELOG, TOP_MYPY]
++
++
++def test_sync_mirrors_top_level_dual_implement_ci_yml(tmp_path: Path) -> None:
++    src = tmp_path / "src"
++    tgt = tmp_path / "tgt"
++    (src / ".claude").mkdir(parents=True)
++    _write(src / TOP_DUAL_CI, "template ci\n")
++    _write(tgt / TOP_DUAL_CI, "target ci\n")
++    _commit_target_files(tgt, TOP_DUAL_CI)
++
++    assert _run_template_sync(src, tgt) == 0
++
++    assert (tgt / TOP_DUAL_CI).read_text(encoding="utf-8") == "template ci\n"
++    snapshots = list((tgt / sync.ROLLBACK_SNAPSHOT_DIR).glob(f"*/{TOP_DUAL_CI}"))
++    assert len(snapshots) == 1
++    assert snapshots[0].read_text(encoding="utf-8") == "target ci\n"
++
++
++def test_sync_mirrors_top_level_changelog_and_mypy_ini(tmp_path: Path) -> None:
++    src = tmp_path / "src"
++    tgt = tmp_path / "tgt"
++    (src / ".claude").mkdir(parents=True)
++    _write(src / TOP_CHANGELOG, "template changelog\n")
++    _write(src / TOP_MYPY, "[mypy]\ntemplate = true\n")
++    _write(tgt / TOP_CHANGELOG, "target changelog\n")
++    _write(tgt / TOP_MYPY, "[mypy]\ntarget = true\n")
++    _commit_target_files(tgt, TOP_CHANGELOG, TOP_MYPY)
++
++    assert _run_template_sync(src, tgt) == 0
++
++    assert (tgt / TOP_CHANGELOG).read_text(encoding="utf-8") == "template changelog\n"
++    assert (tgt / TOP_MYPY).read_text(encoding="utf-8") == "[mypy]\ntemplate = true\n"
++
++
++def test_top_files_skipped_when_locally_modified_without_force(tmp_path: Path) -> None:
++    src = tmp_path / "src"
++    tgt = tmp_path / "tgt"
++    (src / ".claude").mkdir(parents=True)
++    _write(src / TOP_CHANGELOG, "template changelog\n")
++    _write(tgt / TOP_CHANGELOG, "target changelog\n")
++    _commit_target_files(tgt, TOP_CHANGELOG)
++    (tgt / TOP_CHANGELOG).write_text("local changelog\n", encoding="utf-8")
++
++    assert _run_template_sync(src, tgt) == 0
++
++    assert (tgt / TOP_CHANGELOG).read_text(encoding="utf-8") == "local changelog\n"
++    assert not (tgt / sync.ROLLBACK_SNAPSHOT_DIR).exists()
++
++
+ def test_sync_skips_locally_modified_without_force(tmp_path: Path) -> None:
+     src, tgt, target_file = _make_sync_fixture(tmp_path)
+     target_file.write_text("local change\n", encoding="utf-8")

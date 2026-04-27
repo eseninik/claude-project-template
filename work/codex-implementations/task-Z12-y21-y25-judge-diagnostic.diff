@@ -1,0 +1,215 @@
+diff --git a/.claude/hooks/codex-delegate-enforcer.py b/.claude/hooks/codex-delegate-enforcer.py
+index 43c523f..ab289f1 100644
+--- a/.claude/hooks/codex-delegate-enforcer.py
++++ b/.claude/hooks/codex-delegate-enforcer.py
+@@ -899,8 +899,38 @@ def _now_iso() -> str:
+         microsecond=0).isoformat()
+ 
+ 
++def _codex_appears_unavailable(
++    auth_path: Optional[Path] = None,
++    now: Optional[datetime.datetime] = None,
++    max_auth_age_hours: int = 24,
++) -> tuple[bool, str]:
++    """Return (True, reason) if Codex appears unusable, else (False, '')."""
++    logger = logging.getLogger(HOOK_NAME)
++    auth = auth_path or (Path.home() / ".codex" / "auth.json")
++    logger.debug(
++        "codex_appears_unavailable.enter auth_path=%s max_auth_age_hours=%s",
++        auth, max_auth_age_hours,
++    )
++    if not auth.exists():
++        reason = "~/.codex/auth.json missing"
++        logger.debug("codex_appears_unavailable.exit result=True reason=%s", reason)
++        return True, reason
++    age_hours = ((now or datetime.datetime.now()).timestamp()
++                 - auth.stat().st_mtime) / 3600
++    if age_hours > max_auth_age_hours:
++        reason = (
++            f"~/.codex/auth.json older than {max_auth_age_hours}h "
++            f"({int(age_hours)}h)"
++        )
++        logger.debug("codex_appears_unavailable.exit result=True reason=%s", reason)
++        return True, reason
++    logger.debug("codex_appears_unavailable.exit result=False reason=")
++    return False, ""
++
++
+ def _build_block_message(blocked_path: str, reason_code: str) -> str:
+     """Build the actionable DENY message for emit_deny."""
++    logger = logging.getLogger(HOOK_NAME)
+     reason_text = {
+         "no-results": "no codex-implement result found",
+         "no-results-dir": "work/codex-implementations/ does not exist",
+@@ -910,7 +940,17 @@ def _build_block_message(blocked_path: str, reason_code: str) -> str:
+         "parse-error": "could not parse codex-implement result",
+         "bash-no-cover": "Bash command would mutate code without cover",
+     }.get(reason_code, reason_code)
+-    msg = (
++    prefix = ""
++    try:
++        unavailable, unavailable_reason = _codex_appears_unavailable()
++        if unavailable:
++            prefix = (
++                "*** Codex appears unavailable: " + unavailable_reason + ".\n"
++                "*** Run `codex login` or check ~/.codex/auth.json, then retry.\n\n"
++            )
++    except Exception as exc:
++        logger.exception("codex_unavailable_check.failed exc=%s", exc)
++    msg = prefix + (
+         "Code Delegation Protocol: " + blocked_path + " blocked ("
+         + reason_text + ").\n\n"
+         "To start the dual-implement track for this path, run:\n\n"
+diff --git a/.claude/hooks/test_codex_delegate_enforcer_invariants.py b/.claude/hooks/test_codex_delegate_enforcer_invariants.py
+index 8830fc7..bbf8b1b 100644
+--- a/.claude/hooks/test_codex_delegate_enforcer_invariants.py
++++ b/.claude/hooks/test_codex_delegate_enforcer_invariants.py
+@@ -393,6 +393,70 @@ class TestI4Ledger(_Base):
+         self.assertIn("--describe", reason)
+         self.assertIn(target, reason)
+ 
++    def test_codex_unavailable_when_auth_missing(self):
++        """Missing auth file reports Codex unavailable."""
++        missing = self.root / "missing-auth.json"
++        unavailable, reason = self.mod._codex_appears_unavailable(auth_path=missing)
++        self.assertTrue(unavailable)
++        self.assertIn("missing", reason)
++
++    def test_codex_available_when_auth_recent(self):
++        """Fresh auth file reports Codex available."""
++        auth = self.root / "auth.json"
++        auth.write_text("{}", encoding="utf-8")
++        now = self.mod.datetime.datetime.fromtimestamp(auth.stat().st_mtime)
++        unavailable, reason = self.mod._codex_appears_unavailable(
++            auth_path=auth, now=now,
++        )
++        self.assertFalse(unavailable)
++        self.assertEqual(reason, "")
++
++    def test_codex_unavailable_when_auth_stale(self):
++        """Stale auth file reports Codex unavailable."""
++        auth = self.root / "auth.json"
++        auth.write_text("{}", encoding="utf-8")
++        old = time.time() - (48 * 3600)
++        os.utime(auth, (old, old))
++        now = self.mod.datetime.datetime.fromtimestamp(time.time())
++        unavailable, reason = self.mod._codex_appears_unavailable(
++            auth_path=auth, now=now,
++        )
++        self.assertTrue(unavailable)
++        self.assertIn("older", reason)
++
++    def test_block_message_mentions_unavailability_when_codex_down(self):
++        """DENY message prepends Codex availability hint when unavailable."""
++        target = "src/codex_down.py"
++        (self.root / "src" / "codex_down.py").write_text("# a\n", encoding="utf-8")
++        original = self.mod._codex_appears_unavailable
++        self.mod._codex_appears_unavailable = lambda: (True, "test reason")
++        try:
++            allowed, stdout = self._decide(self._edit_payload(target))
++        finally:
++            self.mod._codex_appears_unavailable = original
++        self.assertFalse(allowed)
++        parsed = json.loads(stdout)
++        reason = parsed["hookSpecificOutput"]["permissionDecisionReason"]
++        self.assertIn("appears unavailable", reason)
++        self.assertIn("test reason", reason)
++        self.assertIn("codex-inline-dual", reason)
++
++    def test_block_message_unchanged_when_codex_available(self):
++        """DENY message omits Codex availability hint when available."""
++        target = "src/codex_available.py"
++        (self.root / "src" / "codex_available.py").write_text("# a\n",
++                                                              encoding="utf-8")
++        original = self.mod._codex_appears_unavailable
++        self.mod._codex_appears_unavailable = lambda: (False, "")
++        try:
++            allowed, stdout = self._decide(self._edit_payload(target))
++        finally:
++            self.mod._codex_appears_unavailable = original
++        self.assertFalse(allowed)
++        parsed = json.loads(stdout)
++        reason = parsed["hookSpecificOutput"]["permissionDecisionReason"]
++        self.assertNotIn("appears unavailable", reason)
++        self.assertIn("codex-inline-dual", reason)
+ 
+ 
+ # ======================================================================
+diff --git a/.claude/scripts/judge_axes.py b/.claude/scripts/judge_axes.py
+index ac9f2e9..9cdc7db 100644
+--- a/.claude/scripts/judge_axes.py
++++ b/.claude/scripts/judge_axes.py
+@@ -180,11 +180,12 @@ def _git_diff_numstat(worktree: Path, base: str = "HEAD") -> tuple[int, int]:
+ 
+ def score_diff_size(worktree: Path, weight: int = 2, base: str = "HEAD",
+                     cap_lines: int = 500) -> AxisResult:
+-    """Smaller diff = higher score. score = max(0, 1 - added/cap_lines)."""
++    """Smaller diff = higher score. cap_lines is the asymptotic scale."""
+     _log(logging.DEBUG, "entry: score_diff_size", worktree=str(worktree), cap=cap_lines)
+     try:
+         added, removed = _git_diff_numstat(worktree, base)
+-        score = max(0.0, 1.0 - (added / cap_lines))
++        scale_factor = cap_lines
++        score = scale_factor / (scale_factor + max(0, added))
+         _log(logging.DEBUG, "exit: score_diff_size", score=score, added=added)
+         return AxisResult(name="diff_size", score=score, weight=weight,
+                           raw={"added": added, "removed": removed,
+diff --git a/.claude/scripts/test_judge.py b/.claude/scripts/test_judge.py
+index 013e7dd..c57e8d2 100644
+--- a/.claude/scripts/test_judge.py
++++ b/.claude/scripts/test_judge.py
+@@ -99,7 +99,7 @@ class TestDiffSize(unittest.TestCase):
+             # Add 50 lines uncommitted
+             _add_file(repo, "a.py", "# pre\n" + ("x = 1\n" * 50))
+             res = score_diff_size(repo, cap_lines=500)
+-            # ~50 added, cap 500 => 1 - 50/500 = 0.9
++            # ~50 added, cap 500 => 500 / (500 + 50) ~= 0.91
+             self.assertGreater(res.score, 0.85)
+             self.assertLess(res.score, 0.95)
+             self.assertEqual(res.raw["added"], 50)
+@@ -112,6 +112,29 @@ class TestDiffSize(unittest.TestCase):
+             self.assertAlmostEqual(res.score, 1.0)
+             self.assertEqual(res.raw["added"], 0)
+ 
++    def test_diff_size_zero_added_scores_one(self) -> None:
++        with patch("judge_axes._git_diff_numstat", return_value=(0, 0)):
++            res = score_diff_size(Path("."), cap_lines=500)
++        self.assertEqual(res.score, 1.0)
++
++    def test_diff_size_at_scale_scores_half(self) -> None:
++        with patch("judge_axes._git_diff_numstat", return_value=(500, 0)):
++            res = score_diff_size(Path("."), cap_lines=500)
++        self.assertGreaterEqual(res.score, 0.49)
++        self.assertLessEqual(res.score, 0.51)
++
++    def test_diff_size_far_above_scale_still_nonzero(self) -> None:
++        with patch("judge_axes._git_diff_numstat", return_value=(2000, 0)):
++            res = score_diff_size(Path("."), cap_lines=500)
++        self.assertGreater(res.score, 0.0)
++        self.assertLess(res.score, 0.3)
++
++    def test_diff_size_huge_diff_asymptotic(self) -> None:
++        with patch("judge_axes._git_diff_numstat", return_value=(10000, 0)):
++            res = score_diff_size(Path("."), cap_lines=500)
++        self.assertGreater(res.score, 0.0)
++        self.assertLessEqual(res.score, 0.1)
++
+ 
+ # ------------------------ logging_coverage ------------------------ #
+ 
+diff --git a/work/errors.md b/work/errors.md
+index 7a8c0e3..dc96c30 100644
+--- a/work/errors.md
++++ b/work/errors.md
+@@ -2048,3 +2048,11 @@ txt = p.read_text(encoding='utf-8`
+ """Codex Pool вЂ” warm pool of `codex app-server` in`
+ **Error:** Exit code 2 /usr/bin/bash: -c: line 3: unexpected EOF while looking for matching `''
+ 
++### 2026-04-26 16:16:01 — Bash
++**Context:** `rtk git status -s echo "---" git diff --cached --name-only`
++**Error:** Exit code 129 [rtk] /!\ No hook installed вЂ” run `rtk init -g` for automatic token savings error: unknown option `-' usage: git status [<options>] [--] [<pathspec>...]      -v, --[no-]verbose    be verbose     -s, --[no-]short      show status concisely     -b, --[no-]branch     show branch informa
++
++### 2026-04-26 16:16:05 — Bash
++**Context:** `rtk git status --porcelain echo "---staged:---" git diff --cached --name-only`
++**Error:** Exit code 129 [rtk] /!\ No hook installed вЂ” run `rtk init -g` for automatic token savings error: unknown option `-staged:---' usage: git status [<options>] [--] [<pathspec>...]      -v, --[no-]verbose    be verbose     -s, --[no-]short      show status concisely     -b, --[no-]branch     show bran
++

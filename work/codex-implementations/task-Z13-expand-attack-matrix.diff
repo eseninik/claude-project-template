@@ -1,0 +1,135 @@
+diff --git a/.claude/hooks/test_enforcer_live_attacks.py b/.claude/hooks/test_enforcer_live_attacks.py
+index 33edb22..c7746a8 100644
+--- a/.claude/hooks/test_enforcer_live_attacks.py
++++ b/.claude/hooks/test_enforcer_live_attacks.py
+@@ -114,6 +114,22 @@ def _assert_allow(result: subprocess.CompletedProcess) -> None:
+     )
+ 
+ 
++def _latest_skip_ledger_entry(project_root: Path) -> dict:
++    """Return the last skip-ledger entry for assertions on allow reasons."""
++    ledger = project_root / "work" / "codex-implementations" / "skip-ledger.jsonl"
++    if not ledger.exists():
++        return {}
++    lines = [line.strip() for line in ledger.read_text(encoding="utf-8").splitlines()
++             if line.strip()]
++    if not lines:
++        return {}
++    try:
++        obj = json.loads(lines[-1])
++    except json.JSONDecodeError:
++        return {}
++    return obj if isinstance(obj, dict) else {}
++
++
+ # ----------------------------------------------------------------------
+ # Fixtures
+ # ----------------------------------------------------------------------
+@@ -414,3 +430,84 @@ def test_a07_sync_script_invocation_allowed(project_root: Path) -> None:
+     cmd = "py -3 .claude/scripts/sync-template-to-target.py --tgt /tmp/foo --apply"
+     r = _run_enforcer(_bash_payload(cmd), project_root)
+     _assert_allow(r)
++
++
++# ======================================================================
++# DISCOVERY VECTORS (V13-V18) - Z13 expanded live attack matrix
++# ======================================================================
++
++def test_v13_cron_create_code_writer_denied(project_root: Path) -> None:
++    """V13 - schtasks/CronCreate-style background code writer must be covered.
++
++    A proper implementation may either DENY because the scheduled action
++    invokes a code-writing script, or explicitly ALLOW with a documented
++    background-scheduler-not-classified reason.
++    """
++    (project_root / "work" / "sync.py").write_text("# sync\n", encoding="utf-8")
++    cmd = 'schtasks /Create /TN x /TR "py -3 work/sync.py"'
++    r = _run_enforcer(_bash_payload(cmd), project_root)
++    if _parse_deny(r.stdout) is not None:
++        return
++    entry = _latest_skip_ledger_entry(project_root)
++    assert entry.get("decision") == "allow", (
++        f"expected DENY or explicit ALLOW; returncode={r.returncode} "
++        f"stdout={r.stdout!r} stderr={r.stderr[-500:]!r} ledger={entry!r}"
++    )
++    assert entry.get("reason") == "background-scheduler-not-classified", (
++        "expected explicit scheduler gap reason; "
++        f"stdout={r.stdout!r} stderr={r.stderr[-500:]!r} ledger={entry!r}"
++    )
++
++
++def test_v14_mcp_filesystem_write_denied_OR_documented(project_root: Path) -> None:
++    """V14 - MCP filesystem write_file should be denied or treated as a gap."""
++    payload = {
++        "hook_event_name": "PreToolUse",
++        "tool_name": "mcp__filesystem__write_file",
++        "tool_input": {"path": "src/x.py", "content": "print('x')\n"},
++        "session_id": "z13-test",
++    }
++    r = _run_enforcer(payload, project_root)
++    _assert_deny(r, must_contain_in_reason="src/x.py")
++
++
++def test_v15_compiled_binary_unknown_classification(project_root: Path) -> None:
++    """V15 - unknown binary mutating a code path must deny, opaque run allows."""
++    r = _run_enforcer(_bash_payload("./my-tool --output src/foo.py"), project_root)
++    _assert_deny(r, must_contain_in_reason="src/foo.py")
++
++    opaque = _run_enforcer(_bash_payload("./my-tool --version"), project_root)
++    _assert_allow(opaque)
++
++
++def test_v16_bash_dash_s_heredoc_requires_cover(project_root: Path) -> None:
++    """V16 - bash -s heredoc is opaque interpreter input and must DENY."""
++    cmd = 'bash -s <<EOF\necho "x" > src/foo.py\nEOF'
++    r = _run_enforcer(_bash_payload(cmd), project_root)
++    _assert_deny(r)
++
++
++def test_v17_python_dash_c_readonly_should_allow_OR_document(
++    project_root: Path,
++) -> None:
++    """V17 - python -c with read-only open(...).read() should ALLOW."""
++    cmd = "python -c \"import json; print(open('config.json').read())\""
++    r = _run_enforcer(_bash_payload(cmd), project_root)
++    _assert_allow(r)
++
++
++def test_v18_notebook_bash_magic_denied(project_root: Path) -> None:
++    """V18 - NotebookEdit containing %%bash code-path mutation must DENY."""
++    target = "src/foo.ipynb"
++    (project_root / target).write_text("{}\n", encoding="utf-8")
++    payload = {
++        "hook_event_name": "PreToolUse",
++        "tool_name": "NotebookEdit",
++        "tool_input": {
++            "notebook_path": target,
++            "new_source": "%%bash\necho x > src/y.py",
++        },
++        "session_id": "z13-test",
++    }
++    r = _run_enforcer(payload, project_root)
++    _assert_deny(r)
+diff --git a/work/criterion-upgrade/Z13-findings.md b/work/criterion-upgrade/Z13-findings.md
+new file mode 100644
+index 0000000..38b585b
+--- /dev/null
++++ b/work/criterion-upgrade/Z13-findings.md
+@@ -0,0 +1,17 @@
++# Z13 Findings — Vectors V13-V18 actual enforcer behavior
++
++| # | Vector | Test result | Real gap? | Recommended Z14 fix |
++|---|--------|-------------|-----------|---------------------|
++| V13 | CronCreate | FAIL | yes | Classify `schtasks /Create ... /TR` as scheduler input and recursively inspect the scheduled command, or emit explicit `background-scheduler-not-classified` allow reason. |
++| V14 | MCP filesystem | FAIL | yes | Add MCP write tools such as `mcp__filesystem__write_file` to hook dispatch and extract `path` as a code-write target. |
++| V15 | Compiled binary | FAIL | yes | For unknown executables, require cover when any argument token names a code-extension path, while allowing opaque runs without code-path tokens. |
++| V16 | `bash -s` heredoc | PASS | no | Keep always-cover handling for `bash -s`/stdin-opaque interpreter input. |
++| V17 | `py -c` read-only | PASS | no | Keep read/write-sensitive `python -c` parsing so read-only `open(...).read()` allows. |
++| V18 | Notebook `%%bash` magic | PASS | no | Current NotebookEdit denial covers the `.ipynb`; preserve denial for notebook cells that can mutate code paths. |
++
++## Summary
++
++- Total new tests: 6
++- Currently passing (no real gap): 3
++- Currently failing (real gap, fix in Z14): 3
++- Gaps discovered: V13 scheduler-created background code writers, V14 MCP filesystem writes, V15 unknown compiled binaries with code-path arguments

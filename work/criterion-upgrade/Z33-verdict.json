@@ -1,0 +1,165 @@
+{
+  "task_id": "Z33-full-parity-sync",
+  "timestamp": "2026-04-26T19:09:47.992841+00:00",
+  "winner": "tie",
+  "delta": -0.0094,
+  "tie_delta": 0.03,
+  "scores": {
+    "claude": {
+      "aggregate": 0.8079,
+      "axes": {
+        "tests_passed": {
+          "name": "tests_passed",
+          "score": 1.0,
+          "weight": 10,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        "diff_size": {
+          "name": "diff_size",
+          "score": 0.7133,
+          "weight": 2,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "added": 201,
+            "removed": 0,
+            "cap_lines": 500,
+            "base": "11ef9496fbbae42ae513a928bc8263ccc3a6c7f9"
+          }
+        },
+        "logging_coverage": {
+          "name": "logging_coverage",
+          "score": 0.0,
+          "weight": 3,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "covered": 0,
+            "total": 6,
+            "window": 5
+          }
+        },
+        "lint_clean": {
+          "name": "lint_clean",
+          "score": 1.0,
+          "weight": 2,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "files": 2,
+            "compile_errors": 0,
+            "pyflakes_warnings": 0,
+            "pyflakes_used": false
+          }
+        },
+        "complexity": {
+          "name": "complexity",
+          "score": 0.731,
+          "weight": 1,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "avg_cc": 5.38,
+            "max_cc": 15,
+            "n_functions": 29
+          }
+        },
+        "type_check": {
+          "name": "type_check",
+          "score": 1.0,
+          "weight": 2,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "errors": 0,
+            "files": 2
+          }
+        }
+      }
+    },
+    "codex": {
+      "aggregate": 0.8173,
+      "axes": {
+        "tests_passed": {
+          "name": "tests_passed",
+          "score": 1.0,
+          "weight": 10,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "passed": 4,
+            "total": 4
+          }
+        },
+        "diff_size": {
+          "name": "diff_size",
+          "score": 0.7924,
+          "weight": 2,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "added": 131,
+            "removed": 18,
+            "cap_lines": 500,
+            "base": "11ef9496fbbae42ae513a928bc8263ccc3a6c7f9"
+          }
+        },
+        "logging_coverage": {
+          "name": "logging_coverage",
+          "score": 0.0,
+          "weight": 3,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "covered": 0,
+            "total": 7,
+            "window": 5
+          }
+        },
+        "lint_clean": {
+          "name": "lint_clean",
+          "score": 1.0,
+          "weight": 2,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "files": 2,
+            "compile_errors": 0,
+            "pyflakes_warnings": 0,
+            "pyflakes_used": false
+          }
+        },
+        "complexity": {
+          "name": "complexity",
+          "score": 0.7617,
+          "weight": 1,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "avg_cc": 4.77,
+            "max_cc": 15,
+            "n_functions": 30
+          }
+        },
+        "type_check": {
+          "name": "type_check",
+          "score": 1.0,
+          "weight": 2,
+          "skipped": false,
+          "skip_reason": null,
+          "raw": {
+            "errors": 0,
+            "files": 2
+          }
+        }
+      }
+    }
+  },
+  "rationale_auto": "winner=tie — biggest axis delta on 'diff_size' (claude=0.713, codex=0.792)",
+  "rationale_manual": null
+}

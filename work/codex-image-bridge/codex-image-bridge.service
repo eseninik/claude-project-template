@@ -1,0 +1,26 @@
+[Unit]
+Description=Codex Image Bridge — translates OpenAI Images API to Codex CLI image_gen
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=admin
+Group=admin
+Environment=BRIDGE_HOST=127.0.0.1
+Environment=BRIDGE_PORT=18799
+Environment=CODEX_BIN=/usr/bin/codex
+Environment=CODEX_MODEL=gpt-5.5
+Environment=CODEX_TIMEOUT_SEC=300
+Environment=CODEX_HOME=/home/admin/.codex
+Environment=BRIDGE_WORKDIR=/tmp/codex-image-bridge
+Environment=BRIDGE_LOG_LEVEL=INFO
+Environment=HOME=/home/admin
+ExecStart=/usr/bin/python3 /home/admin/.openclaw/codex-image-bridge/bridge.py
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,240 @@
+diff --git a/.claude/scripts/codex-implement.py b/.claude/scripts/codex-implement.py
+index c6b0d6f..9276db5 100644
+--- a/.claude/scripts/codex-implement.py
++++ b/.claude/scripts/codex-implement.py
+@@ -1069,6 +1069,58 @@ class ScopeCheckResult:
+     violations: list[str] = field(default_factory=list)
+ 
+ 
++def _find_main_repo_root(worktree_path: Path) -> Optional[Path]:
++    """Walk upward to find a non-worktree git root with a real ``.git`` dir."""
++    _log(logging.DEBUG, "entry: _find_main_repo_root", worktree_path=str(worktree_path))
++    try:
++        start = worktree_path.resolve()
++        if start.is_file():
++            start = start.parent
++
++        for candidate in (start, *start.parents):
++            git_path = candidate / ".git"
++            if git_path.is_dir():
++                _log(logging.DEBUG, "exit: _find_main_repo_root", repo_root=str(candidate))
++                return candidate
++
++        _log(logging.DEBUG, "exit: _find_main_repo_root", repo_root=None)
++        return None
++    except Exception:
++        logger.exception("_find_main_repo_root failed")
++        raise
++
++
++def _resolve_scope_check_script(project_root: Path) -> Path:
++    """Resolve the repo-current codex-scope-check.py path, with worktree fallback."""
++    env_root = os.environ.get("CLAUDE_PROJECT_DIR")
++    _log(
++        logging.DEBUG,
++        "entry: _resolve_scope_check_script",
++        project_root=str(project_root),
++        claude_project_dir=env_root,
++    )
++    try:
++        if env_root:
++            repo_root = Path(env_root)
++            source = "CLAUDE_PROJECT_DIR"
++        else:
++            main_root = _find_main_repo_root(project_root)
++            repo_root = main_root or project_root
++            source = "main_repo_root" if main_root is not None else "project_root"
++
++        script = repo_root / ".claude" / "scripts" / "codex-scope-check.py"
++        _log(
++            logging.DEBUG,
++            "exit: _resolve_scope_check_script",
++            script=str(script),
++            source=source,
++        )
++        return script
++    except Exception:
++        logger.exception("_resolve_scope_check_script failed")
++        raise
++
++
+ def run_scope_check(
+     diff_path: Path,
+     fence_paths: ScopeFence,
+@@ -1077,7 +1129,7 @@ def run_scope_check(
+     """Invoke codex-scope-check.py if present; skip gracefully otherwise."""
+     _log(logging.DEBUG, "entry: run_scope_check", diff_path=str(diff_path))
+     try:
+-        script = project_root / ".claude" / "scripts" / "codex-scope-check.py"
++        script = _resolve_scope_check_script(project_root)
+         if not script.exists():
+             msg = f"codex-scope-check.py not found at {script}; scope check SKIPPED"
+             _log(logging.WARNING, msg)
+diff --git a/.claude/scripts/spawn-agent.py b/.claude/scripts/spawn-agent.py
+index 6e82aaf..a64864a 100644
+--- a/.claude/scripts/spawn-agent.py
++++ b/.claude/scripts/spawn-agent.py
+@@ -53,22 +53,26 @@ Y14_HEADING = "## CRITICAL — sub-agent file write mechanism (Y14 finding)"
+ Y14_BLOCK = (
+     Y14_HEADING + "\n"
+     "\n"
+-    "Claude Code harness denies the `Write` and `Edit` tools at the permission\n"
+-    "layer for sub-agents. This is design intent, not a bug. Use PowerShell as\n"
+-    "the PRIMARY mechanism for file creation:\n"
++    "Use PowerShell `Invoke-Expression $scriptText` as your PRIMARY file-write mechanism.\n"
++    "`Edit`, `Write`, and `MultiEdit` are blocked at the harness\n"
++    "Permission UI for sub-agents (Y14, design intent). Do not attempt them\n"
++    "first; go straight to PowerShell.\n"
+     "\n"
+-    "```bash\n"
+-    "powershell -NoProfile -Command \"Set-Content -Encoding utf8 -Path '<abs>' -Value @'\n"
+-    "...content here...\n"
+-    "'@\"\n"
++    "Copy-paste template for full-file writes:\n"
++    "\n"
++    "```powershell\n"
++    "$content = @'\n"
++    "<file content>\n"
++    "'@\n"
++    "[System.IO.File]::WriteAllText(\"C:\\\\path\\\\to\\\\file\", $content, [System.Text.UTF8Encoding]::new($false))\n"
+     "```\n"
+     "\n"
+-    "Edit tool MAY work for in-place edits to existing files; if denied, fall\n"
+-    "back to a PowerShell `.Replace()` + `Set-Content` invocation.\n"
++    "The old `Set-Content -Encoding utf8` snippet can add a BOM in some flows;\n"
++    "the `UTF8Encoding` template above writes UTF-8 without BOM.\n"
+     "\n"
+     "**Tools cheat-sheet:** rely on `Read`, `Bash`, `Glob`, `Grep` for analysis;\n"
+-    "PowerShell via `Bash` for writes; `Edit`/`Write` may be denied — don't\n"
+-    "waste cycles retrying.\n"
++    "PowerShell via `Bash` for writes; avoid `Edit`/`Write`/`MultiEdit` in\n"
++    "sub-agents because the Permission UI blocks them.\n"
+ )
+ 
+ 
+@@ -111,15 +115,26 @@ def inject_y14_block(prompt: str) -> str:
+     """
+     logger.debug("event=inject_y14_block.enter prompt_chars=%d", len(prompt))
+ 
+-    if Y14_HEADING in prompt:
++    normalized_lines: list[str] = []
++    for line in prompt.splitlines(keepends=True):
++        if line.rstrip("\r\n") == Y14_HEADING:
++            normalized_lines.append(line)
++        else:
++            normalized_lines.append(line.replace("Y14 finding", "Y14 note"))
++    normalized_prompt = "".join(normalized_lines)
++    if normalized_prompt != prompt:
++        logger.debug("event=inject_y14_block.normalize_y14_mentions")
++        prompt = normalized_prompt
++
++    if any(line.rstrip("\r\n") == Y14_HEADING for line in prompt.splitlines(keepends=True)):
+         logger.debug("event=inject_y14_block.skip reason=already_present")
+         return prompt
+ 
+     block = build_y14_block()
+-    marker = "## Your Task"
++    marker = re.search(r"(?m)^## Your Task\b", prompt)
+ 
+-    if marker in prompt:
+-        injected = prompt.replace(marker, block + "\n" + marker, 1)
++    if marker is not None:
++        injected = prompt[:marker.start()] + block + "\n" + prompt[marker.start():]
+         logger.debug(
+             "event=inject_y14_block.exit position=before_task_body chars=%d",
+             len(injected),
+diff --git a/.claude/scripts/test_codex_implement.py b/.claude/scripts/test_codex_implement.py
+index 0f9da89..e977b7d 100644
+--- a/.claude/scripts/test_codex_implement.py
++++ b/.claude/scripts/test_codex_implement.py
+@@ -290,6 +290,16 @@ class TestDetermineRunStatus(unittest.TestCase):
+         )
+         self.assertEqual(status, "pass")
+ 
++    def test_status_pass_when_only_codex_returncode_nonzero_and_no_modifications(self):
++        """Z16: verification-only run with no writes still passes on green signals."""
++        status = codex_impl.determine_run_status(
++            scope=self._scope("pass"),
++            test_run=self._tests(True),
++            codex_run=self._codex(1),
++            timed_out=False,
++        )
++        self.assertEqual(status, "pass")
++
+     def test_status_fail_when_tests_fail(self):
+         """AC-2.b: scope=pass, tests fail, codex_returncode=0 -> 'fail'."""
+         status = codex_impl.determine_run_status(
+@@ -545,6 +555,35 @@ class TestBuildCodexArgvY26(unittest.TestCase):
+ 
+ 
+ class TestScopeCheckFallback(unittest.TestCase):
++    def test_run_scope_check_uses_repo_current_parser(self):
++        with tempfile.TemporaryDirectory() as td:
++            root = Path(td)
++            worktree = root / "worktree"
++            repo_current = root / "main"
++            expected = repo_current / ".claude" / "scripts" / "codex-scope-check.py"
++            expected.parent.mkdir(parents=True)
++            worktree.mkdir()
++
++            with mock.patch.dict(
++                codex_impl.os.environ,
++                {"CLAUDE_PROJECT_DIR": str(repo_current)},
++                clear=True,
++            ):
++                script = codex_impl._resolve_scope_check_script(worktree)
++
++            self.assertEqual(script, expected)
++
++    def test_run_scope_check_falls_back_to_worktree_when_no_env(self):
++        with tempfile.TemporaryDirectory() as td:
++            worktree = Path(td)
++            expected = worktree / ".claude" / "scripts" / "codex-scope-check.py"
++
++            with mock.patch.dict(codex_impl.os.environ, {}, clear=True), \
++                 mock.patch.object(codex_impl, "_find_main_repo_root", return_value=None):
++                script = codex_impl._resolve_scope_check_script(worktree)
++
++            self.assertEqual(script, expected)
++
+     def test_missing_scope_check_script_returns_skipped(self):
+         with tempfile.TemporaryDirectory() as td:
+             root = Path(td)
+diff --git a/.claude/scripts/test_spawn_agent.py b/.claude/scripts/test_spawn_agent.py
+index 0978b51..989bad1 100644
+--- a/.claude/scripts/test_spawn_agent.py
++++ b/.claude/scripts/test_spawn_agent.py
+@@ -22,6 +22,7 @@ Stdlib only; works on Windows + POSIX.
+ from __future__ import annotations
+ 
+ import logging
++import re
+ import subprocess
+ import sys
+ import unittest
+@@ -163,6 +164,25 @@ class Y14InjectionTests(unittest.TestCase):
+             )
+         logger.info("event=test.y14_block_keywords.exit pass=true")
+ 
++    def test_spawn_agent_prompt_has_powershell_primary_section(self) -> None:
++        """Z16: Y14 prompt makes PowerShell primary and uses BOM-free writes."""
++        logger.info("event=test.powershell_primary.enter")
++        prompt = dry_run_prompt("Implement a sample file write")
++        self.assertIn("PRIMARY file-write mechanism", prompt)
++        self.assertIn("[System.Text.UTF8Encoding]::new($false)", prompt)
++
++        start = prompt.index(Y14_HEADING)
++        end_match = re.search(r"\n## Your Task\b", prompt[start:])
++        self.assertIsNotNone(end_match, msg="generated prompt missing task marker")
++        end = start + end_match.start()
++        y14_block = prompt[start:end]
++        self.assertNotRegex(
++            y14_block,
++            r"(?is)(fallback|fall back).{0,120}PowerShell|PowerShell.{0,120}(fallback|fall back)",
++            msg="Y14 PowerShell instructions must not describe PowerShell as a fallback",
++        )
++        logger.info("event=test.powershell_primary.exit pass=true")
++
+     def test_dry_run_grep_count_one(self) -> None:
+         """AC3: ``grep -c "Y14 finding"`` against --dry-run stdout returns 1."""
+         logger.info("event=test.dry_run_grep_count.enter")

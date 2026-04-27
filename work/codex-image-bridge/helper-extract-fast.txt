@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+"""Extract first image from /v1/images/* fast-path response into output file.
+
+Usage: extract-fast.py <resp_json_path> <output_png>
+Exit 0 on success, non-zero on failure.
+"""
+import sys
+import json
+import base64
+from pathlib import Path
+
+
+def main():
+    resp_path, out = sys.argv[1:3]
+    try:
+        d = json.loads(Path(resp_path).read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"bad json: {e}", file=sys.stderr)
+        sys.exit(1)
+    data = d.get("data") or []
+    if not data:
+        print("no data array in response", file=sys.stderr)
+        sys.exit(1)
+    b64 = data[0].get("b64_json") or ""
+    if not b64:
+        print("no b64_json in data[0]", file=sys.stderr)
+        sys.exit(1)
+    Path(out).write_bytes(base64.b64decode(b64))
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,239 @@
+diff --git a/.claude/scripts/codex-ask.py b/.claude/scripts/codex-ask.py
+index 7164719..f64816f 100644
+--- a/.claude/scripts/codex-ask.py
++++ b/.claude/scripts/codex-ask.py
+@@ -31,6 +31,8 @@ if sys.platform == "win32":
+ BROKER_URL = "ws://127.0.0.1:4500"
+ INACTIVITY_TIMEOUT = 30
+ MAX_TIMEOUT = 300
++EXEC_TIMEOUT_DEFAULT = 180
++EXEC_TIMEOUT_STRATEGIC = 900
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -151,13 +153,15 @@ def ask_via_broker(prompt):
+     return text.strip() if text.strip() else None
+ 
+ 
+-def ask_via_exec(prompt):
++def ask_via_exec(prompt: str, strategic: bool = False) -> str | None:
+     """Fallback: ask via codex exec (cold start).
+ 
+     Delegates stdout parsing to ``parse_codex_exec_stdout`` which handles
+     both v0.117 (sentinel-based) and v0.125 (header-on-stderr) formats.
+     """
+-    logger.info("ask_via_exec.enter prompt_len=%d", len(prompt or ""))
++    timeout = EXEC_TIMEOUT_STRATEGIC if strategic else EXEC_TIMEOUT_DEFAULT
++    logger.info("ask_via_exec.enter prompt_len=%d strategic=%s timeout=%d",
++                len(prompt or ""), strategic, timeout)
+     codex = shutil.which("codex")
+     if not codex:
+         logger.info("ask_via_exec.exit result_truthy=False reason=codex-not-in-path")
+@@ -167,7 +171,7 @@ def ask_via_exec(prompt):
+             [codex, "exec", prompt[:3000], "-m", "gpt-5.5",
+              "--sandbox", "read-only", "--full-auto", "--ephemeral"],
+             capture_output=True, text=True, encoding="utf-8", errors="replace",
+-            timeout=120,
++            timeout=timeout,
+         )
+         if r.returncode != 0:
+             logger.info("ask_via_exec.exit result_truthy=False reason=returncode-%d",
+@@ -185,11 +189,16 @@ def ask_via_exec(prompt):
+ 
+ 
+ def main():
+-    if len(sys.argv) < 2:
+-        print("Usage: py -3 .claude/scripts/codex-ask.py \"your question\"", file=sys.stderr)
++    argv = sys.argv[1:]
++    strategic = "--strategic" in argv
++    if strategic:
++        argv = [arg for arg in argv if arg != "--strategic"]
++    if not argv:
++        print("Usage: py -3 .claude/scripts/codex-ask.py [--strategic] \"your question\"",
++              file=sys.stderr)
+         sys.exit(1)
+ 
+-    prompt = " ".join(sys.argv[1:])
++    prompt = " ".join(argv)
+ 
+     # Try broker first (fast, warm)
+     result = None
+@@ -200,7 +209,7 @@ def main():
+ 
+     # Fallback to codex exec
+     if not result:
+-        result = ask_via_exec(prompt)
++        result = ask_via_exec(prompt, strategic=strategic)
+ 
+     if result:
+         print(f"--- Codex gpt-5.5 opinion ---")
+diff --git a/.claude/scripts/judge.py b/.claude/scripts/judge.py
+index 8086ee3..946aa74 100644
+--- a/.claude/scripts/judge.py
++++ b/.claude/scripts/judge.py
+@@ -299,7 +299,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
+     p.add_argument("--claude-worktree", required=True, type=Path, help="Claude worktree")
+     p.add_argument("--codex-worktree", required=True, type=Path, help="Codex worktree")
+     p.add_argument("--output", type=Path, default=None, help="Verdict JSON path")
+-    p.add_argument("--tie-delta", type=float, default=0.02, help="Tie threshold (0.02)")
++    p.add_argument("--tie-delta", type=float, default=0.03,
++                   help=("Tie threshold (0.03). Threshold tuned from observed "
++                         "dual-implement deltas"))
+     p.add_argument("--base", default="auto",
+                    help="Git diff base. 'auto' = auto-resolve per side via "
+                         "sidecar .dual-base-ref then merge-base HEAD <main|master|dev> "
+diff --git a/.claude/scripts/judge_axes.py b/.claude/scripts/judge_axes.py
+index 0180adc..519d269 100644
+--- a/.claude/scripts/judge_axes.py
++++ b/.claude/scripts/judge_axes.py
+@@ -213,7 +213,9 @@ def score_diff_size(worktree: Path, weight: int = 2, base: str = "HEAD",
+ 
+ 
+ _FUNC_RE = re.compile(r"^\+(\s*)def\s+\w+\s*\(")
+-_LOGGER_RE = re.compile(r"logger\.|structlog\.|_log\(")
++_LOGGER_RE = re.compile(
++    r"logger\.|structlog\.|(?<![\w.])(?:_log|log_info|log_warn|log_error|log_debug)\s*\("
++)
+ 
+ 
+ def _git_diff_text(worktree: Path, base: str = "HEAD") -> str:
+@@ -387,8 +389,17 @@ def score_type_check(worktree: Path, weight: int = 2, base: str = "HEAD",
+     try:
+         if not _module_available("mypy"):
+             return _skip("type_check", weight, "mypy not installed")
+-        has_config = any((worktree / p).exists()
+-                         for p in ("mypy.ini", ".mypy.ini", "setup.cfg", "pyproject.toml"))
++        has_config = (worktree / "mypy.ini").exists()
++        pyproject = worktree / "pyproject.toml"
++        if not has_config and pyproject.exists():
++            try:
++                has_config = bool(re.search(
++                    r"^\s*\[tool\.mypy\]\s*$",
++                    pyproject.read_text(encoding="utf-8", errors="replace"),
++                    re.MULTILINE,
++                ))
++            except Exception:
++                logger.exception("score_type_check pyproject config read failed")
+         if not has_config:
+             return _skip("type_check", weight, "no mypy config")
+         files = files_override if files_override is not None else _list_modified_py(worktree, base)
+diff --git a/.claude/scripts/test_codex_ask.py b/.claude/scripts/test_codex_ask.py
+index 5061165..63ac9a7 100644
+--- a/.claude/scripts/test_codex_ask.py
++++ b/.claude/scripts/test_codex_ask.py
+@@ -119,6 +119,22 @@ class TestAskViaExecIntegration:
+                                                        stderr="[ts] header\n")):
+             assert codex_ask.ask_via_exec("ping say OK") == "OK"
+ 
++    def test_ask_via_exec_default_timeout_180(self):
++        with mock.patch.object(codex_ask.shutil, "which", return_value="/usr/bin/codex"), \
++             mock.patch.object(codex_ask.subprocess, "run",
++                               return_value=_completed(0, stdout="OK\n",
++                                                       stderr="[ts] header\n")) as run_mock:
++            assert codex_ask.ask_via_exec("ping say OK") == "OK"
++        assert run_mock.call_args.kwargs["timeout"] == 180
++
++    def test_ask_via_exec_strategic_timeout_900(self):
++        with mock.patch.object(codex_ask.shutil, "which", return_value="/usr/bin/codex"), \
++             mock.patch.object(codex_ask.subprocess, "run",
++                               return_value=_completed(0, stdout="OK\n",
++                                                       stderr="[ts] header\n")) as run_mock:
++            assert codex_ask.ask_via_exec("deep review", strategic=True) == "OK"
++        assert run_mock.call_args.kwargs["timeout"] == 900
++
+     def test_ask_via_exec_v117_returns_response(self):
+         v117_stdout = (
+             "[ts] header\n"
+@@ -147,7 +163,7 @@ class TestAskViaExecIntegration:
+     def test_ask_via_exec_timeout_returns_none(self):
+         with mock.patch.object(codex_ask.shutil, "which", return_value="/usr/bin/codex"), \
+              mock.patch.object(codex_ask.subprocess, "run",
+-                               side_effect=subprocess.TimeoutExpired(cmd="codex", timeout=120)):
++                               side_effect=subprocess.TimeoutExpired(cmd="codex", timeout=180)):
+             assert codex_ask.ask_via_exec("anything") is None
+ 
+ 
+@@ -187,7 +203,8 @@ class TestMainFlowUnchanged:
+         monkeypatch.setenv("CLAUDE_PROJECT_DIR", str(tmp_path))
+         monkeypatch.setattr(codex_ask, "ask_via_broker",
+                             lambda _p: (_ for _ in ()).throw(RuntimeError("no broker")))
+-        monkeypatch.setattr(codex_ask, "ask_via_exec", lambda _p: "FAKE-RESPONSE")
++        monkeypatch.setattr(codex_ask, "ask_via_exec",
++                            lambda _p, strategic=False: "FAKE-RESPONSE")
+         monkeypatch.setattr(sys, "argv", ["codex-ask.py", "ping"])
+ 
+         with pytest.raises(SystemExit) as exc:
+diff --git a/.claude/scripts/test_judge.py b/.claude/scripts/test_judge.py
+index 1e9d4cd..b9e7ec9 100644
+--- a/.claude/scripts/test_judge.py
++++ b/.claude/scripts/test_judge.py
+@@ -182,6 +182,18 @@ class TestLoggingCoverage(unittest.TestCase):
+         self.assertAlmostEqual(res.score, 1.0)
+         self.assertEqual(res.raw["covered"], 1)
+ 
++    def test_logging_coverage_counts_delegated_log_calls(self) -> None:
++        diff = textwrap.dedent("""\
++            diff --git a/x.py b/x.py
++            @@ -0,0 +1,3 @@
++            +def foo():
++            +    log_info("hi")
++            +    return 1
++            """)
++        res = score_logging_coverage(Path("."), diff_text=diff)
++        self.assertAlmostEqual(res.score, 1.0)
++        self.assertEqual(res.raw["covered"], 1)
++
+     def test_function_without_logger(self) -> None:
+         diff = textwrap.dedent("""\
+             diff --git a/x.py b/x.py
+@@ -261,6 +273,24 @@ class TestOptionalToolSkip(unittest.TestCase):
+             self.assertTrue(res.skipped)
+             self.assertIn("mypy", res.skip_reason or "")
+ 
++    def test_score_type_check_active_when_mypy_ini_present(self) -> None:
++        with tempfile.TemporaryDirectory() as td:
++            repo = Path(td)
++            sample = _add_file(repo, "typed.py", "x: int = 1\n")
++            _add_file(repo, "mypy.ini", "[mypy]\npython_version = 3.12\n")
++            completed = subprocess.CompletedProcess(
++                args=[sys.executable, "-m", "mypy"], returncode=0,
++                stdout="", stderr="",
++            )
++            with patch.object(judge_axes, "_module_available", return_value=True), \
++                 patch.object(judge_axes.subprocess, "run",
++                              return_value=completed) as run_mock:
++                res = judge_axes.score_type_check(repo, files_override=[sample])
++            self.assertFalse(res.skipped)
++            self.assertAlmostEqual(res.score, 1.0)
++            self.assertEqual(res.raw["files"], 1)
++            self.assertIn("--no-error-summary", run_mock.call_args.args[0])
++
+ 
+ # ------------------------ weighted aggregate + winner ------------------------ #
+ 
+@@ -363,6 +393,14 @@ class TestCLI(unittest.TestCase):
+         self.assertIn("--base", proc.stdout)
+         self.assertIn("auto", proc.stdout)
+ 
++    def test_tie_threshold_default_is_0_03(self) -> None:
++        args = judge.build_arg_parser().parse_args([
++            "--task", "T1.md",
++            "--claude-worktree", "claude",
++            "--codex-worktree", "codex",
++        ])
++        self.assertAlmostEqual(args.tie_delta, 0.03)
++
+     def test_malformed_task_exit_1(self) -> None:
+         with tempfile.TemporaryDirectory() as td:
+             missing = Path(td) / "nope.md"
+diff --git a/mypy.ini b/mypy.ini
+new file mode 100644
+index 0000000..34f1230
+--- /dev/null
++++ b/mypy.ini
+@@ -0,0 +1,5 @@
++[mypy]
++python_version = 3.12
++ignore_missing_imports = True
++warn_unused_ignores = True
++strict_optional = False

@@ -1,0 +1,1065 @@
+diff --git a/.claude/hooks/codex-delegate-enforcer.py b/.claude/hooks/codex-delegate-enforcer.py
+index 62079fa..64d32cd 100644
+--- a/.claude/hooks/codex-delegate-enforcer.py
++++ b/.claude/hooks/codex-delegate-enforcer.py
+@@ -7,10 +7,13 @@ deny via PreToolUse JSON. Fail-open on any exception.
+ """
+ from __future__ import annotations
+ import fnmatch
++from datetime import datetime, timezone
+ import json
+ import logging
+ import os
+ import re
++import shlex
++import subprocess
+ import sys
+ import time
+ from pathlib import Path
+@@ -24,12 +27,13 @@ RESULT_MAX_AGE_SECONDS: int = 15 * 60
+ MAX_RESULT_FILES_TO_SCAN: int = 50
+ CODEX_IMPLEMENTATIONS_DIR = "work/codex-implementations"
+ CODEX_TASKS_DIR = "work/codex-primary/tasks"
++SKIP_LEDGER_REL = "work/codex-implementations/skip-ledger.jsonl"
+ # AC5 - delegated code extensions. Frozenset for O(1) lookup.
+ CODE_EXTENSIONS: frozenset = frozenset({
+     ".py", ".pyi", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx",
+     ".sh", ".bash", ".zsh", ".go", ".rs", ".rb", ".java", ".kt",
+     ".swift", ".c", ".cpp", ".cc", ".h", ".hpp", ".cs", ".php",
+-    ".sql", ".lua", ".r",
++    ".sql", ".lua", ".r", ".pl",
+ })
+ # AC6 - exempt path globs. Matched against POSIX relative path.
+ EXEMPT_PATTERNS: tuple = (
+@@ -43,14 +47,40 @@ EXEMPT_PATTERNS: tuple = (
+ # AC14 - regex compiled at module scope.
+ _STATUS_RE = re.compile(r"(?i)status\s*[:=]\s*([A-Za-z0-9_-]+)")
+ _TASK_FILE_RE = re.compile(r"(?i)task[_\s-]*file\s*[:=]\s*(.+)")
+-_SCOPE_FENCE_HEADING_RE = re.compile(r"(?im)^##\s+Scope\s+Fence\s*$")
++_SCOPE_FENCE_HEADING_RE = re.compile(r"(?im)^##\s+Scope\s+Fence\b.*$")
+ _NEXT_HEADING_RE = re.compile(r"(?m)^##\s+")
+ _ALLOWED_SECTION_RE = re.compile(
+     r"(?is)allowed\s+paths[^\n]*\n(.+?)(?:\n\s*\*{0,2}forbidden|\Z)"
+ )
+ _TRAILING_PAREN_RE = re.compile(r"\s*\([^)]*\)\s*$")
+-_GLOB_TAIL_RE = re.compile(r"/?\*+$")
+ _RESULT_NAME_RE = re.compile(r"task-(.+?)-result\.md$")
++_REDIRECT_TARGET_RE = re.compile(r"(?<!<)(?:>|>>)[ \t]*([^\s&|;<>]+)")
++_PY_OPEN_WRITE_RE = re.compile(r"(?is)open\(\s*['\"]([^'\"]+)['\"]\s*,\s*['\"][^'\"]*[wax+][^'\"]*['\"]")
++_PY_SHUTIL_COPY_RE = re.compile(r"(?is)shutil\.(?:copy|copy2|copyfile)\(\s*['\"][^'\"]+['\"]\s*,\s*['\"]([^'\"]+)['\"]")
++_PY_PATH_WRITE_RE = re.compile(r"(?is)Path\(\s*['\"]([^'\"]+)['\"]\s*\)\.(?:write_text|write_bytes)\(")
++_PS_FILE_WRITE_RE = re.compile(r"(?is)\[System\.IO\.File\]::(?:WriteAllText|AppendAllText)\(\s*['\"]([^'\"]+)['\"]")
++_SHELL_SEPARATORS = {"&&", "||", ";", "|"}
++_READ_ONLY_VERBS = {
++    "ls", "cat", "head", "tail", "less", "more", "wc", "file", "stat",
++    "grep", "rg", "ag", "sort", "uniq", "cut", "tr", "diff", "cmp", "tree",
++}
++_MUTATING_VERBS = {"cp", "mv", "install", "rsync", "rm"}
++_INTERPRETERS = {"python", "python3", "py", "bash", "sh", "node", "deno", "ruby", "perl"}
++_SCRIPT_EXTENSIONS = {".py", ".sh", ".bash", ".zsh", ".js", ".ts", ".rb", ".pl"}
++_DUAL_TOOL_SCRIPTS = {
++    ".claude/scripts/codex-implement.py",
++    ".claude/scripts/codex-wave.py",
++    ".claude/scripts/codex-inline-dual.py",
++    ".claude/scripts/dual-teams-spawn.py",
++    ".claude/scripts/dual-teams-selftest.py",
++    ".claude/scripts/judge.py",
++    ".claude/scripts/judge_axes.py",
++    ".claude/scripts/codex-ask.py",
++}
++_DUAL_TOOL_BASENAMES = {Path(script).name for script in _DUAL_TOOL_SCRIPTS}
++_POWERSHELL_MUTATORS = {
++    "set-content", "add-content", "out-file", "copy-item", "move-item", "remove-item",
++}
+ RECOVERY_HINT = (
+     "Use .claude/scripts/codex-inline-dual.py --describe \"...\" "
+     "--scope <path> for micro-task, or write work/<feature>/tasks/task-N.md "
+@@ -72,7 +102,8 @@ def _build_logger(project_dir: Path) -> logging.Logger:
+         fh.setFormatter(fmt)
+         logger.addHandler(fh)
+         file_ok = True
+-    except OSError:
++    except OSError as exc:
++        logger.exception("_build_logger.file_handler_failed dir=%s exc=%s", log_dir, exc)
+         file_ok = False
+     sh = logging.StreamHandler(sys.stderr)
+     sh.setFormatter(fmt)
+@@ -85,23 +116,361 @@ def get_project_dir() -> Path:
+     """Resolve project root. Honors CLAUDE_PROJECT_DIR env."""
+     return Path(os.environ.get("CLAUDE_PROJECT_DIR", ".")).resolve()
+ 
++def append_ledger(
++    project_dir: Path,
++    tool: str,
++    decision: str,
++    reason: str,
++    *,
++    rel_path: str | None = None,
++    command: str | None = None,
++) -> None:
++    """Append a structured audit decision without affecting enforcement."""
++    logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: append_ledger tool=%s decision=%s reason=%s path=%s", tool, decision, reason, rel_path or "")
++    started = time.perf_counter()
++    try:
++        ledger_path = project_dir / SKIP_LEDGER_REL
++        ledger_path.parent.mkdir(parents=True, exist_ok=True)
++        entry = {
++            "ts": datetime.now(timezone.utc).isoformat(),
++            "tool": tool,
++            "decision": decision,
++            "reason": reason,
++        }
++        if rel_path:
++            entry["path"] = rel_path
++        if command:
++            entry["cmd"] = command[:1000]
++        with ledger_path.open("a", encoding="utf-8") as fh:
++            fh.write(json.dumps(entry, ensure_ascii=False, sort_keys=True) + "\n")
++            fh.flush()
++    except OSError as exc:
++        logger.exception("append_ledger.failed path=%s exc=%s", SKIP_LEDGER_REL, exc)
++    finally:
++        duration_ms = round((time.perf_counter() - started) * 1000, 3)
++        logger.info("exit: append_ledger duration_ms=%s decision=%s reason=%s", duration_ms, decision, reason)
++
++def _clean_command_path(raw: str) -> str:
++    """Normalize a shell token that may represent a path."""
++    return raw.strip().strip("'\"").rstrip(",);]").replace("\\", "/")
++
++def _command_has_code_extension(raw: str) -> bool:
++    """True iff a shell token points at a delegated code extension."""
++    return Path(_clean_command_path(raw)).suffix.lower() in CODE_EXTENSIONS
++
++def _is_dual_tool_script(raw: str) -> bool:
++    """True iff raw points at one of the project dual workflow scripts."""
++    normalized = _clean_command_path(raw)
++    while normalized.startswith("./"):
++        normalized = normalized[2:]
++    return normalized in _DUAL_TOOL_SCRIPTS or Path(normalized).name in _DUAL_TOOL_BASENAMES
++
++def _split_shell_tokens(command: str) -> list[str]:
++    """Tokenize a Bash command best-effort with shlex fallback."""
++    logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: _split_shell_tokens command_len=%d", len(command))
++    started = time.perf_counter()
++    try:
++        tokens = shlex.split(command, posix=True)
++    except ValueError as exc:
++        logger.exception("_split_shell_tokens.shlex_failed exc=%s", exc)
++        tokens = command.replace("\n", " ").split()
++    duration_ms = round((time.perf_counter() - started) * 1000, 3)
++    logger.info("exit: _split_shell_tokens duration_ms=%s token_count=%d", duration_ms, len(tokens))
++    return tokens
++
++def _split_segments(tokens: list[str]) -> list[list[str]]:
++    """Split shell tokens into simple command segments."""
++    logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: _split_segments token_count=%d", len(tokens))
++    started = time.perf_counter()
++    segments: list[list[str]] = []
++    current: list[str] = []
++    for token in tokens:
++        if token in _SHELL_SEPARATORS:
++            if current:
++                segments.append(current)
++                current = []
++            continue
++        current.append(token)
++    if current:
++        segments.append(current)
++    duration_ms = round((time.perf_counter() - started) * 1000, 3)
++    logger.info("exit: _split_segments duration_ms=%s segment_count=%d", duration_ms, len(segments))
++    return segments
++
++def _script_from_interpreter(tokens: list[str]) -> tuple[str | None, str | None]:
++    """Return (mode, payload) for interpreter commands."""
++    logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: _script_from_interpreter token_count=%d", len(tokens))
++    started = time.perf_counter()
++    if not tokens:
++        logger.info("exit: _script_from_interpreter duration_ms=0 decision=empty")
++        return None, None
++    exe = Path(tokens[0]).name.lower()
++    result: tuple[str | None, str | None] = (None, None)
++    if exe == "py":
++        index = 1
++        while index < len(tokens) and tokens[index].startswith("-") and tokens[index] != "-c":
++            if re.fullmatch(r"-\d+(?:\.\d+)?", tokens[index]):
++                index += 1
++                continue
++            break
++        if index < len(tokens):
++            if tokens[index] == "-c" and index + 1 < len(tokens):
++                result = ("inline", tokens[index + 1])
++            elif tokens[index] == "-":
++                result = ("opaque", tokens[index])
++            else:
++                result = ("script", tokens[index])
++    elif exe in {"python", "python3"}:
++        index = 1
++        while index < len(tokens) and tokens[index].startswith("-") and tokens[index] not in {"-c", "-"}:
++            index += 1
++        if index < len(tokens):
++            if tokens[index] == "-c" and index + 1 < len(tokens):
++                result = ("inline", tokens[index + 1])
++            elif tokens[index] == "-":
++                result = ("opaque", tokens[index])
++            else:
++                result = ("script", tokens[index])
++    elif exe in {"bash", "sh"}:
++        if len(tokens) > 1:
++            if tokens[1] in {"-s", "-c"}:
++                result = ("opaque", tokens[1])
++            else:
++                result = ("script", tokens[1])
++    elif exe in {"node", "ruby", "perl"}:
++        for token in tokens[1:]:
++            if token.startswith("-"):
++                continue
++            result = ("script", token)
++            break
++    elif exe == "deno":
++        for token in tokens[1:]:
++            if token in {"run", "task"} or token.startswith("-"):
++                continue
++            result = ("script", token)
++            break
++    duration_ms = round((time.perf_counter() - started) * 1000, 3)
++    logger.info("exit: _script_from_interpreter duration_ms=%s decision=%s", duration_ms, result[0] or "none")
++    return result
++
++def _python_inline_targets(code: str) -> list[str]:
++    """Extract paths from simple Python inline file mutation patterns."""
++    logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: _python_inline_targets code_len=%d", len(code))
++    started = time.perf_counter()
++    targets: list[str] = []
++    for regex in (_PY_OPEN_WRITE_RE, _PY_SHUTIL_COPY_RE, _PY_PATH_WRITE_RE):
++        targets.extend(match.group(1) for match in regex.finditer(code))
++    duration_ms = round((time.perf_counter() - started) * 1000, 3)
++    logger.info("exit: _python_inline_targets duration_ms=%s target_count=%d", duration_ms, len(targets))
++    return targets
++
++def _powershell_targets(script: str) -> list[str]:
++    """Extract target paths from supported PowerShell mutating forms."""
++    logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: _powershell_targets script_len=%d", len(script))
++    started = time.perf_counter()
++    targets: list[str] = []
++    targets.extend(match.group(1) for match in _PS_FILE_WRITE_RE.finditer(script))
++    tokens = _split_shell_tokens(script)
++    if tokens:
++        lower = [token.lower() for token in tokens]
++        command = lower[0]
++        if command in _POWERSHELL_MUTATORS or command == "new-item":
++            for index, token in enumerate(lower[:-1]):
++                if token in {"-path", "-literalpath", "-filepath"}:
++                    targets.append(tokens[index + 1])
++                if token == "-destination":
++                    targets = [tokens[index + 1]]
++            if not targets and len(tokens) > 1:
++                candidates = [token for token in tokens[1:] if not token.startswith("-")]
++                if candidates:
++                    targets.append(candidates[-1])
++            if command == "new-item" and "file" not in lower:
++                targets = []
++    duration_ms = round((time.perf_counter() - started) * 1000, 3)
++    logger.info("exit: _powershell_targets duration_ms=%s target_count=%d", duration_ms, len(targets))
++    return targets
++
++def _dirty_code_paths(project_dir: Path) -> list[str]:
++    """Return dirty code paths for git reset --hard interception."""
++    logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: _dirty_code_paths project=%s", project_dir)
++    started = time.perf_counter()
++    try:
++        result = subprocess.run(
++            ["git", "status", "--porcelain"],
++            cwd=project_dir,
++            check=False,
++            capture_output=True,
++            text=True,
++            timeout=5,
++        )
++    except (OSError, subprocess.SubprocessError) as exc:
++        logger.exception("_dirty_code_paths.git_failed exc=%s", exc)
++        logger.info("exit: _dirty_code_paths duration_ms=%s target_count=0", round((time.perf_counter() - started) * 1000, 3))
++        return []
++    paths: list[str] = []
++    if result.returncode == 0:
++        for line in result.stdout.splitlines():
++            raw = line[3:] if len(line) > 3 else ""
++            if " -> " in raw:
++                raw = raw.split(" -> ", 1)[1]
++            rel = _clean_command_path(raw)
++            if is_code_extension(rel):
++                paths.append(rel)
++    duration_ms = round((time.perf_counter() - started) * 1000, 3)
++    logger.info("exit: _dirty_code_paths duration_ms=%s target_count=%d", duration_ms, len(paths))
++    return paths
++
++def _is_whitelisted_segment(tokens: list[str]) -> bool:
++    """True iff a Bash segment is explicitly read-only/project-safe."""
++    logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: _is_whitelisted_segment token_count=%d", len(tokens))
++    started = time.perf_counter()
++    if not tokens:
++        logger.info("exit: _is_whitelisted_segment duration_ms=0 decision=True")
++        return True
++    exe = Path(tokens[0]).name.lower()
++    lower = [token.lower() for token in tokens]
++    decision = False
++    if exe in _READ_ONLY_VERBS:
++        decision = exe != "find" or ("-delete" not in lower and not ("-exec" in lower and "rm" in lower))
++    elif exe == "git" and len(tokens) > 1:
++        sub = lower[1]
++        decision = (
++            sub in {"status", "log", "diff", "show", "blame", "ls-files", "rev-parse", "remote", "fetch"}
++            or (sub == "branch" and "--show-current" in lower)
++            or (sub == "worktree" and len(tokens) > 2 and lower[2] == "list")
++        )
++    elif exe == "uv" and len(tokens) > 1:
++        decision = lower[1] in {"sync", "lock"} or (len(tokens) > 2 and lower[1] == "run" and lower[2] == "pytest")
++    elif exe in {"pytest", "unittest", "mypy"}:
++        decision = True
++    elif exe == "ruff":
++        decision = len(tokens) > 1 and lower[1] == "check" and "--fix" not in lower
++        decision = decision or (len(tokens) > 2 and lower[1] == "format" and "--check" in lower)
++    elif exe in {"npm", "yarn"}:
++        decision = len(tokens) > 1 and lower[1] in {"test", "install"}
++    elif exe == "pnpm":
++        decision = len(tokens) > 1 and lower[1] == "install"
++    elif exe == "pip":
++        decision = len(tokens) > 1 and lower[1] == "install"
++    elif exe == "cargo":
++        decision = len(tokens) > 1 and lower[1] in {"test", "build"}
++    elif exe == "go":
++        decision = len(tokens) > 1 and lower[1] in {"test", "mod"}
++    elif exe == "tsc":
++        decision = "--noemit" in lower
++    elif exe == "eslint":
++        decision = "--fix" not in lower
++    elif exe == "prettier":
++        decision = "--check" in lower
++    mode, script = _script_from_interpreter(tokens)
++    if mode == "script" and script and _is_dual_tool_script(script):
++        decision = True
++    duration_ms = round((time.perf_counter() - started) * 1000, 3)
++    logger.info("exit: _is_whitelisted_segment duration_ms=%s decision=%s", duration_ms, decision)
++    return decision
++
++def analyze_bash_command(project_dir: Path, command: str) -> tuple[list[str], str]:
++    """Return Bash mutation targets plus allow reason when no cover is needed."""
++    logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: analyze_bash_command command_len=%d", len(command))
++    started = time.perf_counter()
++    targets: list[str] = []
++    opaque_requires_cover = False
++    for match in _REDIRECT_TARGET_RE.finditer(command):
++        targets.append(match.group(1))
++    tokens = _split_shell_tokens(command)
++    segments = _split_segments(tokens)
++    all_whitelisted = bool(segments)
++    for segment in segments:
++        if not _is_whitelisted_segment(segment):
++            all_whitelisted = False
++        exe = Path(segment[0]).name.lower() if segment else ""
++        lower = [token.lower() for token in segment]
++        if exe in _MUTATING_VERBS:
++            if exe == "rm":
++                targets.extend(token for token in segment[1:] if not token.startswith("-"))
++            else:
++                candidates = [token for token in segment[1:] if not token.startswith("-")]
++                if candidates:
++                    targets.append(candidates[-1])
++        elif exe == "sed" and any(token == "-i" or token.startswith("-i") for token in segment[1:]):
++            targets.extend(token for token in segment[1:] if _command_has_code_extension(token))
++        elif exe == "awk" and "-i" in lower and "inplace" in lower:
++            targets.extend(token for token in segment[1:] if _command_has_code_extension(token))
++        elif exe == "perl" and any(token == "-i" or token.startswith("-i") for token in segment[1:]):
++            targets.extend(token for token in segment[1:] if _command_has_code_extension(token))
++        elif exe == "tee":
++            targets.extend(token for token in segment[1:] if not token.startswith("-"))
++        elif exe == "find" and ("-delete" in lower or ("-exec" in lower and "rm" in lower)):
++            opaque_requires_cover = True
++        elif exe == "git" and len(segment) > 1:
++            sub = lower[1]
++            if sub == "apply":
++                opaque_requires_cover = True
++            elif sub in {"mv", "rm", "restore"}:
++                targets.extend(token for token in segment[2:] if not token.startswith("-"))
++            elif sub == "checkout":
++                targets.extend(token for token in segment[2:] if _command_has_code_extension(token))
++            elif sub == "reset" and "--hard" in lower:
++                targets.extend(_dirty_code_paths(project_dir))
++        elif exe in {"powershell", "pwsh"}:
++            for index, token in enumerate(lower[:-1]):
++                if token in {"-command", "-c"}:
++                    targets.extend(_powershell_targets(segment[index + 1]))
++                    break
++            if exe == "pwsh" and any(token in {"-c", "-command"} for token in lower) and not targets:
++                opaque_requires_cover = True
++        mode, script = _script_from_interpreter(segment)
++        if mode == "opaque":
++            opaque_requires_cover = True
++        elif mode == "inline" and script:
++            targets.extend(_python_inline_targets(script))
++        elif mode == "script" and script and not _is_dual_tool_script(script):
++            if Path(_clean_command_path(script)).suffix.lower() in _SCRIPT_EXTENSIONS:
++                targets.append(script)
++        elif exe not in _INTERPRETERS and _command_has_code_extension(segment[0]):
++            targets.append(segment[0])
++    cleaned: list[str] = []
++    seen: set[str] = set()
++    for target in targets:
++        rel = _clean_command_path(target)
++        if rel and rel not in seen:
++            seen.add(rel)
++            cleaned.append(rel)
++    if opaque_requires_cover and not cleaned:
++        cleaned.append("<opaque-bash-command>")
++    reason = "requires-cover" if cleaned else ("whitelist" if all_whitelisted else "no-code-mutation")
++    duration_ms = round((time.perf_counter() - started) * 1000, 3)
++    logger.info("exit: analyze_bash_command duration_ms=%s target_count=%d decision=%s", duration_ms, len(cleaned), reason)
++    return cleaned, reason
++
+ def is_dual_teams_worktree(project_dir: Path) -> bool:
+     """True iff project_dir or any ancestor contains .dual-base-ref."""
+     logger = logging.getLogger(HOOK_NAME)
+-    logger.info("is_dual_teams_worktree.enter project=%s", project_dir)
++    logger.info("entry: is_dual_teams_worktree project=%s", project_dir)
++    started = time.perf_counter()
+     current = project_dir
+     seen: set[Path] = set()
+     while True:
+         try:
+             resolved = current.resolve()
+         except OSError as exc:
+-            logger.debug("is_dual_teams_worktree.resolve-error path=%s exc=%s", current, exc)
++            logger.exception("is_dual_teams_worktree.resolve-error path=%s exc=%s", current, exc)
+             resolved = current.absolute()
+         if resolved in seen:
+             logger.info(
+                 "is_dual_teams_worktree.exit project=%s result=False reason=cycle",
+                 project_dir,
+             )
++            logger.info("exit: is_dual_teams_worktree duration_ms=%s decision=False", round((time.perf_counter() - started) * 1000, 3))
+             return False
+         seen.add(resolved)
+         sentinel = current / ".dual-base-ref"
+@@ -112,19 +481,24 @@ def is_dual_teams_worktree(project_dir: Path) -> bool:
+                     project_dir,
+                     sentinel,
+                 )
++                logger.info("exit: is_dual_teams_worktree duration_ms=%s decision=True", round((time.perf_counter() - started) * 1000, 3))
+                 return True
+         except OSError as exc:
+-            logger.debug("is_dual_teams_worktree.probe-error sentinel=%s exc=%s", sentinel, exc)
++            logger.exception("is_dual_teams_worktree.probe-error sentinel=%s exc=%s", sentinel, exc)
+         parent = current.parent
+         if parent == current:
+             logger.info("is_dual_teams_worktree.exit project=%s result=False", project_dir)
++            logger.info("exit: is_dual_teams_worktree duration_ms=%s decision=False", round((time.perf_counter() - started) * 1000, 3))
+             return False
+         current = parent
+ 
+ def resolve_target(project_dir: Path, target_raw: str):
+     """Normalize raw file_path to absolute Path inside project_dir."""
+     logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: resolve_target raw=%s", target_raw)
++    started = time.perf_counter()
+     if not target_raw:
++        logger.info("exit: resolve_target duration_ms=0 decision=empty")
+         return None
+     try:
+         p = Path(target_raw)
+@@ -132,35 +506,54 @@ def resolve_target(project_dir: Path, target_raw: str):
+             p = project_dir / p
+         resolved = p.resolve()
+     except (OSError, ValueError) as exc:
+-        logger.info("resolve_target.err raw=%r exc=%s", target_raw, exc)
++        logger.exception("resolve_target.err raw=%r exc=%s", target_raw, exc)
++        logger.info("exit: resolve_target duration_ms=%s decision=error", round((time.perf_counter() - started) * 1000, 3))
+         return None
+     try:
+         resolved.relative_to(project_dir)
+-    except ValueError:
+-        logger.info("resolve_target.escape resolved=%s", resolved)
++    except ValueError as exc:
++        logger.exception("resolve_target.escape resolved=%s exc=%s", resolved, exc)
++        logger.info("exit: resolve_target duration_ms=%s decision=escape", round((time.perf_counter() - started) * 1000, 3))
+         return None
++    logger.info("exit: resolve_target duration_ms=%s decision=resolved", round((time.perf_counter() - started) * 1000, 3))
+     return resolved
+ 
+ def rel_posix(project_dir: Path, absolute: Path):
+     """POSIX-style project-relative path, or None if outside."""
++    logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: rel_posix absolute=%s", absolute)
++    started = time.perf_counter()
+     try:
+-        return absolute.relative_to(project_dir).as_posix()
+-    except ValueError:
++        rel = absolute.relative_to(project_dir).as_posix()
++        logger.info("exit: rel_posix duration_ms=%s decision=relative", round((time.perf_counter() - started) * 1000, 3))
++        return rel
++    except ValueError as exc:
++        logger.exception("rel_posix.outside absolute=%s exc=%s", absolute, exc)
++        logger.info("exit: rel_posix duration_ms=%s decision=outside", round((time.perf_counter() - started) * 1000, 3))
+         return None
+ 
+ def is_code_extension(rel_path: str) -> bool:
+     """True iff extension is in the delegated code set."""
+-    return Path(rel_path).suffix.lower() in CODE_EXTENSIONS
++    logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: is_code_extension rel=%s", rel_path)
++    started = time.perf_counter()
++    decision = Path(rel_path).suffix.lower() in CODE_EXTENSIONS
++    logger.info("exit: is_code_extension duration_ms=%s decision=%s", round((time.perf_counter() - started) * 1000, 3), decision)
++    return decision
+ 
+ def is_exempt(rel_path: str) -> bool:
+     """True iff rel_path matches any AC6 exempt glob."""
+     logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: is_exempt rel=%s", rel_path)
++    started = time.perf_counter()
++    decision = False
+     for pattern in EXEMPT_PATTERNS:
+         if pattern.endswith("/**"):
+             prefix = pattern[:-3].rstrip("/")
+             if rel_path == prefix or rel_path.startswith(prefix + "/"):
+                 logger.debug("is_exempt.match pattern=%s", pattern)
+-                return True
++                decision = True
++                break
+             continue
+         if "**" in pattern:
+             left, _, right = pattern.partition("**")
+@@ -170,20 +563,25 @@ def is_exempt(rel_path: str) -> bool:
+             right_ok = (not right) or fnmatch.fnmatch(rel_path, "*" + right)
+             if left_ok and right_ok:
+                 logger.debug("is_exempt.match pattern=%s (double-glob)", pattern)
+-                return True
++                decision = True
++                break
+             continue
+         if fnmatch.fnmatch(rel_path, pattern):
+             logger.debug("is_exempt.match pattern=%s", pattern)
+-            return True
+-    return False
++            decision = True
++            break
++    logger.info("exit: is_exempt duration_ms=%s decision=%s", round((time.perf_counter() - started) * 1000, 3), decision)
++    return decision
+ 
+ def requires_cover(rel_path: str) -> bool:
+     """True iff path needs a Codex cover to be editable."""
+-    if not is_code_extension(rel_path):
+-        return False
+-    if is_exempt(rel_path):
+-        return False
+-    return True
++    logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: requires_cover rel=%s", rel_path)
++    started = time.perf_counter()
++    decision = is_code_extension(rel_path)
++    duration_ms = round((time.perf_counter() - started) * 1000, 3)
++    logger.info("exit: requires_cover duration_ms=%s decision=%s", duration_ms, decision)
++    return decision
+ 
+ def _strip_md_markers(line: str) -> str:
+     """Strip leading bullets/quotes, surrounding bold/italic/backticks."""
+@@ -193,11 +591,14 @@ def _strip_md_markers(line: str) -> str:
+ def parse_result_fields(result_path: Path) -> dict:
+     """Extract ``status`` and ``task_file`` from a task-*-result.md."""
+     logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: parse_result_fields path=%s", result_path)
++    started = time.perf_counter()
+     out: dict = {}
+     try:
+         text = result_path.read_text(encoding="utf-8", errors="replace")
+     except OSError as exc:
+-        logger.info("parse_result_fields.read_err path=%s exc=%s", result_path.name, exc)
++        logger.exception("parse_result_fields.read_err path=%s exc=%s", result_path.name, exc)
++        logger.info("exit: parse_result_fields duration_ms=%s fields=0", round((time.perf_counter() - started) * 1000, 3))
+         return out
+     for raw in text.splitlines():
+         stripped = _strip_md_markers(raw)
+@@ -211,83 +612,150 @@ def parse_result_fields(result_path: Path) -> dict:
+                 out["task_file"] = m2.group(1).strip().strip("`").strip()
+         if "status" in out and "task_file" in out:
+             break
++    logger.info("exit: parse_result_fields duration_ms=%s fields=%d", round((time.perf_counter() - started) * 1000, 3), len(out))
+     return out
+ 
+ def parse_scope_fence(task_path: Path) -> list:
+     """Extract ``Allowed paths`` entries from task-N.md Scope Fence."""
+     logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: parse_scope_fence path=%s", task_path)
++    started = time.perf_counter()
+     try:
+         text = task_path.read_text(encoding="utf-8", errors="replace")
+     except OSError as exc:
+-        logger.info("parse_scope_fence.read_err path=%s exc=%s", task_path.name, exc)
++        logger.exception("parse_scope_fence.read_err path=%s exc=%s", task_path.name, exc)
++        logger.info("exit: parse_scope_fence duration_ms=%s entries=0", round((time.perf_counter() - started) * 1000, 3))
+         return []
+     heading = _SCOPE_FENCE_HEADING_RE.search(text)
+     if not heading:
++        logger.info("exit: parse_scope_fence duration_ms=%s entries=0", round((time.perf_counter() - started) * 1000, 3))
+         return []
+     tail = text[heading.end():]
+     next_hdr = _NEXT_HEADING_RE.search(tail)
+     section = tail[: next_hdr.start()] if next_hdr else tail
+     allowed = _ALLOWED_SECTION_RE.search(section)
+     if not allowed:
++        logger.info("exit: parse_scope_fence duration_ms=%s entries=0", round((time.perf_counter() - started) * 1000, 3))
+         return []
+     entries: list = []
++    in_code_fence = False
+     for line in allowed.group(1).splitlines():
+         stripped = line.strip()
+-        if not stripped.startswith("-"):
++        if stripped.startswith("```"):
++            in_code_fence = not in_code_fence
++            continue
++        if stripped.startswith("-"):
++            entry = stripped.lstrip("-").strip().strip("`").strip()
++        elif in_code_fence:
++            entry = stripped.strip("`").strip()
++        else:
+             continue
+-        entry = stripped.lstrip("-").strip().strip("`").strip()
+         entry = _TRAILING_PAREN_RE.sub("", entry).strip().strip("`").strip()
+-        if not entry:
++        if not entry or entry.startswith("#"):
+             continue
+         entries.append(entry.replace("\\", "/").rstrip("/"))
++    logger.info("exit: parse_scope_fence duration_ms=%s entries=%d", round((time.perf_counter() - started) * 1000, 3), len(entries))
+     return entries
+ 
+ def path_in_fence(target_rel_posix: str, fence: Iterable) -> bool:
+     """True if target is covered by any fence entry."""
+-    target = target_rel_posix.rstrip("/")
++    logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: path_in_fence target=%s", target_rel_posix)
++    started = time.perf_counter()
++    target = target_rel_posix.replace("\\", "/").rstrip("/").lower()
++    decision = False
+     for raw_entry in fence:
+         if not raw_entry:
+             continue
+-        simple = _GLOB_TAIL_RE.sub("", raw_entry).rstrip("/")
+-        if not simple:
++        entry = str(raw_entry).replace("\\", "/").rstrip("/").lower()
++        if not entry:
+             continue
+-        if target == simple or target.startswith(simple + "/"):
+-            return True
+-    return False
++        if any(ch in entry for ch in "*?["):
++            decision = fnmatch.fnmatchcase(target, entry)
++        else:
++            decision = target == entry or target.startswith(entry + "/")
++        if decision:
++            break
++    logger.info("exit: path_in_fence duration_ms=%s decision=%s", round((time.perf_counter() - started) * 1000, 3), decision)
++    return decision
+ 
+ def _resolve_task_file(project_dir: Path, raw: str):
+     """Resolve a result.md task_file pointer to absolute Path."""
+     logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: _resolve_task_file raw=%s", raw)
++    started = time.perf_counter()
+     if not raw:
++        logger.info("exit: _resolve_task_file duration_ms=0 decision=empty")
+         return None
+     try:
+         p = Path(raw.strip())
+         if not p.is_absolute():
+             p = project_dir / p
+-        return p.resolve()
++        resolved = p.resolve()
++        logger.info("exit: _resolve_task_file duration_ms=%s decision=resolved", round((time.perf_counter() - started) * 1000, 3))
++        return resolved
+     except (OSError, ValueError) as exc:
+-        logger.info("resolve_task_file.err raw=%r exc=%s", raw, exc)
++        logger.exception("resolve_task_file.err raw=%r exc=%s", raw, exc)
++        logger.info("exit: _resolve_task_file duration_ms=%s decision=error", round((time.perf_counter() - started) * 1000, 3))
+         return None
+ 
++def _task_scope_fence_covers(project_dir: Path, result_path: Path, fields: dict, target_rel_posix: str) -> bool:
++    """True iff the result's paired task Scope Fence covers the target."""
++    logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: _task_scope_fence_covers result=%s target=%s", result_path.name, target_rel_posix)
++    started = time.perf_counter()
++    task_candidates: list = []
++    pointer = _resolve_task_file(project_dir, fields.get("task_file", ""))
++    if pointer is not None and pointer.is_file():
++        task_candidates.append(pointer)
++    name_match = _RESULT_NAME_RE.match(result_path.name)
++    if name_match:
++        task_id = name_match.group(1)
++        tdir = project_dir / CODEX_TASKS_DIR
++        if tdir.is_dir():
++            for pattern in (
++                "T" + task_id + "-*.md",
++                task_id + "-*.md",
++                "task-" + task_id + ".md",
++                "task-" + task_id + "-*.md",
++            ):
++                task_candidates.extend(tdir.glob(pattern))
++    seen: set = set()
++    decision = False
++    for candidate in task_candidates:
++        if candidate in seen:
++            continue
++        seen.add(candidate)
++        fence = parse_scope_fence(candidate)
++        if path_in_fence(target_rel_posix, fence):
++            decision = True
++            break
++    logger.info("exit: _task_scope_fence_covers duration_ms=%s decision=%s", round((time.perf_counter() - started) * 1000, 3), decision)
++    return decision
++
+ def find_cover(project_dir: Path, target_rel_posix: str):
+     """Search recent result.md artefacts for one covering the target."""
+     logger = logging.getLogger(HOOK_NAME)
+-    logger.info("find_cover.enter target=%s", target_rel_posix)
++    logger.info("entry: find_cover target=%s", target_rel_posix)
++    started = time.perf_counter()
+     try:
+         results_dir = project_dir / CODEX_IMPLEMENTATIONS_DIR
+         if not results_dir.is_dir():
+             logger.info("find_cover.no-dir dir=%s", results_dir)
++            logger.info("exit: find_cover duration_ms=%s decision=False reason=no-results-dir", round((time.perf_counter() - started) * 1000, 3))
+             return False, "no-results-dir"
+         candidates: list = []
+         for rp in results_dir.glob("task-*-result.md"):
+             try:
+                 candidates.append((rp.stat().st_mtime, rp))
+-            except OSError:
++            except OSError as exc:
++                logger.exception("find_cover.stat_failed path=%s exc=%s", rp, exc)
+                 continue
+         candidates.sort(key=lambda item: item[0], reverse=True)
+         candidates = candidates[:MAX_RESULT_FILES_TO_SCAN]
+         if not candidates:
+             logger.info("find_cover.no-results")
++            logger.info("exit: find_cover duration_ms=%s decision=False reason=no-results", round((time.perf_counter() - started) * 1000, 3))
+             return False, "no-results"
+         now = time.time()
+         saw_fresh = False
+@@ -301,11 +769,12 @@ def find_cover(project_dir: Path, target_rel_posix: str):
+             try:
+                 rresolved = rpath.resolve()
+                 rresolved.relative_to(project_dir)
+-            except (OSError, ValueError):
+-                logger.info("find_cover.symlink-escape path=%s", rpath.name)
++            except (OSError, ValueError) as exc:
++                logger.exception("find_cover.symlink-escape path=%s exc=%s", rpath.name, exc)
+                 continue
+             fields = parse_result_fields(rpath)
+             status = fields.get("status", "")
++            result_fence = parse_scope_fence(rpath)
+             if status != "pass":
+                 if status == "fail":
+                     best_reason = "fail-status"
+@@ -313,42 +782,15 @@ def find_cover(project_dir: Path, target_rel_posix: str):
+                             rpath.name, status or "?", age)
+                 continue
+             saw_fresh_pass = True
+-            task_candidates: list = []
+-            pointer = _resolve_task_file(project_dir, fields.get("task_file", ""))
+-            if pointer is not None and pointer.is_file():
+-                task_candidates.append(pointer)
+-            name_match = _RESULT_NAME_RE.match(rpath.name)
+-            if name_match:
+-                task_id = name_match.group(1)
+-                tdir = project_dir / CODEX_TASKS_DIR
+-                if tdir.is_dir():
+-                    for pattern in ("T" + task_id + "-*.md",
+-                                    task_id + "-*.md",
+-                                    "task-" + task_id + ".md",
+-                                    "task-" + task_id + "-*.md"):
+-                        task_candidates.extend(tdir.glob(pattern))
+-            seen: set = set()
+-            unique: list = []
+-            for cand in task_candidates:
+-                if cand not in seen:
+-                    seen.add(cand)
+-                    unique.append(cand)
+-            if not unique:
+-                logger.info("find_cover.no-task-file result=%s", rpath.name)
+-                best_reason = "scope-miss"
+-                continue
+-            for tpath in unique:
+-                fence = parse_scope_fence(tpath)
+-                if not fence:
+-                    logger.info("find_cover.empty-fence task=%s", tpath.name)
+-                    continue
+-                if path_in_fence(target_rel_posix, fence):
+-                    logger.info("find_cover.MATCH target=%s result=%s task=%s age=%.1fs",
+-                                target_rel_posix, rpath.name, tpath.name, age)
+-                    return True, ""
+-                logger.info("find_cover.scope-miss target=%s task=%s entries=%d",
+-                            target_rel_posix, tpath.name, len(fence))
+-                best_reason = "scope-miss"
++            if result_fence and path_in_fence(target_rel_posix, result_fence):
++                reason = "covered-by:" + rpath.name
++                logger.info("exit: find_cover duration_ms=%s decision=True reason=%s", round((time.perf_counter() - started) * 1000, 3), reason)
++                return True, reason
++            if _task_scope_fence_covers(project_dir, rpath, fields, target_rel_posix):
++                reason = "covered-by:" + rpath.name
++                logger.info("exit: find_cover duration_ms=%s decision=True reason=%s", round((time.perf_counter() - started) * 1000, 3), reason)
++                return True, reason
++            best_reason = "scope-miss"
+         if not saw_fresh:
+             reason = "stale"
+         elif saw_fresh_pass:
+@@ -357,18 +799,25 @@ def find_cover(project_dir: Path, target_rel_posix: str):
+             reason = best_reason
+         logger.info("find_cover.exit target=%s covered=False reason=%s",
+                     target_rel_posix, reason)
++        logger.info("exit: find_cover duration_ms=%s decision=False reason=%s", round((time.perf_counter() - started) * 1000, 3), reason)
+         return False, reason
+     except Exception as exc:
+         logger.exception("find_cover.unexpected target=%s exc=%s", target_rel_posix, exc)
++        logger.info("exit: find_cover duration_ms=%s decision=False reason=parse-error", round((time.perf_counter() - started) * 1000, 3))
+         return False, "parse-error: " + str(exc)
+ 
+ def extract_targets(payload: dict) -> list:
+     """Collect every file path this tool call intends to edit."""
++    logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: extract_targets payload_type=%s", type(payload).__name__)
++    started = time.perf_counter()
+     if not isinstance(payload, dict):
++        logger.info("exit: extract_targets duration_ms=0 target_count=0")
+         return []
+     tool_name = payload.get("tool_name", "")
+     tool_input = payload.get("tool_input") or {}
+     if not isinstance(tool_input, dict):
++        logger.info("exit: extract_targets duration_ms=0 target_count=0")
+         return []
+     paths: list = []
+     if tool_name in {"Edit", "Write"}:
+@@ -387,17 +836,24 @@ def extract_targets(payload: dict) -> list:
+                 ep = edit.get("file_path")
+                 if isinstance(ep, str) and ep:
+                     paths.append(ep)
++    elif tool_name == "NotebookEdit":
++        p = tool_input.get("notebook_path") or tool_input.get("file_path")
++        if isinstance(p, str) and p:
++            paths.append(p)
+     seen: set = set()
+     unique: list = []
+     for p in paths:
+         if p not in seen:
+             seen.add(p)
+             unique.append(p)
++    logger.info("exit: extract_targets duration_ms=%s target_count=%d", round((time.perf_counter() - started) * 1000, 3), len(unique))
+     return unique
+ 
+-def emit_deny(blocked: str, reason_code: str) -> None:
++def emit_deny(blocked: str, reason_code: str, tool_name: str = "Edit") -> None:
+     """Print the PreToolUse deny JSON to stdout."""
+     logger = logging.getLogger(HOOK_NAME)
++    logger.info("entry: emit_deny target=%s reason=%s tool=%s", blocked, reason_code, tool_name)
++    started = time.perf_counter()
+     reason_text = {
+         "no-results": "no codex-implement result found",
+         "no-results-dir": "work/codex-implementations/ does not exist",
+@@ -405,9 +861,21 @@ def emit_deny(blocked: str, reason_code: str) -> None:
+         "fail-status": "most recent matching result has status != pass",
+         "scope-miss": "no recent pass result covers this path",
+         "parse-error": "could not parse codex-implement result",
++        "opaque-bash": "opaque Bash command may mutate code paths",
+     }.get(reason_code, reason_code)
+-    message = ("Code Delegation Protocol: " + blocked + " blocked ("
+-               + reason_text + "). " + RECOVERY_HINT)
++    description = f"{tool_name} to {blocked}"
++    message = (
++        "BLOCK: no Codex cover for " + blocked + "\n"
++        "Code Delegation Protocol: " + blocked + " blocked (" + reason_text + ").\n\n"
++        "Run this to start the dual-implement track for this file:\n\n"
++        "  py -3 .claude/scripts/codex-inline-dual.py --describe \""
++        + description
++        + "\" --paths "
++        + blocked
++        + "\n\n"
++        "Then retry your edit. Or for a multi-file task, use:\n"
++        "  py -3 .claude/scripts/dual-teams-spawn.py --tasks <task.md> ..."
++    )
+     payload = {
+         "hookSpecificOutput": {
+             "hookEventName": "PreToolUse",
+@@ -417,29 +885,63 @@ def emit_deny(blocked: str, reason_code: str) -> None:
+     }
+     logger.warning("emit_deny target=%s reason=%s", blocked, reason_code)
+     print(json.dumps(payload, ensure_ascii=False))
++    logger.info("exit: emit_deny duration_ms=%s decision=deny", round((time.perf_counter() - started) * 1000, 3))
+ 
+ def decide(payload: dict, project_dir: Path) -> bool:
+     """Core gate. True to allow; False after emitting deny."""
+     logger = logging.getLogger(HOOK_NAME)
++    started = time.perf_counter()
+     event = payload.get("hook_event_name", "") if isinstance(payload, dict) else ""
+     tool_name = payload.get("tool_name", "") if isinstance(payload, dict) else ""
+-    logger.info("decide.enter event=%s tool=%s", event, tool_name)
++    logger.info("entry: decide event=%s tool=%s", event, tool_name)
+     if event and event != "PreToolUse":
+         logger.info("decide.passthrough reason=non-PreToolUse event=%s", event)
++        logger.info("exit: decide duration_ms=%s decision=allow reason=non-PreToolUse", round((time.perf_counter() - started) * 1000, 3))
+         return True
+-    if tool_name not in {"Edit", "Write", "MultiEdit"}:
++    if tool_name not in {"Edit", "Write", "MultiEdit", "NotebookEdit", "Bash"}:
+         logger.info("decide.passthrough reason=non-edit-tool tool=%s", tool_name)
++        logger.info("exit: decide duration_ms=%s decision=allow reason=unsupported-tool", round((time.perf_counter() - started) * 1000, 3))
+         return True
+     if is_dual_teams_worktree(project_dir):
+         logger.info("decide.passthrough reason=dual-teams-worktree project=%s", project_dir)
++        append_ledger(project_dir, tool_name, "allow", "dual-teams-worktree")
++        logger.info("exit: decide duration_ms=%s decision=allow reason=dual-teams-worktree", round((time.perf_counter() - started) * 1000, 3))
+         return True
+-    raw_targets = extract_targets(payload)
++    command = ""
++    if tool_name == "Bash":
++        tool_input = payload.get("tool_input") or {}
++        if isinstance(tool_input, dict):
++            raw_command = tool_input.get("command")
++            command = raw_command if isinstance(raw_command, str) else ""
++        raw_targets, bash_reason = analyze_bash_command(project_dir, command)
++        if not raw_targets:
++            append_ledger(project_dir, tool_name, "allow", bash_reason, command=command)
++            logger.info("exit: decide duration_ms=%s decision=allow reason=%s", round((time.perf_counter() - started) * 1000, 3), bash_reason)
++            return True
++    else:
++        raw_targets = extract_targets(payload)
+     if not raw_targets:
+         logger.info("decide.passthrough reason=no-targets")
++        append_ledger(project_dir, tool_name, "allow", "no-targets")
++        logger.info("exit: decide duration_ms=%s decision=allow reason=no-targets", round((time.perf_counter() - started) * 1000, 3))
+         return True
+     for raw in raw_targets:
++        if raw == "<opaque-bash-command>":
++            append_ledger(project_dir, tool_name, "deny", "no-cover-for-path", rel_path=raw, command=command)
++            emit_deny(raw, "opaque-bash", tool_name)
++            logger.info("exit: decide duration_ms=%s decision=deny reason=opaque-bash", round((time.perf_counter() - started) * 1000, 3))
++            return False
+         abs_path = resolve_target(project_dir, raw)
+         if abs_path is None:
++            rel = _clean_command_path(raw)
++            if tool_name == "Bash" and not is_code_extension(rel):
++                append_ledger(project_dir, tool_name, "allow", "non-code", rel_path=rel, command=command)
++                continue
++            if tool_name == "Bash" and is_code_extension(rel):
++                append_ledger(project_dir, tool_name, "deny", "no-cover-for-path", rel_path=rel, command=command)
++                emit_deny(rel, "scope-miss", tool_name)
++                logger.info("exit: decide duration_ms=%s decision=deny reason=unresolvable-code-path", round((time.perf_counter() - started) * 1000, 3))
++                return False
+             logger.info("decide.skip reason=unresolvable raw=%r", raw)
+             continue
+         rel = rel_posix(project_dir, abs_path)
+@@ -447,7 +949,9 @@ def decide(payload: dict, project_dir: Path) -> bool:
+             logger.info("decide.skip reason=outside-project path=%s", abs_path)
+             continue
+         if not requires_cover(rel):
+-            logger.info("decide.allow-target rel=%s reason=exempt-or-non-code", rel)
++            reason = "exempt-non-code" if is_exempt(rel) else "non-code"
++            logger.info("decide.allow-target rel=%s reason=%s", rel, reason)
++            append_ledger(project_dir, tool_name, "allow", reason, rel_path=rel, command=command or None)
+             continue
+         # Y11: target path inside a dual-teams worktree -> auto-allow.
+         # Catches the case where sub-agent's CLAUDE_PROJECT_DIR is main (not
+@@ -456,14 +960,19 @@ def decide(payload: dict, project_dir: Path) -> bool:
+         # the .dual-base-ref sentinel.
+         if is_dual_teams_worktree(abs_path):
+             logger.info("decide.allow-target rel=%s reason=dual-teams-target abs=%s", rel, abs_path)
++            append_ledger(project_dir, tool_name, "allow", "dual-teams-target", rel_path=rel, command=command or None)
+             continue
+         covered, reason = find_cover(project_dir, rel)
+         if not covered:
+-            emit_deny(rel, reason)
++            append_ledger(project_dir, tool_name, "deny", "no-cover-for-path", rel_path=rel, command=command or None)
++            emit_deny(rel, reason, tool_name)
+             logger.info("decide.exit target=%s allowed=False reason=%s", rel, reason)
++            logger.info("exit: decide duration_ms=%s decision=deny reason=%s", round((time.perf_counter() - started) * 1000, 3), reason)
+             return False
++        append_ledger(project_dir, tool_name, "allow", reason or "covered", rel_path=rel, command=command or None)
+         logger.info("decide.allow-target rel=%s reason=covered", rel)
+     logger.info("decide.exit allowed=True")
++    logger.info("exit: decide duration_ms=%s decision=allow reason=all-targets-allowed", round((time.perf_counter() - started) * 1000, 3))
+     return True
+ 
+ def main() -> int:
+@@ -479,7 +988,7 @@ def main() -> int:
+         try:
+             payload = json.loads(raw)
+         except json.JSONDecodeError as exc:
+-            logger.info("main.malformed-json exc=%s", exc)
++            logger.exception("main.malformed-json exc=%s", exc)
+             return 0
+         if not isinstance(payload, dict):
+             logger.info("main.non-dict-payload type=%s", type(payload).__name__)
+diff --git a/.claude/hooks/test_codex_delegate_enforcer.py b/.claude/hooks/test_codex_delegate_enforcer.py
+index ab2bfc1..4a0d465 100644
+--- a/.claude/hooks/test_codex_delegate_enforcer.py
++++ b/.claude/hooks/test_codex_delegate_enforcer.py
+@@ -398,8 +398,8 @@ class TestHelpers(unittest.TestCase):
+     def test_requires_cover_negative_exempt(self) -> None:
+         # .claude/skills/**/*.md is exempt, and .md is non-code anyway.
+         self.assertFalse(self.mod.requires_cover("CLAUDE.md"))
+-        # work/** is exempt even for .py.
+-        self.assertFalse(self.mod.requires_cover("work/scripts/helper.py"))
++        # Invariant Z1: code extensions require cover even under work/**.
++        self.assertTrue(self.mod.requires_cover("work/scripts/helper.py"))
+ 
+     def test_path_in_fence_exact_file(self) -> None:
+         self.assertTrue(self.mod.path_in_fence("a/b/c.py", ["a/b/c.py"]))
+diff --git a/.claude/settings.json b/.claude/settings.json
+index f9f4e28..0a2a2d3 100644
+--- a/.claude/settings.json
++++ b/.claude/settings.json
+@@ -129,7 +129,7 @@
+     ],
+     "PreToolUse": [
+       {
+-        "matcher": "Edit|Write|MultiEdit",
++        "matcher": "Edit|Write|MultiEdit|Bash|NotebookEdit",
+         "hooks": [
+           {
+             "type": "command",
+diff --git a/CLAUDE.md b/CLAUDE.md
+index b80452f..bd0a61d 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -77,6 +77,19 @@ blocks the edit (exit 2) if no matching Codex artifact exists. Claude is
+ still free to write — but only **in parallel with or after** a Codex run
+ on the same scope. The hand-edit without Codex is what gets blocked.
+ 
++### The Four Invariants
++
++1. **Extension wins.** Code extensions require Codex cover before path
++   exemptions are considered; path exemptions are non-code only.
++2. **Bash counts as write.** Bash commands that can mutate code paths are
++   intercepted by effect, including redirects, git restore/apply, script
++   execution, and PowerShell file cmdlets.
++3. **Path-exact cover.** A fresh `status: pass` artifact only covers paths
++   explicitly listed in its Scope Fence (exact or glob match).
++4. **Every decision is audited.** Allow/deny decisions append JSONL entries
++   to `work/codex-implementations/skip-ledger.jsonl`, and blocks include a
++   ready-to-run `codex-inline-dual.py --describe ... --paths ...` command.
++
+ ### Task size → execution mode
+ 
+ | Task scope | Mode | How it runs |
+@@ -125,7 +138,7 @@ When not to use:
+ 
+ - Any file whose extension is NOT in the list above
+ - `.claude/memory/**` — session memory (activeContext, knowledge, daily logs)
+-- `work/**` — planning artifacts (task specs, post-mortems, judgments, PIPELINE.md)
++- `work/**` — non-code planning artifacts only (task specs, post-mortems, judgments, PIPELINE.md)
+ - `CLAUDE.md`, `AGENTS.md`, `README.md`, `CHANGELOG.md`, `LICENSE`, `.gitignore`
+ - `.claude/settings.json`, `.claude/ops/*.yaml`, `.mcp.json` — config
+ - `.claude/adr/**/*.md` — architecture decisions

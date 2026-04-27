@@ -1,0 +1,120 @@
+#!/bin/bash
+# image-gen.sh v2 - async submit + poll. Each invocation completes in seconds.
+#
+# Two modes:
+#   1. Submit (no --request-id): POST to /v1/bridge/submit, returns request_id,
+#      then polls jobs endpoint with internal short timeout. If completes in
+#      time, prints "OK <output>" and exits 0. If still pending, prints
+#      "PENDING request_id=<id>" and exits 0 (agent should retry with same rid).
+#   2. Poll-only (--request-id <id>): just polls existing job, prints OK or PENDING.
+#
+# This way each call survives any upstream exec timeout.
+
+set -u
+BRIDGE_URL="${BRIDGE_URL:-http://127.0.0.1:18799}"
+INTERNAL_TIMEOUT="${INTERNAL_TIMEOUT:-50}"
+HELPER_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROMPT=""
+OUTPUT=""
+SIZE="1024x1024"
+N=1
+INPUTS=()
+RID=""
+
+usage() {
+  cat <<EOF >&2
+Usage:
+  $0 --prompt "<text>" --output <path.png> [--input <path>]... [--size WxH] [--n N]
+  $0 --request-id <id> --output <path.png>     # poll existing job
+
+Examples:
+  $0 --prompt "blue circle on white" --output /tmp/x.png
+  $0 --prompt "merge faces" --input /a.jpg --input /b.jpg --output /tmp/m.png
+  $0 --request-id abc123def456 --output /tmp/m.png  # if first call returned PENDING
+
+Output:
+  OK <path> ...           -> success, file ready
+  PENDING request_id=<id> -> still rendering, retry with --request-id
+  FAIL <reason>           -> hard failure
+EOF
+  exit 2
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --prompt)      PROMPT="$2"; shift 2 ;;
+    --output)      OUTPUT="$2"; shift 2 ;;
+    --input)       INPUTS+=("$2"); shift 2 ;;
+    --size)        SIZE="$2"; shift 2 ;;
+    --n)           N="$2"; shift 2 ;;
+    --request-id)  RID="$2"; shift 2 ;;
+    -h|--help)     usage ;;
+    *) echo "unknown arg: $1" >&2; usage ;;
+  esac
+done
+
+[ -z "$OUTPUT" ] && { echo "missing --output" >&2; usage; }
+
+poll_until() {
+  local rid="$1" deadline="$2"
+  while [ "$(date +%s)" -lt "$deadline" ]; do
+    local resp=$(curl -sS "$BRIDGE_URL/v1/bridge/jobs/$rid" --max-time 15 2>/dev/null)
+    local st=$(printf '%s' "$resp" | python3 "$HELPER_DIR/parse-status.py" 2>/dev/null)
+    if [ "$st" = "ready" ]; then
+      if printf '%s' "$resp" | python3 "$HELPER_DIR/extract-job.py" "$OUTPUT"; then
+        local sz=$(stat -c %s "$OUTPUT" 2>/dev/null)
+        echo "OK $OUTPUT (size=$sz, request_id=$rid)"
+        return 0
+      fi
+    elif [ "$st" = "error" ]; then
+      local err=$(printf '%s' "$resp" | python3 "$HELPER_DIR/parse-error.py" 2>/dev/null)
+      echo "FAIL bridge: $err" >&2
+      return 1
+    fi
+    sleep 3
+  done
+  return 124
+}
+
+# Mode 2: poll-only
+if [ -n "$RID" ]; then
+  DEADLINE=$(( $(date +%s) + INTERNAL_TIMEOUT ))
+  poll_until "$RID" "$DEADLINE"
+  RC=$?
+  if [ "$RC" = "0" ]; then exit 0; fi
+  if [ "$RC" = "124" ]; then echo "PENDING request_id=$RID"; exit 0; fi
+  exit 1
+fi
+
+# Mode 1: submit + poll
+[ -z "$PROMPT" ] && { echo "missing --prompt" >&2; usage; }
+
+PAYLOAD_FILE=$(mktemp /tmp/image-gen-payload.XXXXXX.json)
+trap 'rm -f "$PAYLOAD_FILE"' EXIT
+
+python3 "$HELPER_DIR/build-payload.py" "$PAYLOAD_FILE" "$PROMPT" "$SIZE" "$N" "${INPUTS[@]}" || {
+  echo "FAIL payload build error" >&2
+  exit 1
+}
+
+SUBMIT_RESP=$(curl -sS -X POST "$BRIDGE_URL/v1/bridge/submit" \
+  -H "Content-Type: application/json" \
+  --data @"$PAYLOAD_FILE" \
+  --max-time 30 2>/dev/null)
+
+RID=$(printf '%s' "$SUBMIT_RESP" | python3 "$HELPER_DIR/parse-rid.py" 2>/dev/null)
+
+if [ -z "$RID" ]; then
+  echo "FAIL submit error: $SUBMIT_RESP" >&2
+  exit 1
+fi
+
+T_START=$(date +%s)
+echo "submitted request_id=$RID, polling for up to ${INTERNAL_TIMEOUT}s..." >&2
+DEADLINE=$(( T_START + INTERNAL_TIMEOUT ))
+poll_until "$RID" "$DEADLINE"
+RC=$?
+ELAPSED=$(( $(date +%s) - T_START ))
+if [ "$RC" = "0" ]; then exit 0; fi
+if [ "$RC" = "124" ]; then echo "PENDING request_id=$RID elapsed=${ELAPSED}s"; exit 0; fi
+exit 1

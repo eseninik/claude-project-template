@@ -1,0 +1,127 @@
+#!/bin/bash
+# image-gen.sh - one-shot agent helper.
+#
+# Generates or edits an image via the local codex-image-bridge with built-in
+# fast path (HTTP response) AND slow path (mailbox poll on broken pipe). The
+# agent calls this ONCE, gets back a file path, no state tracking required.
+#
+# Usage:
+#   image-gen.sh --prompt "<text>" --output <path.png> [--input <path>]... [--size 1024x1024] [--n 1]
+#
+# Exits 0 with single-line "OK <output_path>" on success.
+# Exits 1 with diagnostic on failure.
+
+set -u
+BRIDGE_URL="${BRIDGE_URL:-http://127.0.0.1:18799}"
+HTTP_TIMEOUT="${HTTP_TIMEOUT:-600}"
+POLL_TIMEOUT="${POLL_TIMEOUT:-300}"
+HELPER_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROMPT=""
+OUTPUT=""
+SIZE="1024x1024"
+N=1
+INPUTS=()
+
+usage() {
+  cat <<EOF >&2
+Usage: $0 --prompt "<text>" --output <path.png> [--input <path>]... [--size WxH] [--n N]
+
+Examples:
+  $0 --prompt "blue circle on white" --output /tmp/circle.png
+  $0 --prompt "add glasses" --input /path/face.jpg --output /tmp/with-glasses.png
+  $0 --prompt "merge two faces" --input /a.jpg --input /b.jpg --output /tmp/couple.png
+EOF
+  exit 2
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --prompt)  PROMPT="$2"; shift 2 ;;
+    --output)  OUTPUT="$2"; shift 2 ;;
+    --input)   INPUTS+=("$2"); shift 2 ;;
+    --size)    SIZE="$2"; shift 2 ;;
+    --n)       N="$2"; shift 2 ;;
+    -h|--help) usage ;;
+    *) echo "unknown arg: $1" >&2; usage ;;
+  esac
+done
+
+[ -z "$PROMPT" ] && { echo "missing --prompt" >&2; usage; }
+[ -z "$OUTPUT" ] && { echo "missing --output" >&2; usage; }
+
+ENDPOINT="generations"
+if [ "${#INPUTS[@]}" -gt 0 ]; then
+  ENDPOINT="edits"
+fi
+
+PAYLOAD_FILE=$(mktemp /tmp/image-gen-payload.XXXXXX.json)
+RESP_FILE=$(mktemp /tmp/image-gen-resp.XXXXXX.json)
+HEADERS_FILE=$(mktemp /tmp/image-gen-hdr.XXXXXX.txt)
+trap 'rm -f "$PAYLOAD_FILE" "$RESP_FILE" "$HEADERS_FILE"' EXIT
+
+python3 "$HELPER_DIR/build-payload.py" "$PAYLOAD_FILE" "$PROMPT" "$SIZE" "$N" "${INPUTS[@]}" || {
+  echo "FAIL payload build error" >&2
+  exit 1
+}
+
+URL="$BRIDGE_URL/v1/images/$ENDPOINT"
+T_START=$(date +%s)
+
+HTTP_CODE=$(curl -sS -X POST "$URL" \
+  -H "Content-Type: application/json" \
+  --data @"$PAYLOAD_FILE" \
+  -o "$RESP_FILE" -D "$HEADERS_FILE" \
+  --max-time "$HTTP_TIMEOUT" \
+  -w "%{http_code}" 2>/dev/null) || HTTP_CODE="000"
+
+REQUEST_ID=$(grep -i '^X-Bridge-Request-Id:' "$HEADERS_FILE" 2>/dev/null | awk '{print $2}' | tr -d '\r\n' | head -1)
+echo "HTTP=$HTTP_CODE request_id=$REQUEST_ID elapsed=$(( $(date +%s) - T_START ))s" >&2
+
+if [ "$HTTP_CODE" = "200" ]; then
+  if python3 "$HELPER_DIR/extract-fast.py" "$RESP_FILE" "$OUTPUT"; then
+    SIZE_OUT=$(stat -c %s "$OUTPUT" 2>/dev/null)
+    echo "OK $OUTPUT (size=$SIZE_OUT, path=fast, elapsed=$(( $(date +%s) - T_START ))s, request_id=$REQUEST_ID)"
+    exit 0
+  fi
+fi
+
+echo "fast path failed (HTTP=$HTTP_CODE), entering polling..." >&2
+
+if [ -n "$REQUEST_ID" ]; then
+  DEADLINE=$(( $(date +%s) + POLL_TIMEOUT ))
+  while [ "$(date +%s)" -lt "$DEADLINE" ]; do
+    JOB_RESP=$(curl -sS "$BRIDGE_URL/v1/bridge/jobs/$REQUEST_ID" --max-time 30 2>/dev/null)
+    STATUS=$(printf '%s' "$JOB_RESP" | python3 "$HELPER_DIR/parse-status.py" 2>/dev/null)
+    if [ "$STATUS" = "ready" ]; then
+      if printf '%s' "$JOB_RESP" | python3 "$HELPER_DIR/extract-job.py" "$OUTPUT"; then
+        SIZE_OUT=$(stat -c %s "$OUTPUT" 2>/dev/null)
+        echo "OK $OUTPUT (size=$SIZE_OUT, path=slow-job, elapsed=$(( $(date +%s) - T_START ))s, request_id=$REQUEST_ID)"
+        exit 0
+      fi
+    elif [ "$STATUS" = "error" ]; then
+      ERR=$(printf '%s' "$JOB_RESP" | python3 "$HELPER_DIR/parse-error.py" 2>/dev/null)
+      echo "FAIL bridge reported error: $ERR" >&2
+      exit 1
+    fi
+    sleep 3
+  done
+  echo "FAIL polling timed out after ${POLL_TIMEOUT}s waiting for request_id=$REQUEST_ID" >&2
+  exit 1
+fi
+
+echo "no request_id, falling back to global mailbox poll..." >&2
+DEADLINE=$(( $(date +%s) + POLL_TIMEOUT ))
+while [ "$(date +%s)" -lt "$DEADLINE" ]; do
+  if [ -f /tmp/codex-image-mailbox/last.json ]; then
+    TS=$(python3 "$HELPER_DIR/parse-mailbox-ts.py" 2>/dev/null || echo 0)
+    if [ "$TS" -gt "$T_START" ]; then
+      cp -f /tmp/codex-image-mailbox/last.png "$OUTPUT"
+      SIZE_OUT=$(stat -c %s "$OUTPUT" 2>/dev/null)
+      echo "OK $OUTPUT (size=$SIZE_OUT, path=slow-mailbox, elapsed=$(( $(date +%s) - T_START ))s)"
+      exit 0
+    fi
+  fi
+  sleep 3
+done
+echo "FAIL global mailbox never updated within ${POLL_TIMEOUT}s" >&2
+exit 1
